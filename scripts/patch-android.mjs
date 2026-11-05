@@ -17,6 +17,7 @@ await mkdir(javaRoot, { recursive: true });
 const pluginPath = javaRoot + "/ZekifyDisplayPlugin.java";
 const pluginSource = `package ${packageName};
 
+import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import androidx.core.view.WindowCompat;
