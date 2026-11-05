@@ -16,6 +16,8 @@ function TeamBadge({team,size="normal"}:{team?:Team,size?:"normal"|"large"}) {
 export default function App() {
  const [matches,setMatches]=useState<Match[]>([]);
  const [tab,setTab]=useState<"live"|"upcoming">("live");
+ const [leagueFilter,setLeagueFilter]=useState("All");
+ const [searchQuery,setSearchQuery]=useState("");
  const [loading,setLoading]=useState(true),[error,setError]=useState("");
  const [selected,setSelected]=useState<Match|null>(null),[detail,setDetail]=useState<Match|null>(null);
  const [sourceIndex,setSourceIndex]=useState(0),[streamError,setStreamError]=useState("");
@@ -35,7 +37,17 @@ export default function App() {
   finally{setLoading(false);}
  }
  useEffect(()=>{void load();},[]);
- const visible=useMemo(()=>matches.filter(m=>m.status===tab).sort((a,b)=>(a.date??0)-(b.date??0)),[matches,tab]);
+ const leagues=useMemo(()=>["All",...Array.from(new Set(matches.map(m=>(m.league||"Other competitions").trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b))],[matches]);
+ const visible=useMemo(()=>{
+  const query=searchQuery.trim().toLocaleLowerCase();
+  return matches.filter(m=>{
+   if(m.status!==tab)return false;
+   const league=(m.league||"Other competitions").trim();
+   if(leagueFilter!=="All"&&league!==leagueFilter)return false;
+   if(query){const haystack=[m.title,m.league,m.teams?.home?.name,m.teams?.away?.name].filter(Boolean).join(" ").toLocaleLowerCase();if(!haystack.includes(query))return false;}
+   return true;
+  }).sort((a,b)=>(a.date??0)-(b.date??0));
+ },[matches,tab,leagueFilter,searchQuery]);
  async function openMatch(match:Match){
   setSelected(match);setDetail(null);setSourceIndex(0);setStreamError("");setRetry(0);setFillMode(false);
   // Android Capacitor native orientation lock works on user tap; web browsers may reject it.
@@ -97,7 +109,9 @@ export default function App() {
    <section className="hero"><div className="hero-copy"><span className="eyebrow">YOUR MATCHDAY STARTS HERE</span><h1>Football.<br/><em>Without limits.</em></h1><p>Live action and upcoming fixtures, all in one place.</p><div className="timezone">Times shown in your device timezone · {timezone}</div></div><div className="hero-ball"><Ball/></div></section>
    <section className="matches-section"><div className="section-head"><div><span className="eyebrow">THE ACTION</span><h2>Matches</h2></div><button className="refresh" onClick={()=>void load()}>↻ Refresh</button></div>
     <div className="tabs"><button className={tab==="live"?"active":""} onClick={()=>setTab("live")}>● Live</button><button className={tab==="upcoming"?"active":""} onClick={()=>setTab("upcoming")}>Upcoming</button></div>
-    {loading?<div className="state">Loading football…</div>:error?<div className="state error">{error}<button onClick={()=>void load()}>Try again</button></div>:visible.length===0?<div className="state">No {tab} matches found right now.</div>:<div className="match-list">{visible.map(m=><button className="match-card" key={m.id} onClick={()=>void openMatch(m)}>
+    <label className="match-search"><span>⌕</span><input type="search" value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="Search teams, matches or leagues" aria-label="Search matches"/></label>
+    <div className="league-tabs" aria-label="Filter matches by league">{leagues.map(league=><button key={league} className={leagueFilter===league?"active":""} onClick={()=>setLeagueFilter(league)}>{league}</button>)}</div>
+    {loading?<div className="state">Loading football…</div>:error?<div className="state error">{error}<button onClick={()=>void load()}>Try again</button></div>:visible.length===0?<div className="state">No {tab} matches match your filters right now.</div>:<div className="match-list">{visible.map(m=><button className="match-card" key={m.id} onClick={()=>void openMatch(m)}>
      <div className="match-meta"><span>{m.league||"Football"}</span>{m.status==="live"?<b className="live-label">LIVE</b>:<time>{localTime(m.date)}</time>}</div>
      <div className="teams"><div className="team"><TeamBadge team={m.teams?.home}/><strong>{m.teams?.home?.name??m.title??"Home"}</strong></div><span className="versus">VS</span><div className="team away"><TeamBadge team={m.teams?.away}/><strong>{m.teams?.away?.name??"Away"}</strong></div></div>
      <div className="card-footer"><span>{m.status==="live"?"Watch live":"Match details"}</span><span>↗</span></div>
