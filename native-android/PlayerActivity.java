@@ -252,24 +252,26 @@ public class PlayerActivity extends Activity {
         scheduleControlsHide();
     }
 
-    private Button iconButton(String name) {
-        Button b = new Button(this); b.setText(""); b.setBackgroundColor(Color.TRANSPARENT); b.setMinWidth(dp(38)); b.setMinHeight(dp(40)); b.setPadding(0,0,0,0);
-        b.setCompoundDrawables(null,null,null,null); b.addView; 
-        FrameLayout holder = new FrameLayout(this); holder.setBackgroundColor(Color.TRANSPARENT);
-        IconGlyph glyph = new IconGlyph(this,name); holder.addView(glyph,new FrameLayout.LayoutParams(-1,-1));
-        b.setOnClickListener(v -> { if ("back".equals(name)) finish(); else retrySource(); });
-        return b;
+    private View iconButton(String name) {
+        FrameLayout holder = new FrameLayout(this);
+        holder.setBackgroundColor(Color.TRANSPARENT);
+        holder.setMinimumWidth(dp(38));
+        holder.setMinimumHeight(dp(40));
+        IconGlyph glyph = new IconGlyph(this,name);
+        holder.addView(glyph,new FrameLayout.LayoutParams(-1,-1));
+        holder.setOnClickListener(v -> { if ("back".equals(name)) finish(); else retrySource(); });
+        return holder;
     }
 
     private class GestureSurface implements View.OnTouchListener {
-        private final boolean direct; private float downX,downY,lastX,lastY; private long downTime,lastTap; private int tapCount; private boolean moved;
+        private final boolean direct; private float downX,downY,lastX,lastY; private long downTime,lastTap,startPosition; private boolean moved;
         GestureSurface(boolean direct){this.direct=direct;}
         @Override public boolean onTouch(View view, MotionEvent e) {
             float x=e.getX(), y=e.getY();
-            if(e.getAction()==MotionEvent.ACTION_DOWN){downX=x;downY=y;lastX=x;lastY=y;downTime=System.currentTimeMillis();moved=false;return true;}
+            if(e.getAction()==MotionEvent.ACTION_DOWN){downX=x;downY=y;lastX=x;lastY=y;downTime=System.currentTimeMillis();startPosition=player==null?0:player.getCurrentPosition();moved=false;return true;}
             if(e.getAction()==MotionEvent.ACTION_MOVE){
                 float dx=x-downX,dy=y-downY;if(Math.abs(dx)>dp(18)||Math.abs(dy)>dp(18))moved=true;
-                if(moved&&Math.abs(dx)>Math.abs(dy)){ if(player!=null&&player.isCurrentMediaItemSeekable()){long target=Math.max(0,player.getCurrentPosition()+(long)(dx*180));player.seekTo(target);} }
+                if(moved&&Math.abs(dx)>Math.abs(dy)){ if(player!=null&&player.isCurrentMediaItemSeekable()){long target=Math.max(0,startPosition+(long)(dx*180));player.seekTo(target);} }
                 else if(moved&&Math.abs(dy)>Math.abs(dx)){float delta=(lastY-y)/Math.max(1,view.getHeight());if(downX<view.getWidth()/2f){WindowManager.LayoutParams lp=getWindow().getAttributes();float b=lp.screenBrightness<0?0.5f:lp.screenBrightness;lp.screenBrightness=Math.max(0.02f,Math.min(1f,b+delta));getWindow().setAttributes(lp);}else{android.media.AudioManager am=(android.media.AudioManager)getSystemService(AUDIO_SERVICE);int max=am.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC);int cur=am.getStreamVolume(android.media.AudioManager.STREAM_MUSIC);am.setStreamVolume(android.media.AudioManager.STREAM_MUSIC,Math.max(0,Math.min(max,cur+(int)(delta*max))),0);} }
                 lastX=x;lastY=y;return true;
             }
