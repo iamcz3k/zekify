@@ -7,6 +7,8 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
+import android.net.ConnectivityManager;
+import android.net.Network;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -42,6 +44,17 @@ public class PlayerActivity extends Activity {
     private String activeUrl = "";
     private int retryCount = 0;
     private final Handler recoveryHandler = new Handler(Looper.getMainLooper());
+    private final Handler webLoadHandler = new Handler(Looper.getMainLooper());
+    private ConnectivityManager connectivityManager;
+    private ConnectivityManager.NetworkCallback networkCallback;
+    private boolean webLoadFailed = false;
+    private final Runnable webLoadWatchdog = () -> {
+        if (webView != null && webView.getVisibility() == View.VISIBLE && !isFinishing()) {
+            webLoadFailed = true;
+            status.setText("Stream source timed out. Tap Retry or choose another source.");
+            status.setVisibility(View.VISIBLE);
+        }
+    };
     private PlayerView playerView;
     private WebView webView;
     private FrameLayout root;
@@ -84,6 +97,7 @@ public class PlayerActivity extends Activity {
         matchTitle = getIntent().getStringExtra("match");
         if (matchTitle == null) matchTitle = "";
         build();
+        registerNetworkRecovery();
         if (sources.length() > 0) playSource();
         else showError("No stream sources are available.");
     }
@@ -193,12 +207,17 @@ public class PlayerActivity extends Activity {
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
+                webLoadFailed = false;
+                webLoadHandler.removeCallbacks(webLoadWatchdog);
+                webLoadHandler.postDelayed(webLoadWatchdog, 25000L);
                 status.setText("Connecting to stream source…");
                 status.setVisibility(View.VISIBLE);
             }
 
             @Override
             public void onPageFinished(WebView view, String url) {
+                webLoadHandler.removeCallbacks(webLoadWatchdog);
+                webLoadFailed = false;
                 status.setText("Tap the provider's play button to start");
                 status.setVisibility(View.VISIBLE);
                 applyWebVideoSizing();
@@ -207,15 +226,21 @@ public class PlayerActivity extends Activity {
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
                 if (request.isForMainFrame()) {
-                    status.setText("This source could not be reached. Choose another source or retry.");
+                    webLoadHandler.removeCallbacks(webLoadWatchdog);
+                    webLoadFailed = true;
+                    status.setText("This source could not be reached. Tap Retry or choose another source.");
                     status.setVisibility(View.VISIBLE);
                 }
             }
 
             @Override
             public void onReceivedHttpError(WebView view, WebResourceRequest request, android.webkit.WebResourceResponse response) {
-                if (request.isForMainFrame() && response.getStatusCode() >= 400) {
-                    status.setText("Source server returned " + response.getStatusCode() + ". Choose another source.");
+                if (response.getStatusCode() >= 400) {
+                    String failedUrl = request.getUrl() == null ? "" : request.getUrl().toString().toLowerCase(Locale.ROOT);
+                    boolean mediaRequest = failedUrl.matches("(?s).*\\.(m3u8|mpd|ts|m4s|mp4|aac|mp3)(?:[?#].*)?$");
+                    if (request.isForMainFrame() || mediaRequest) {
+                        webLoadFailed = true;
+                        status.setText("Stream request failed (" + response.getStatusCode() + "). Tap Retry or choose another source.");
                     status.setVisibility(View.VISIBLE);
                 }
             }
@@ -468,6 +493,22 @@ public class PlayerActivity extends Activity {
         }
     }
 
+    private void registerNetworkRecovery() {
+        connectivityManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        if (connectivityManager == null) return;
+        networkCallback = new ConnectivityManager.NetworkCallback() {
+            @Override public void onAvailable(Network network) {
+                recoveryHandler.postDelayed(() -> {
+                    if (isFinishing() || activeUrl.isEmpty()) return;
+                    if ((webView != null && webView.getVisibility() == View.VISIBLE && webLoadFailed)
+                        || (player != null && player.getPlaybackState() == Player.STATE_IDLE)) retrySource();
+                }, 1000L);
+            }
+        };
+        try { connectivityManager.registerDefaultNetworkCallback(networkCallback); }
+        catch (RuntimeException ignored) { networkCallback = null; }
+    }
+
     private void stopPlayback() {
         recoveryHandler.removeCallbacksAndMessages(null);
         if (player != null) {
@@ -622,6 +663,8 @@ public class PlayerActivity extends Activity {
         playerView.setVisibility(View.GONE);
         webView.setVisibility(View.VISIBLE);
         webView.onResume();
+        webLoadHandler.removeCallbacks(webLoadWatchdog);
+        webLoadFailed = false;
         webView.stopLoading();
         webView.loadUrl(url);
     }
@@ -651,6 +694,8 @@ public class PlayerActivity extends Activity {
 
         DefaultHttpDataSource.Factory http = new DefaultHttpDataSource.Factory()
             .setUserAgent(userAgent)
+            .setConnectTimeoutMs(10000)
+            .setReadTimeoutMs(15000)
             .setAllowCrossProtocolRedirects(true)
             .setDefaultRequestProperties(headers);
         DefaultDataSource.Factory data = new DefaultDataSource.Factory(this, http);
@@ -710,6 +755,7 @@ public class PlayerActivity extends Activity {
         retryCount = 0;
         recoveryHandler.removeCallbacksAndMessages(null);
         if (webView != null && webView.getVisibility() == View.VISIBLE) {
+            webLoadFailed = false;
             webView.stopLoading();
             webView.loadUrl("about:blank");
             webView.postDelayed(() -> {
@@ -775,6 +821,11 @@ public class PlayerActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        webLoadHandler.removeCallbacksAndMessages(null);
+        if (connectivityManager != null && networkCallback != null) {
+            try { connectivityManager.unregisterNetworkCallback(networkCallback); } catch (RuntimeException ignored) {}
+            networkCallback = null;
+        }
         controlsHandler.removeCallbacks(hideControlsTask);
         recoveryHandler.removeCallbacksAndMessages(null);
         if (customVideoView != null) hideCustomVideoView();
