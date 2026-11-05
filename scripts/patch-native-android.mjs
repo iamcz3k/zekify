@@ -17,7 +17,7 @@ await writeFile(manifestPath,manifest);
 const gradlePath="android/app/build.gradle";
 let gradle=await readFile(gradlePath,"utf8");
 if(!gradle.includes("androidx.media3:media3-exoplayer")) {
- gradle=gradle.replace(/dependencies\s*\{/, 'dependencies {\n    implementation "androidx.media3:media3-exoplayer:1.5.1"\n    implementation "androidx.media3:media3-ui:1.5.1"');
+ gradle=gradle.replace(/dependencies\s*\{/, 'dependencies {\n    implementation "androidx.media3:media3-exoplayer:1.5.1"\n    implementation "androidx.media3:media3-exoplayer-hls:1.5.1"\n    implementation "androidx.media3:media3-ui:1.5.1"');
 }
 await writeFile(gradlePath,gradle);
 console.log("Configured native Android screens, vector-style branding and Media3 playback.");
