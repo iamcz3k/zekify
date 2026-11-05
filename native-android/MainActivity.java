@@ -3,6 +3,8 @@ package com.v3x.zekify;
 import android.app.*;
 import android.content.*;
 import android.net.Uri;
+import android.net.ConnectivityManager;
+import android.net.Network;
 import android.graphics.*;
 import android.graphics.drawable.*;
 import android.os.*;
@@ -26,6 +28,12 @@ import java.util.concurrent.*;
 public class MainActivity extends Activity {
  private static final String API="https://laczekstream.qzz.io";
  private final ExecutorService apiIo=Executors.newFixedThreadPool(2);
+ private final Handler inlineNetworkHandler=new Handler(Looper.getMainLooper());
+ private ConnectivityManager connectivityManager;
+ private ConnectivityManager.NetworkCallback networkCallback;
+ private final java.util.concurrent.atomic.AtomicBoolean matchesLoading=new java.util.concurrent.atomic.AtomicBoolean(false);
+ private int inlineLoadGeneration=0;
+ private int inlineRetryCount=0;
  private final ExecutorService imageIo=Executors.newFixedThreadPool(2);
  private final ExecutorService shareIo=Executors.newSingleThreadExecutor();
  private final LruCache<String,Bitmap> badgeCache=new LruCache<>(64);
@@ -36,7 +44,7 @@ public class MainActivity extends Activity {
  private String tab="live",league="All",query="";
  private JSONObject selected,detail; private LinearLayout sourceList; private WebView matchPreview; private int selectedSourceIndex=0; private JSONArray selectedSources; private FrameLayout inlineFrame; private PlayerView inlinePlayerView; private ExoPlayer inlinePlayer; private WebView inlineWebView; private TextView inlineStatus; private LinearLayout inlineSources; private boolean inlineLoading=false; private Dialog startupDialog;
  private final int ORANGE=Color.rgb(255,138,61),BG=Color.rgb(5,5,5),PANEL=Color.rgb(17,17,17),MUTED=Color.rgb(145,145,145);
- @Override public void onCreate(Bundle b){super.onCreate(b);getWindow().setStatusBarColor(BG);getWindow().setNavigationBarColor(BG);getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR^View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);home();showStartupSplash();load();}
+ @Override public void onCreate(Bundle b){super.onCreate(b);getWindow().setStatusBarColor(BG);getWindow().setNavigationBarColor(BG);getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR^View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);home();showStartupSplash();registerNetworkRecovery();load();}
  private void showStartupSplash(){
   startupDialog=new Dialog(this);startupDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);FrameLayout splash=new FrameLayout(this);splash.setBackgroundColor(Color.BLACK);
   LinearLayout center=col();center.setGravity(Gravity.CENTER);FrameLayout.LayoutParams cp=new FrameLayout.LayoutParams(-1,-2,Gravity.CENTER);splash.addView(center,cp);
@@ -124,7 +132,7 @@ public class MainActivity extends Activity {
   }
   throw last==null?new IOException("Request failed"):last;
  }
- private void load(){apiIo.execute(()->{try{JSONObject p=request("/api/public/football-streams?mode=matches&sport=football");JSONArray a=p.optJSONArray("data");if(!p.optBoolean("success")||a==null)throw new Exception("Unexpected match response");matches.clear();for(int i=0;i<a.length();i++)matches.add(a.getJSONObject(i));runOnUiThread(()->{renderLeagues();render();hideStartupSplash();});}catch(Exception e){runOnUiThread(()->{hideStartupSplash();if(content!=null){content.removeAllViews();TextView err=txt("Unable to load matches. Tap to retry.",14,Color.WHITE,false);pad(err,12,25,12,25);err.setOnClickListener(v->load());content.addView(err);}});}});}
+ private void load(){if(!matchesLoading.compareAndSet(false,true))return;apiIo.execute(()->{try{JSONObject p=request("/api/public/football-streams?mode=matches&sport=football");JSONArray a=p.optJSONArray("data");if(!p.optBoolean("success")||a==null)throw new Exception("Unexpected match response");ArrayList<JSONObject> fresh=new ArrayList<>();for(int i=0;i<a.length();i++)fresh.add(a.getJSONObject(i));runOnUiThread(()->{matchesLoading.set(false);matches.clear();matches.addAll(fresh);renderLeagues();render();hideStartupSplash();});}catch(Exception e){runOnUiThread(()->{matchesLoading.set(false);hideStartupSplash();if(content!=null){content.removeAllViews();TextView err=txt("Unable to load matches. Tap to retry.",14,Color.WHITE,false);pad(err,12,25,12,25);err.setOnClickListener(v->load());content.addView(err);}});}});}
  private String firstNonEmpty(JSONObject source,String... keys){if(source==null)return "";for(String key:keys){String value=source.optString(key,"").trim();if(!value.isEmpty()&&!"null".equalsIgnoreCase(value))return value;}return "";}
  private String team(JSONObject m,String side){JSONObject teams=m.optJSONObject("teams"),t=teams==null?null:teams.optJSONObject(side);return t==null?"Team":t.optString("name","Team");}
  private String leagueName(JSONObject m){String s=m.optString("league","");return s.trim().isEmpty()?"Other competitions":s.trim();}
@@ -203,7 +211,7 @@ public class MainActivity extends Activity {
   TextView title=txt(team(selected,"home")+" vs "+team(selected,"away"),15,Color.WHITE,true);LinearLayout.LayoutParams tp=new LinearLayout.LayoutParams(-1,-2);tp.topMargin=dp(4);card.addView(title,tp);
   inlineFrame=new FrameLayout(this);inlineFrame.setBackgroundColor(Color.BLACK);LinearLayout.LayoutParams fp=new LinearLayout.LayoutParams(-1,dp(205));fp.topMargin=dp(10);card.addView(inlineFrame,fp);
   if(inlinePlayerView==null){inlinePlayerView=new PlayerView(this);inlinePlayerView.setUseController(false);inlinePlayerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT);}
-  if(inlineWebView==null){inlineWebView=new WebView(this);inlineWebView.setBackgroundColor(Color.BLACK);inlineWebView.getSettings().setJavaScriptEnabled(true);inlineWebView.getSettings().setDomStorageEnabled(true);inlineWebView.getSettings().setMediaPlaybackRequiresUserGesture(false);inlineWebView.setLongClickable(false);inlineWebView.setOnLongClickListener(v->true);}
+  if(inlineWebView==null){inlineWebView=new WebView(this);inlineWebView.setBackgroundColor(Color.BLACK);inlineWebView.getSettings().setJavaScriptEnabled(true);inlineWebView.getSettings().setDomStorageEnabled(true);inlineWebView.getSettings().setMediaPlaybackRequiresUserGesture(false);inlineWebView.setWebViewClient(new WebViewClient(){public void onPageStarted(WebView view,String url,Bitmap favicon){final int generation=++inlineLoadGeneration;if(inlineStatus!=null)inlineStatus.setText("Connecting to stream source…");inlineNetworkHandler.postDelayed(()->{if(generation==inlineLoadGeneration&&inlineStatus!=null&&inlineStatus.getText().toString().startsWith("Connecting"))inlineStatus.setText("Source timed out. Tap Retry or choose another source.");},25000L);}public void onPageFinished(WebView view,String url){inlineLoadGeneration++;inlineRetryCount=0;if(inlineStatus!=null)inlineStatus.setText("Stream source loaded");}public void onReceivedError(WebView view,WebResourceRequest request,WebResourceError error){if(request.isForMainFrame()){inlineLoadGeneration++;if(inlineStatus!=null)inlineStatus.setText("Source failed to load. Tap Retry or choose another source.");}}public void onRenderProcessGone(WebView view,android.webkit.RenderProcessGoneDetail detail){inlineLoadGeneration++;if(inlineStatus!=null)inlineStatus.setText("Stream player stopped. Return and reopen this source.");}});inlineWebView.setLongClickable(false);inlineWebView.setOnLongClickListener(v->true);}
   if(inlinePlayerView.getParent()!=null)((android.view.ViewGroup)inlinePlayerView.getParent()).removeView(inlinePlayerView);
   if(inlineWebView.getParent()!=null)((android.view.ViewGroup)inlineWebView.getParent()).removeView(inlineWebView);
   if(inlinePlayer!=null){inlinePlayerView.setPlayer(inlinePlayer);inlineFrame.addView(inlinePlayerView,new FrameLayout.LayoutParams(-1,-1));}
@@ -228,7 +236,7 @@ public class MainActivity extends Activity {
    inlinePlayerView.setVisibility(View.VISIBLE);if(inlinePlayerView.getParent()!=null)((android.view.ViewGroup)inlinePlayerView.getParent()).removeView(inlinePlayerView);inlineFrame.removeAllViews();inlineFrame.addView(inlinePlayerView,new FrameLayout.LayoutParams(-1,-1));
    Map<String,String> headers=new HashMap<>();JSONObject raw=s.optJSONObject("headers");if(raw!=null){Iterator<String> it=raw.keys();while(it.hasNext()){String k=it.next();headers.put(k,raw.optString(k));}}String ref=firstNonEmpty(s,"referer","referrer");if(!ref.isEmpty())headers.put("Referer",ref);
    DefaultHttpDataSource.Factory http=new DefaultHttpDataSource.Factory().setUserAgent(firstNonEmpty(s,"userAgent").isEmpty()?"Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36":firstNonEmpty(s,"userAgent")).setAllowCrossProtocolRedirects(true).setDefaultRequestProperties(headers);DefaultDataSource.Factory data=new DefaultDataSource.Factory(this,http);
-   inlinePlayer=new ExoPlayer.Builder(this).build();inlinePlayerView.setPlayer(inlinePlayer);inlinePlayer.addListener(new Player.Listener(){public void onPlaybackStateChanged(int state){if(inlineStatus!=null)inlineStatus.setText(state==Player.STATE_BUFFERING?"Buffering…":state==Player.STATE_READY?"Playing · "+s.optString("source","Stream"):"");}public void onPlayerError(PlaybackException e){if(inlineStatus!=null)inlineStatus.setText("Stream failed. Choose another source.");}});
+   inlineRetryCount=0;inlinePlayer=new ExoPlayer.Builder(this).build();inlinePlayerView.setPlayer(inlinePlayer);inlinePlayer.addListener(new Player.Listener(){public void onPlaybackStateChanged(int state){if(inlineStatus!=null)inlineStatus.setText(state==Player.STATE_BUFFERING?"Buffering…":state==Player.STATE_READY?"Playing · "+s.optString("source","Stream"):"");}public void onPlayerError(PlaybackException e){if(inlineRetryCount<2){final int attempt=++inlineRetryCount;if(inlineStatus!=null)inlineStatus.setText("Stream connection lost. Retrying…");inlineNetworkHandler.postDelayed(()->{if(inlinePlayer!=null&&inlineFrame!=null){inlinePlayer.prepare();inlinePlayer.play();}},attempt*1500L);}else if(inlineStatus!=null)inlineStatus.setText("Stream failed. Tap Retry or choose another source.");}});
    MediaItem item=new MediaItem.Builder().setUri(Uri.parse(url)).setMimeType(url.toLowerCase(Locale.ROOT).contains(".m3u8")?MimeTypes.APPLICATION_M3U8:null).build();
    if(url.toLowerCase(Locale.ROOT).contains(".m3u8"))inlinePlayer.setMediaSource(new HlsMediaSource.Factory(data).createMediaSource(item));else inlinePlayer.setMediaSource(new androidx.media3.exoplayer.source.ProgressiveMediaSource.Factory(data).createMediaSource(item));inlinePlayer.prepare();inlinePlayer.play();
   }else{
@@ -236,7 +244,7 @@ public class MainActivity extends Activity {
   }
   if(inlineSources!=null){inlineSources.removeAllViews();for(int i=0;i<Math.min(4,selectedSources.length());i++){JSONObject src=selectedSources.optJSONObject(i);if(src==null)continue;final int ix=i;Button chip=btn(src.optString("source","Source "+(i+1)),i==selectedSourceIndex);LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-2,dp(38));cp.rightMargin=dp(7);inlineSources.addView(chip,cp);chip.setOnClickListener(v->{selectedSourceIndex=ix;startInlineSource(ix);});}}
  }
- private void stopInlinePlayback(){if(inlinePlayer!=null){inlinePlayer.release();inlinePlayer=null;}if(inlinePlayerView!=null)inlinePlayerView.setPlayer(null);if(inlineWebView!=null){inlineWebView.stopLoading();inlineWebView.loadUrl("about:blank");}inlineFrame=null;inlineSources=null;inlineStatus=null;}
+ private void stopInlinePlayback(){inlineLoadGeneration++;inlineNetworkHandler.removeCallbacksAndMessages(null);if(inlinePlayer!=null){inlinePlayer.release();inlinePlayer=null;}if(inlinePlayerView!=null)inlinePlayerView.setPlayer(null);if(inlineWebView!=null){inlineWebView.stopLoading();inlineWebView.loadUrl("about:blank");}inlineFrame=null;inlineSources=null;inlineStatus=null;}
  private void launchFullscreen(){if(selectedSources==null||selectedSources.length()==0)return;if(inlinePlayer!=null)inlinePlayer.pause();if(inlineWebView!=null)inlineWebView.onPause();Intent i=new Intent(this,PlayerActivity.class);i.putExtra("sources",selectedSources.toString());i.putExtra("sourceIndex",selectedSourceIndex);i.putExtra("match",team(selected,"home")+" vs "+team(selected,"away"));startActivity(i);}
  private void renderSourceChoices(JSONArray sources){
   if(sourceList==null)return;sourceList.removeAllViews();if(sources==null||sources.length()==0)return;
@@ -247,11 +255,12 @@ public class MainActivity extends Activity {
    if(active)item.addView(txt("SELECTED",9,ORANGE,true));item.setOnClickListener(v->{selectedSourceIndex=index;renderSourceChoices(sources);if(matchPreview!=null){String previewUrl=firstNonEmpty(s,"streamUrl","mediaUrl","url","embedUrl");if(previewUrl.startsWith("/"))previewUrl=API+previewUrl;if(!previewUrl.isEmpty())matchPreview.loadUrl(previewUrl);}});
   }
  }
+ private void registerNetworkRecovery(){connectivityManager=(ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);if(connectivityManager==null)return;networkCallback=new ConnectivityManager.NetworkCallback(){@Override public void onAvailable(Network network){inlineNetworkHandler.postDelayed(()->{if(isFinishing())return;if(matches.isEmpty())load();else if(selectedSources!=null&&inlineStatus!=null){String state=inlineStatus.getText().toString().toLowerCase(Locale.ROOT);if(state.contains("failed")||state.contains("timed out")||state.contains("stopped"))startInlineSource(selectedSourceIndex);}},1000L);}};try{connectivityManager.registerDefaultNetworkCallback(networkCallback);}catch(RuntimeException ignored){networkCallback=null;}}
  private void homeAndRender(){stopInlinePlayback();selected=null;selectedSources=null;home();renderLeagues();render();}
  @Override public void onBackPressed(){homeAndRender();}
  @Override protected void onResume(){super.onResume();if(inlinePlayer!=null)inlinePlayer.play();if(inlineWebView!=null)inlineWebView.onResume();}
  @Override protected void onPause(){if(inlinePlayer!=null)inlinePlayer.pause();if(inlineWebView!=null)inlineWebView.onPause();super.onPause();}
- @Override protected void onDestroy(){stopInlinePlayback();apiIo.shutdownNow();imageIo.shutdownNow();shareIo.shutdownNow();super.onDestroy();}
+ @Override protected void onDestroy(){stopInlinePlayback();inlineNetworkHandler.removeCallbacksAndMessages(null);if(connectivityManager!=null&&networkCallback!=null){try{connectivityManager.unregisterNetworkCallback(networkCallback);}catch(RuntimeException ignored){}networkCallback=null;}apiIo.shutdownNow();imageIo.shutdownNow();shareIo.shutdownNow();super.onDestroy();}
 
  private static class NativeIcon extends View {
   private final String name; private final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG);
