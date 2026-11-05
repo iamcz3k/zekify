@@ -174,7 +174,8 @@ public class MainActivity extends Activity {
     case "play":paint.setStyle(Paint.Style.FILL);p.moveTo(7,4);p.lineTo(20,12);p.lineTo(7,20);p.close();canvas.drawPath(p,paint);break;
     case "calendar":canvas.drawRoundRect(3,5,21,21,2,2,paint);p.moveTo(7,3);p.lineTo(7,8);p.moveTo(17,3);p.lineTo(17,8);p.moveTo(3,10);p.lineTo(21,10);canvas.drawPath(p,paint);break;
     case "filter":p.moveTo(3,5);p.lineTo(21,5);p.lineTo(14,13);p.lineTo(14,20);p.lineTo(10,18);p.lineTo(10,13);p.close();canvas.drawPath(p,paint);break;
-    case "close":p.moveTo(6,6);p.lineTo(18,18);p.moveTo(18,6);p.lineTo(6,18);canvas.drawPath(p,paint);break;\n    case "share":p.moveTo(7,12);p.lineTo(17,6);p.moveTo(7,12);p.lineTo(17,18);canvas.drawPath(p,paint);canvas.drawCircle(5,12,2.5f,paint);canvas.drawCircle(19,5,2.5f,paint);canvas.drawCircle(19,19,2.5f,paint);break;
+    case "close":p.moveTo(6,6);p.lineTo(18,18);p.moveTo(18,6);p.lineTo(6,18);canvas.drawPath(p,paint);break;
+    case "share":p.moveTo(7,12);p.lineTo(17,6);p.moveTo(7,12);p.lineTo(17,18);canvas.drawPath(p,paint);canvas.drawCircle(5,12,2.5f,paint);canvas.drawCircle(19,5,2.5f,paint);canvas.drawCircle(19,19,2.5f,paint);break;
     case "mail":canvas.drawRoundRect(2,4,22,20,2,2,paint);p.moveTo(3,6);p.lineTo(12,13);p.lineTo(21,6);canvas.drawPath(p,paint);break;
     case "instagram":canvas.drawRoundRect(3,3,21,21,5,5,paint);canvas.drawCircle(12,12,4.2f,paint);paint.setStyle(Paint.Style.FILL);canvas.drawCircle(17.5f,6.5f,1.2f,paint);break;
     case "tiktok":p.moveTo(13,4);p.lineTo(13,16);canvas.drawPath(p,paint);p.moveTo(13,5);p.cubicTo(14,8,16,9,20,9);canvas.drawPath(p,paint);paint.setStyle(Paint.Style.FILL);canvas.drawCircle(9,17,3.3f,paint);break;
