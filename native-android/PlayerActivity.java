@@ -8,6 +8,8 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.*;
 import android.webkit.*;
 import android.widget.*;
@@ -45,11 +47,16 @@ public class PlayerActivity extends Activity {
     private String matchTitle = "";
     private View customVideoView;
     private WebChromeClient.CustomViewCallback customViewCallback;
+    private final Handler controlsHandler = new Handler(Looper.getMainLooper());
+    private boolean controlsVisible = true;
+    private final Runnable hideControlsTask = () -> setControlsVisible(false);
 
     @Override
     public void onCreate(Bundle state) {
         super.onCreate(state);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
+        getWindow().setStatusBarColor(Color.TRANSPARENT);
+        getWindow().setNavigationBarColor(Color.TRANSPARENT);
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
         hideBars();
         try {
@@ -109,8 +116,9 @@ public class PlayerActivity extends Activity {
             new FrameLayout.LayoutParams(-1, -1);
 
         playerView = new PlayerView(this);
-        playerView.setUseController(true);
-        playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_ZOOM);
+        playerView.setUseController(false);
+        playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FILL);
+        playerView.setOnClickListener(v -> toggleControls());
         root.addView(playerView, playerParams);
 
         webView = new WebView(this);
@@ -120,6 +128,7 @@ public class PlayerActivity extends Activity {
         webView.setHorizontalScrollBarEnabled(false);
         webView.setLongClickable(false);
         webView.setOnLongClickListener(v -> true);
+        webView.setOnTouchListener((v, event) -> { if (event.getAction() == MotionEvent.ACTION_UP) toggleControls(); return false; });
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -188,6 +197,7 @@ public class PlayerActivity extends Activity {
                 webView.setVisibility(View.GONE);
                 toolbar.setVisibility(View.GONE);
                 root.addView(view, new FrameLayout.LayoutParams(-1, -1));
+                controlsHandler.removeCallbacks(hideControlsTask);
                 hideBars();
             }
 
@@ -241,7 +251,9 @@ public class PlayerActivity extends Activity {
         FrameLayout.LayoutParams barParams =
             new FrameLayout.LayoutParams(-1, -2, Gravity.TOP);
         root.addView(toolbar, barParams);
+        root.setOnClickListener(v -> toggleControls());
         setContentView(root);
+        scheduleControlsHide();
     }
 
     private JSONObject currentSource() {
@@ -354,13 +366,29 @@ public class PlayerActivity extends Activity {
     private void toggleResizeMode() {
         fillScreen = !fillScreen;
         if (resizeButton != null) resizeButton.setText(fillScreen ? "Fill" : "Fit");
-        if (playerView != null) playerView.setResizeMode(fillScreen ? AspectRatioFrameLayout.RESIZE_MODE_ZOOM : AspectRatioFrameLayout.RESIZE_MODE_FIT);
+        if (playerView != null) playerView.setResizeMode(fillScreen ? AspectRatioFrameLayout.RESIZE_MODE_FILL : AspectRatioFrameLayout.RESIZE_MODE_FIT);
         applyWebVideoSizing();
+        scheduleControlsHide();
+    }
+
+    private void setControlsVisible(boolean visible) {
+        controlsVisible = visible;
+        if (toolbar != null) toolbar.setVisibility(visible ? View.VISIBLE : View.GONE);
+        if (visible) scheduleControlsHide();
+    }
+
+    private void scheduleControlsHide() {
+        controlsHandler.removeCallbacks(hideControlsTask);
+        controlsHandler.postDelayed(hideControlsTask, 5000);
+    }
+
+    private void toggleControls() {
+        setControlsVisible(!controlsVisible);
     }
 
     private void applyWebVideoSizing() {
         if (webView == null) return;
-        String fit = fillScreen ? "cover" : "contain";
+        String fit = fillScreen ? "fill" : "contain";
         String js = "(function(){var s=document.getElementById('zekify-video-sizing');if(!s){s=document.createElement('style');s.id='zekify-video-sizing';document.head.appendChild(s);}s.textContent='html,body{width:100%!important;height:100%!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#000!important;}video{width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;object-fit:" + fit + "!important;}';document.querySelectorAll('video').forEach(function(v){v.style.setProperty('object-fit','" + fit + "','important');v.style.setProperty('width','100vw','important');v.style.setProperty('height','100vh','important');});})();";
         webView.evaluateJavascript(js, null);
     }
@@ -458,6 +486,8 @@ public class PlayerActivity extends Activity {
         }
         webView.setVisibility(View.VISIBLE);
         toolbar.setVisibility(View.VISIBLE);
+        controlsVisible = true;
+        scheduleControlsHide();
         hideBars();
     }
 
@@ -484,6 +514,7 @@ public class PlayerActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        controlsHandler.removeCallbacks(hideControlsTask);
         if (customVideoView != null) hideCustomVideoView();
         stopPlayback();
         if (webView != null) {
