@@ -146,7 +146,7 @@ public class MainActivity extends Activity {
   if(inlineSources!=null){inlineSources.removeAllViews();for(int i=0;i<Math.min(4,selectedSources.length());i++){JSONObject src=selectedSources.optJSONObject(i);if(src==null)continue;final int ix=i;Button chip=btn(src.optString("source","Source "+(i+1)),i==selectedSourceIndex);LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-2,dp(38));cp.rightMargin=dp(7);inlineSources.addView(chip,cp);chip.setOnClickListener(v->{selectedSourceIndex=ix;startInlineSource(ix);});}}
  }
  private void stopInlinePlayback(){if(inlinePlayer!=null){inlinePlayer.release();inlinePlayer=null;}if(inlinePlayerView!=null)inlinePlayerView.setPlayer(null);if(inlineWebView!=null){inlineWebView.stopLoading();inlineWebView.loadUrl("about:blank");}inlineFrame=null;inlineSources=null;inlineStatus=null;}
- private void launchFullscreen(){if(selectedSources==null||selectedSources.length()==0)return;Intent i=new Intent(this,PlayerActivity.class);i.putExtra("sources",selectedSources.toString());i.putExtra("sourceIndex",selectedSourceIndex);i.putExtra("match",team(selected,"home")+" vs "+team(selected,"away"));startActivity(i);}
+ private void launchFullscreen(){if(selectedSources==null||selectedSources.length()==0)return;if(inlinePlayer!=null)inlinePlayer.pause();if(inlineWebView!=null)inlineWebView.onPause();Intent i=new Intent(this,PlayerActivity.class);i.putExtra("sources",selectedSources.toString());i.putExtra("sourceIndex",selectedSourceIndex);i.putExtra("match",team(selected,"home")+" vs "+team(selected,"away"));startActivity(i);}
  private void renderSourceChoices(JSONArray sources){
   if(sourceList==null)return;sourceList.removeAllViews();if(sources==null||sources.length()==0)return;
   TextView heading=txt("CHOOSE A STREAM SOURCE",10,MUTED,true);LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(-1,-2);hp.bottomMargin=dp(8);sourceList.addView(heading,hp);
@@ -158,6 +158,8 @@ public class MainActivity extends Activity {
  }
  private void homeAndRender(){stopInlinePlayback();selected=null;selectedSources=null;home();renderLeagues();render();}
  @Override public void onBackPressed(){homeAndRender();}
+ @Override protected void onResume(){super.onResume();if(inlinePlayer!=null)inlinePlayer.play();if(inlineWebView!=null)inlineWebView.onResume();}
+ @Override protected void onPause(){if(inlinePlayer!=null)inlinePlayer.pause();if(inlineWebView!=null)inlineWebView.onPause();super.onPause();}
  @Override protected void onDestroy(){stopInlinePlayback();io.shutdownNow();super.onDestroy();}
 
  private static class NativeIcon extends View {
