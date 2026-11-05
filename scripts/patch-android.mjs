@@ -93,7 +93,7 @@ const resourceDirs = await readdir(resourceRoot, { withFileTypes: true });
 let launcherIconFound = false;
 for (const entry of resourceDirs.filter(item => item.isDirectory() && item.name.startsWith("mipmap"))) {
   const files = await readdir(resourceRoot + "/" + entry.name);
-  if (files.some(name => /^ic_launcher(_round)?\\.(png|webp|xml)$/.test(name))) launcherIconFound = true;
+  if (files.includes("ic_launcher.png") || files.includes("ic_launcher.webp") || files.includes("ic_launcher.xml")) launcherIconFound = true;
 }
 if (!launcherIconFound) {
   throw new Error("Android launcher/adaptive icon was not generated. Check assets:generate and capacitor-assets.");
