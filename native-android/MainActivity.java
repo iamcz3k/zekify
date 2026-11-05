@@ -6,6 +6,7 @@ import android.net.Uri;
 import android.graphics.*;
 import android.graphics.drawable.*;
 import android.os.*;
+import android.util.LruCache;
 import android.text.*;
 import android.view.*;
 import android.webkit.*;
@@ -24,7 +25,11 @@ import java.util.concurrent.*;
 
 public class MainActivity extends Activity {
  private static final String API="https://laczekstream.qzz.io";
- private final ExecutorService io=Executors.newFixedThreadPool(3);
+ private final ExecutorService apiIo=Executors.newFixedThreadPool(2);
+ private final ExecutorService imageIo=Executors.newFixedThreadPool(2);
+ private final ExecutorService shareIo=Executors.newSingleThreadExecutor();
+ private final LruCache<String,Bitmap> badgeCache=new LruCache<>(64);
+ private final Set<String> badgeRequests=Collections.synchronizedSet(new HashSet<>());
  private final ArrayList<JSONObject> matches=new ArrayList<>();
  private LinearLayout root,content,leagueRow;
  private EditText search;
@@ -83,7 +88,7 @@ public class MainActivity extends Activity {
  }
  
  private void shareInstalledApk(){
-  io.execute(()->{
+  shareIo.execute(()->{
    try{
     File dir=new File(getCacheDir(),"shared");if(!dir.exists()&&!dir.mkdirs())throw new IOException("Cannot create APK share folder");
     File apk=new File(dir,"Zekify.apk");File installed=new File(getApplicationInfo().sourceDir);
@@ -99,8 +104,27 @@ public class MainActivity extends Activity {
   NativeIcon mark=new NativeIcon(this,icon,Color.WHITE);item.addView(mark,new LinearLayout.LayoutParams(dp(25),dp(25)));LinearLayout words=col();LinearLayout.LayoutParams wp=new LinearLayout.LayoutParams(0,-2,1);wp.leftMargin=dp(13);item.addView(words,wp);words.addView(txt(label,13,Color.WHITE,true));TextView val=txt(value,10,MUTED,false);LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,-2);vp.topMargin=dp(3);words.addView(val,vp);NativeIcon arrow=new NativeIcon(this,"next",ORANGE);item.addView(arrow,new LinearLayout.LayoutParams(dp(19),dp(19)));
   item.setOnClickListener(v->{try{Intent i=url.startsWith("mailto:")?new Intent(Intent.ACTION_SENDTO,Uri.parse(url)):new Intent(Intent.ACTION_VIEW,Uri.parse(url));startActivity(i);}catch(Exception ignored){} });return item;
  }
- private JSONObject request(String path)throws Exception{HttpURLConnection c=(HttpURLConnection)new URL(API+path).openConnection();c.setConnectTimeout(12000);c.setReadTimeout(18000);c.setRequestProperty("Accept","application/json");int code=c.getResponseCode();InputStream in=code>=400?c.getErrorStream():c.getInputStream();ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] buf=new byte[8192];int n;while((n=in.read(buf))>0)out.write(buf,0,n);c.disconnect();if(code>=400)throw new Exception("Service error "+code);return new JSONObject(out.toString("UTF-8"));}
- private void load(){io.execute(()->{try{JSONObject p=request("/api/public/football-streams?mode=matches&sport=football");JSONArray a=p.optJSONArray("data");if(!p.optBoolean("success")||a==null)throw new Exception("Unexpected match response");matches.clear();for(int i=0;i<a.length();i++)matches.add(a.getJSONObject(i));runOnUiThread(()->{renderLeagues();render();hideStartupSplash();});}catch(Exception e){runOnUiThread(()->{hideStartupSplash();if(content!=null){content.removeAllViews();TextView err=txt("Unable to load matches. Tap to retry.",14,Color.WHITE,false);pad(err,12,25,12,25);err.setOnClickListener(v->load());content.addView(err);}});}});}
+ private JSONObject request(String path)throws Exception{
+  Exception last=null;
+  for(int attempt=0;attempt<2;attempt++){
+   HttpURLConnection connection=null;
+   try{
+    connection=(HttpURLConnection)new URL(API+path).openConnection();
+    connection.setConnectTimeout(8000);connection.setReadTimeout(12000);connection.setUseCaches(false);
+    connection.setRequestProperty("Accept","application/json");
+    int code=connection.getResponseCode();
+    InputStream stream=code>=400?connection.getErrorStream():connection.getInputStream();
+    ByteArrayOutputStream output=new ByteArrayOutputStream();
+    if(stream!=null){try(InputStream in=stream){byte[] buffer=new byte[8192];int count;while((count=in.read(buffer))!=-1)output.write(buffer,0,count);}}
+    if(code>=500||code==429){last=new IOException("Temporary service error "+code);if(attempt==0){try{Thread.sleep(350);}catch(InterruptedException interrupted){Thread.currentThread().interrupt();throw interrupted;}continue;}throw last;}
+    if(code>=400)throw new IOException("Service error "+code);
+    return new JSONObject(output.toString("UTF-8"));
+   }catch(IOException e){last=e;if(attempt==0&&!(e.getMessage()!=null&&e.getMessage().startsWith("Service error "))){try{Thread.sleep(350);}catch(InterruptedException interrupted){Thread.currentThread().interrupt();throw interrupted;}}else throw e;}
+   finally{if(connection!=null)connection.disconnect();}
+  }
+  throw last==null?new IOException("Request failed"):last;
+ }
+ private void load(){apiIo.execute(()->{try{JSONObject p=request("/api/public/football-streams?mode=matches&sport=football");JSONArray a=p.optJSONArray("data");if(!p.optBoolean("success")||a==null)throw new Exception("Unexpected match response");matches.clear();for(int i=0;i<a.length();i++)matches.add(a.getJSONObject(i));runOnUiThread(()->{renderLeagues();render();hideStartupSplash();});}catch(Exception e){runOnUiThread(()->{hideStartupSplash();if(content!=null){content.removeAllViews();TextView err=txt("Unable to load matches. Tap to retry.",14,Color.WHITE,false);pad(err,12,25,12,25);err.setOnClickListener(v->load());content.addView(err);}});}});}
  private String firstNonEmpty(JSONObject source,String... keys){if(source==null)return "";for(String key:keys){String value=source.optString(key,"").trim();if(!value.isEmpty()&&!"null".equalsIgnoreCase(value))return value;}return "";}
  private String team(JSONObject m,String side){JSONObject teams=m.optJSONObject("teams"),t=teams==null?null:teams.optJSONObject(side);return t==null?"Team":t.optString("name","Team");}
  private String leagueName(JSONObject m){String s=m.optString("league","");return s.trim().isEmpty()?"Other competitions":s.trim();}
@@ -131,14 +155,46 @@ public class MainActivity extends Activity {
   LinearLayout meta=row();meta.addView(txt(leagueName(m).toUpperCase(Locale.ROOT),10,ORANGE,true),new LinearLayout.LayoutParams(0,-2,1));boolean live=m.optString("status").equals("live");TextView timer=txt("",10,live?0xffff7168:ORANGE,true);meta.addView(timer);bindMatchTimer(timer,m.optLong("date",0),live);card.addView(meta);
   LinearLayout teams=row();pad(teams,0,22,0,20);teams.addView(teamBadge(m,"home"));TextView home=txt(team(m,"home"),14,Color.WHITE,true);LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(0,-2,1);hp.leftMargin=dp(9);teams.addView(home,hp);TextView vs=txt("VS",10,ORANGE,true);teams.addView(vs);TextView away=txt(team(m,"away"),14,Color.WHITE,true);away.setGravity(Gravity.RIGHT);LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(0,-2,1);ap.rightMargin=dp(9);teams.addView(away,ap);teams.addView(teamBadge(m,"away"));card.addView(teams);
   View sep=new View(this);sep.setBackgroundColor(0x22ffffff);card.addView(sep,new LinearLayout.LayoutParams(-1,dp(1)));LinearLayout foot=row();pad(foot,0,10,0,0);foot.addView(txt("Match details",11,MUTED,false),new LinearLayout.LayoutParams(0,-2,1));foot.addView(new NativeIcon(this,"next",ORANGE),new LinearLayout.LayoutParams(dp(18),dp(18)));card.addView(foot);card.setOnClickListener(v->selectMatch(m));return card;}
- private View teamBadge(JSONObject m,String side){FrameLayout f=new FrameLayout(this);f.setBackground(shape(0xff252525,50));f.setElevation(dp(1));TextView fallback=txt(team(m,side).substring(0,1).toUpperCase(Locale.ROOT),14,ORANGE,true);fallback.setGravity(Gravity.CENTER);f.addView(fallback,new FrameLayout.LayoutParams(dp(34),dp(34)));JSONObject t=m.optJSONObject("teams");JSONObject tm=t==null?null:t.optJSONObject(side);String url=tm==null?"":tm.optString("badge","");if(!url.isEmpty()){if(url.startsWith("/"))url=API+url;String finalUrl=url;io.execute(()->{try{Bitmap bm=BitmapFactory.decodeStream(new URL(finalUrl).openStream());runOnUiThread(()->{if(bm!=null){f.removeAllViews();ImageView im=new ImageView(this);im.setImageBitmap(bm);im.setScaleType(ImageView.ScaleType.FIT_CENTER);f.addView(im,new FrameLayout.LayoutParams(dp(34),dp(34)));}});}catch(Exception ignored){}});}return f;}
+ private View teamBadge(JSONObject m,String side){
+  FrameLayout frame=new FrameLayout(this);frame.setBackground(shape(0xff252525,50));frame.setElevation(dp(1));
+  TextView fallback=txt(team(m,side).substring(0,1).toUpperCase(Locale.ROOT),14,ORANGE,true);fallback.setGravity(Gravity.CENTER);frame.addView(fallback,new FrameLayout.LayoutParams(dp(34),dp(34)));
+  JSONObject teams=m.optJSONObject("teams"),teamData=teams==null?null:teams.optJSONObject(side);
+  String url=teamData==null?"":teamData.optString("badge","");
+  if(url.isEmpty())return frame;
+  if(url.startsWith("/"))url=API+url;
+  final String badgeUrl=url;frame.setTag(badgeUrl);
+  Bitmap cached;
+  synchronized(badgeCache){cached=badgeCache.get(badgeUrl);}
+  if(cached!=null){showBadge(frame,cached,badgeUrl);return frame;}
+  if(!badgeRequests.add(badgeUrl))return frame;
+  imageIo.execute(()->{
+   Bitmap bitmap=null;HttpURLConnection connection=null;
+   try{
+    connection=(HttpURLConnection)new URL(badgeUrl).openConnection();
+    connection.setConnectTimeout(5000);connection.setReadTimeout(7000);connection.setInstanceFollowRedirects(true);connection.setUseCaches(true);
+    connection.setRequestProperty("User-Agent","Zekify/2.0 Android");
+    int code=connection.getResponseCode();
+    if(code>=200&&code<300){try(InputStream input=connection.getInputStream()){bitmap=BitmapFactory.decodeStream(input);}}
+    if(bitmap!=null)synchronized(badgeCache){badgeCache.put(badgeUrl,bitmap);}
+   }catch(Exception ignored){}
+   finally{if(connection!=null)connection.disconnect();badgeRequests.remove(badgeUrl);}
+   final Bitmap result=bitmap;
+   if(result!=null&&!isFinishing())runOnUiThread(()->showBadge(frame,result,badgeUrl));
+  });
+  return frame;
+ }
+ private void showBadge(FrameLayout frame,Bitmap bitmap,String expectedUrl){
+  if(bitmap==null||frame==null||!expectedUrl.equals(frame.getTag())||!frame.isAttachedToWindow())return;
+  frame.removeAllViews();ImageView image=new ImageView(this);image.setImageBitmap(bitmap);image.setScaleType(ImageView.ScaleType.FIT_CENTER);
+  frame.addView(image,new FrameLayout.LayoutParams(dp(34),dp(34)));
+ }
  private String date(long v){if(v<=0)return "Kickoff TBC";return new java.text.SimpleDateFormat("EEE, d MMM · HH:mm",Locale.getDefault()).format(new Date(v));}
  private String timerText(long kickoff,boolean live){long now=System.currentTimeMillis();long diff=live?Math.max(0,now-kickoff):Math.max(0,kickoff-now);long sec=diff/1000;long days=sec/86400;long hours=(sec%86400)/3600;long mins=(sec%3600)/60;long seconds=sec%60;String value=String.format(Locale.getDefault(),"%02d:%02d:%02d",hours,mins,seconds);return live?"LIVE · "+(days>0?days+"d ":"")+value:"KICKOFF IN · "+(days>0?days+"d ":"")+value;}
  private void bindMatchTimer(TextView view,long kickoff,boolean live){Runnable tick=new Runnable(){public void run(){if(isFinishing()||view.getWindowToken()==null)return;view.setText(timerText(kickoff,live));view.postDelayed(this,1000);}};view.setTag(tick);view.post(tick);}
  private void selectMatch(JSONObject m){
   if(selected!=null&&selected.optString("id").equals(m.optString("id")))return;
   stopInlinePlayback();selected=m;detail=null;selectedSources=null;selectedSourceIndex=0;inlineLoading=true;render();
-  io.execute(()->{try{JSONObject p=request("/api/public/football-streams?mode=detail&sport=football&id="+URLEncoder.encode(m.optString("id"),"UTF-8"));JSONObject d=p.optJSONObject("data");JSONArray src=d==null?null:d.optJSONArray("sources");runOnUiThread(()->{if(selected==null||!selected.optString("id").equals(m.optString("id")))return;detail=d;selectedSources=src;inlineLoading=false;render();if(src!=null&&src.length()>0)startInlineSource(0);});}catch(Exception e){runOnUiThread(()->{inlineLoading=false;if(inlineStatus!=null)inlineStatus.setText("Unable to load streams. Tap retry.");render();});}});
+  apiIo.execute(()->{try{JSONObject p=request("/api/public/football-streams?mode=detail&sport=football&id="+URLEncoder.encode(m.optString("id"),"UTF-8"));JSONObject d=p.optJSONObject("data");JSONArray src=d==null?null:d.optJSONArray("sources");runOnUiThread(()->{if(selected==null||!selected.optString("id").equals(m.optString("id")))return;detail=d;selectedSources=src;inlineLoading=false;render();if(src!=null&&src.length()>0)startInlineSource(0);});}catch(Exception e){runOnUiThread(()->{inlineLoading=false;if(inlineStatus!=null)inlineStatus.setText("Unable to load streams. Tap retry.");render();});}});
  }
  private View buildInlinePlayer(){
   LinearLayout card=col();card.setBackground(shape(0xff111111,18));pad(card,12,12,12,12);
@@ -195,7 +251,7 @@ public class MainActivity extends Activity {
  @Override public void onBackPressed(){homeAndRender();}
  @Override protected void onResume(){super.onResume();if(inlinePlayer!=null)inlinePlayer.play();if(inlineWebView!=null)inlineWebView.onResume();}
  @Override protected void onPause(){if(inlinePlayer!=null)inlinePlayer.pause();if(inlineWebView!=null)inlineWebView.onPause();super.onPause();}
- @Override protected void onDestroy(){stopInlinePlayback();io.shutdownNow();super.onDestroy();}
+ @Override protected void onDestroy(){stopInlinePlayback();apiIo.shutdownNow();imageIo.shutdownNow();shareIo.shutdownNow();super.onDestroy();}
 
  private static class NativeIcon extends View {
   private final String name; private final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG);
