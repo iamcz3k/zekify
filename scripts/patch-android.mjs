@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile, readdir } from "node:fs/promises";
 import { dirname } from "node:path";
 
 const appId = "com.v3x.zekify";
@@ -88,10 +88,18 @@ if (!manifest.includes('android.intent.action.MAIN') || !manifest.includes('andr
 manifest = manifest.replace(/android:exported="false"/, 'android:exported="true"');
 await writeFile(manifestPath, manifest);
 
-const launcherIcon = "android/app/src/main/res/mipmap-hdpi/ic_launcher.png";
-try {
-  await readFile(launcherIcon);
-} catch {
-  throw new Error("Android launcher icon was not generated. Check assets:generate and capacitor-assets.");
+const resourceRoot = "android/app/src/main/res";
+const resourceDirs = await readdir(resourceRoot, { withFileTypes: true });
+let launcherIconFound = false;
+for (const entry of resourceDirs.filter(item => item.isDirectory() && item.name.startsWith("mipmap"))) {
+  const files = await readdir(resourceRoot + "/" + entry.name);
+  if (files.some(name => /^ic_launcher(_round)?\\.(png|webp|xml)$/.test(name))) launcherIconFound = true;
+}
+if (!launcherIconFound) {
+  throw new Error("Android launcher/adaptive icon was not generated. Check assets:generate and capacitor-assets.");
+}
+if (!manifest.includes('android:icon="@mipmap/ic_launcher"')) {
+  manifest = manifest.replace(/<application([^>]*)>/, '<application$1 android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round">');
+  await writeFile(manifestPath, manifest);
 }
 console.log("Patched immersive Android player, registered native bridge, and verified launcher icon.");
