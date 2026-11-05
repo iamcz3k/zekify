@@ -7,8 +7,14 @@ await copyFile("native-android/PlayerActivity.java",root+"/PlayerActivity.java")
 const manifestPath="android/app/src/main/AndroidManifest.xml";
 let manifest=await readFile(manifestPath,"utf8");
 if(!manifest.includes('android:name=".PlayerActivity"')){
-  manifest=manifest.replace("</application>",'    <activity android:name=".PlayerActivity" android:exported="false" android:screenOrientation="sensorLandscape" android:configChanges="orientation|screenSize|keyboardHidden" />\n    </application>');
+ manifest=manifest.replace("</application>",'    <activity android:name=".PlayerActivity" android:exported="false" android:screenOrientation="sensorLandscape" android:configChanges="orientation|screenSize|keyboardHidden" />\n    </application>');
 }
-if(!manifest.includes('android.permission.INTERNET')) manifest=manifest.replace("<manifest",'<manifest');
+if(!manifest.includes("android.permission.INTERNET")) manifest=manifest.replace("<application",'<uses-permission android:name="android.permission.INTERNET" />\n    <application');
 await writeFile(manifestPath,manifest);
-console.log("Configured Zekify with native Android Activities and native player.");
+const gradlePath="android/app/build.gradle";
+let gradle=await readFile(gradlePath,"utf8");
+if(!gradle.includes("androidx.media3:media3-exoplayer")) {
+ gradle=gradle.replace(/dependencies\s*\{/, 'dependencies {\n    implementation "androidx.media3:media3-exoplayer:1.5.1"\n    implementation "androidx.media3:media3-ui:1.5.1"');
+}
+await writeFile(gradlePath,gradle);
+console.log("Configured native Android screens, vector-style branding and Media3 playback.");
