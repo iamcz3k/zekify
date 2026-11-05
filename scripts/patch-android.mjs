@@ -117,6 +117,8 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(ZekifyDisplayPlugin.class);
         super.onCreate(savedInstanceState);
+        getBridge().getWebView().setLongClickable(false);
+        getBridge().getWebView().setOnLongClickListener(v -> true);
     }
 
     @Override
