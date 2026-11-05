@@ -38,28 +38,28 @@ jobs:
       - run: npx cap add android
       - run: npm run assets:generate
       - run: npx cap sync android
-      - name: Configure native immersive player and launcher
-        run: node scripts/patch-android.mjs
+      - name: Configure fully native Android UI and player
+        run: node scripts/patch-native-android.mjs
       - name: Set Android version
         run: |
-          sed -i 's/versionCode 1/versionCode 7/' android/app/build.gradle
-          sed -i 's/versionName "1.0"/versionName "1.5.0"/' android/app/build.gradle
+          sed -i 's/versionCode 1/versionCode 8/' android/app/build.gradle
+          sed -i 's/versionName "1.0"/versionName "2.0.0"/' android/app/build.gradle
           grep -E 'versionCode|versionName' android/app/build.gradle
       - name: Build installable APK
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
-          cp app/build/outputs/apk/debug/app-debug.apk ../Zekify-v1.5.0.apk
+          cp app/build/outputs/apk/debug/app-debug.apk ../Zekify-v2.0.0.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: zekify-v1.5.0-apk
-          path: Zekify-v1.5.0.apk
+          name: zekify-v2.0.0-apk
+          path: Zekify-v2.0.0.apk
           if-no-files-found: error
       - name: Publish APK release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.5.0
-          name: Zekify v1.5.0
+          tag_name: v2.0.0
+          name: Zekify v2.0.0
           generate_release_notes: true
-          files: Zekify-v1.5.0.apk
+          files: Zekify-v2.0.0.apk
