@@ -40,7 +40,7 @@ public class PlayerActivity extends Activity {
     private FrameLayout root;
     private LinearLayout toolbar;
     private TextView status;
-    private boolean fillScreen = true;
+    private boolean fillScreen = false;
     private Button resizeButton;
     private JSONArray sources;
     private int sourceIndex = 0;
@@ -117,8 +117,8 @@ public class PlayerActivity extends Activity {
 
         playerView = new PlayerView(this);
         playerView.setUseController(false);
-        playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FILL);
-        playerView.setOnClickListener(v -> toggleControls());
+        playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT);
+        playerView.setOnTouchListener(new GestureSurface(true));
         root.addView(playerView, playerParams);
 
         webView = new WebView(this);
@@ -128,7 +128,7 @@ public class PlayerActivity extends Activity {
         webView.setHorizontalScrollBarEnabled(false);
         webView.setLongClickable(false);
         webView.setOnLongClickListener(v -> true);
-        webView.setOnTouchListener((v, event) -> { if (event.getAction() == MotionEvent.ACTION_UP) toggleControls(); return false; });
+        webView.setOnTouchListener(new GestureSurface(false));
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -220,7 +220,7 @@ public class PlayerActivity extends Activity {
         toolbar.setPadding(dp(9), dp(5), dp(9), dp(5));
         toolbar.setBackgroundColor(0xaa090909);
 
-        Button back = button("‹ Back");
+        Button back = iconButton("back");
         back.setOnClickListener(v -> finish());
         toolbar.addView(back);
 
@@ -232,7 +232,7 @@ public class PlayerActivity extends Activity {
         status.setText(matchTitle);
         toolbar.addView(status, new LinearLayout.LayoutParams(0, -2, 1));
 
-        Button reload = button("Reload");
+        Button reload = iconButton("refresh");
         reload.setOnClickListener(v -> retrySource());
         toolbar.addView(reload);
 
@@ -242,11 +242,7 @@ public class PlayerActivity extends Activity {
         resizeParams.leftMargin = dp(6);
         toolbar.addView(resizeButton, resizeParams);
 
-        Button source = button("Sources");
-        source.setOnClickListener(v -> chooseSource());
-        LinearLayout.LayoutParams sourceParams = new LinearLayout.LayoutParams(-2, -2);
-        sourceParams.leftMargin = dp(6);
-        toolbar.addView(source, sourceParams);
+        HorizontalScrollView sourceScroll = new HorizontalScrollView(this); sourceScroll.setHorizontalScrollBarEnabled(false); LinearLayout chips = new LinearLayout(this); chips.setGravity(Gravity.CENTER_VERTICAL); for (int i=0;i<sources.length();i++){ final int ix=i; JSONObject s=sources.optJSONObject(i); Button chip=button(s==null?"Source "+(i+1):s.optString("source","Source "+(i+1))); chip.setTextSize(10); chip.setPadding(dp(7),0,dp(7),0); chip.setBackground(panel(i==sourceIndex?0xff49301f:0xdd191919,10)); chip.setOnClickListener(v->{sourceIndex=ix;playSource();}); LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-2,dp(34)); cp.rightMargin=dp(5); chips.addView(chip,cp);} sourceScroll.addView(chips); LinearLayout.LayoutParams sourceParams = new LinearLayout.LayoutParams(0,dp(40),1); sourceParams.leftMargin=dp(5); toolbar.addView(sourceScroll,sourceParams);
 
         FrameLayout.LayoutParams barParams =
             new FrameLayout.LayoutParams(-1, -2, Gravity.TOP);
@@ -254,6 +250,40 @@ public class PlayerActivity extends Activity {
         root.setOnClickListener(v -> toggleControls());
         setContentView(root);
         scheduleControlsHide();
+    }
+
+    private Button iconButton(String name) {
+        Button b = new Button(this); b.setText(""); b.setBackgroundColor(Color.TRANSPARENT); b.setMinWidth(dp(38)); b.setMinHeight(dp(40)); b.setPadding(0,0,0,0);
+        b.setCompoundDrawables(null,null,null,null); b.addView; 
+        FrameLayout holder = new FrameLayout(this); holder.setBackgroundColor(Color.TRANSPARENT);
+        IconGlyph glyph = new IconGlyph(this,name); holder.addView(glyph,new FrameLayout.LayoutParams(-1,-1));
+        b.setOnClickListener(v -> { if ("back".equals(name)) finish(); else retrySource(); });
+        return b;
+    }
+
+    private class GestureSurface implements View.OnTouchListener {
+        private final boolean direct; private float downX,downY,lastX,lastY; private long downTime,lastTap; private int tapCount; private boolean moved;
+        GestureSurface(boolean direct){this.direct=direct;}
+        @Override public boolean onTouch(View view, MotionEvent e) {
+            float x=e.getX(), y=e.getY();
+            if(e.getAction()==MotionEvent.ACTION_DOWN){downX=x;downY=y;lastX=x;lastY=y;downTime=System.currentTimeMillis();moved=false;return true;}
+            if(e.getAction()==MotionEvent.ACTION_MOVE){
+                float dx=x-downX,dy=y-downY;if(Math.abs(dx)>dp(18)||Math.abs(dy)>dp(18))moved=true;
+                if(moved&&Math.abs(dx)>Math.abs(dy)){ if(player!=null&&player.isCurrentMediaItemSeekable()){long target=Math.max(0,player.getCurrentPosition()+(long)(dx*180));player.seekTo(target);} }
+                else if(moved&&Math.abs(dy)>Math.abs(dx)){float delta=(lastY-y)/Math.max(1,view.getHeight());if(downX<view.getWidth()/2f){WindowManager.LayoutParams lp=getWindow().getAttributes();float b=lp.screenBrightness<0?0.5f:lp.screenBrightness;lp.screenBrightness=Math.max(0.02f,Math.min(1f,b+delta));getWindow().setAttributes(lp);}else{android.media.AudioManager am=(android.media.AudioManager)getSystemService(AUDIO_SERVICE);int max=am.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC);int cur=am.getStreamVolume(android.media.AudioManager.STREAM_MUSIC);am.setStreamVolume(android.media.AudioManager.STREAM_MUSIC,Math.max(0,Math.min(max,cur+(int)(delta*max))),0);} }
+                lastX=x;lastY=y;return true;
+            }
+            if(e.getAction()==MotionEvent.ACTION_UP){
+                long now=System.currentTimeMillis();if(!moved){if(now-lastTap<320){if(x<view.getWidth()/2f)seekBy(-10000);else seekBy(10000);lastTap=0;}else{lastTap=now;toggleControls();}}else if(Math.abs(x-downX)>dp(40)&&Math.abs(y-downY)<dp(35)&&player!=null&&!player.isCurrentMediaItemSeekable()){Toast.makeText(PlayerActivity.this,"Seeking is unavailable for this live stream.",Toast.LENGTH_SHORT).show();}
+                return true;
+            }return true;
+        }
+    }
+    private void seekBy(long delta){if(player==null)return;if(!player.isCurrentMediaItemSeekable()){Toast.makeText(this,"This live stream does not support rewind or forward.",Toast.LENGTH_SHORT).show();return;}player.seekTo(Math.max(0,player.getCurrentPosition()+delta));}
+    private static class IconGlyph extends View {
+        private final String kind; private final android.graphics.Paint p=new android.graphics.Paint(3);
+        IconGlyph(Context c,String k){super(c);kind=k;p.setColor(Color.WHITE);p.setStrokeWidth(2.2f);p.setStrokeCap(android.graphics.Paint.Cap.ROUND);p.setStyle(android.graphics.Paint.Style.STROKE);}
+        @Override protected void onDraw(android.graphics.Canvas c){super.onDraw(c);float s=Math.min(getWidth(),getHeight())*.42f;c.save();c.translate(getWidth()/2f,getHeight()/2f);c.scale(s/24f,s/24f);android.graphics.Path q=new android.graphics.Path();if("back".equals(kind)){q.moveTo(15,5);q.lineTo(8,12);q.lineTo(15,19);q.moveTo(8,12);q.lineTo(21,12);}else{c.drawArc(-8,-8,8,8,-70,290,false,p);q.moveTo(3,-9);q.lineTo(9,-9);q.lineTo(9,-3);}c.drawPath(q,p);c.restore();}
     }
 
     private JSONObject currentSource() {
@@ -365,7 +395,7 @@ public class PlayerActivity extends Activity {
 
     private void toggleResizeMode() {
         fillScreen = !fillScreen;
-        if (resizeButton != null) resizeButton.setText(fillScreen ? "Fill" : "Fit");
+        if (resizeButton != null) resizeButton.setText(fillScreen ? "Fit" : "Fill");
         if (playerView != null) playerView.setResizeMode(fillScreen ? AspectRatioFrameLayout.RESIZE_MODE_FILL : AspectRatioFrameLayout.RESIZE_MODE_FIT);
         applyWebVideoSizing();
         scheduleControlsHide();
@@ -388,7 +418,7 @@ public class PlayerActivity extends Activity {
 
     private void applyWebVideoSizing() {
         if (webView == null) return;
-        String fit = fillScreen ? "fill" : "contain";
+        String fit = fillScreen ? "cover" : "contain";
         String js = "(function(){var s=document.getElementById('zekify-video-sizing');if(!s){s=document.createElement('style');s.id='zekify-video-sizing';document.head.appendChild(s);}s.textContent='html,body{width:100%!important;height:100%!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#000!important;}video{width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;object-fit:" + fit + "!important;}';document.querySelectorAll('video').forEach(function(v){v.style.setProperty('object-fit','" + fit + "','important');v.style.setProperty('width','100vw','important');v.style.setProperty('height','100vh','important');});})();";
         webView.evaluateJavascript(js, null);
     }
