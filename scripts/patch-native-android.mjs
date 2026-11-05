@@ -15,7 +15,7 @@ if(manifest.includes('android:name="androidx.core.content.FileProvider"')){
  const resourceAt=manifest.indexOf('android:resource="@xml/',providerAt);
  if(resourceAt>=0){const resourceEnd=manifest.indexOf('"',resourceAt);manifest=manifest.slice(0,resourceAt)+'android:resource="@xml/zekify_file_paths"'+manifest.slice(resourceEnd+1);}
 }else{
- manifest=manifest.replace("</application>",'    <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.fileprovider" android:exported="false" android:grantUriPermissions="true"><meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/zekify_file_paths" /></provider>\\n    </application>');
+ manifest=manifest.replace("</application>",'    <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.fileprovider" android:exported="false" android:grantUriPermissions="true"><meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/zekify_file_paths" /></provider>\n    </application>');
 }
 const xmlRoot="android/app/src/main/res/xml";
 await mkdir(xmlRoot,{recursive:true});
