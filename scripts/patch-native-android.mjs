@@ -33,6 +33,11 @@ if(!gradle.includes("androidx.media3:media3-exoplayer-hls")) {
  gradle=gradle.replace(/dependencies\s*\{/, 'dependencies {\n    implementation "androidx.media3:media3-exoplayer-hls:1.5.1"');
 }
 await writeFile(gradlePath,gradle);
+const wrapperPath="android/gradle/wrapper/gradle-wrapper.properties";
+let wrapper=await readFile(wrapperPath,"utf8");
+if(wrapper.includes("networkTimeout=")) wrapper=wrapper.replace(/networkTimeout=\\d+/, "networkTimeout=120000");
+else wrapper += "\\nnetworkTimeout=120000\\n";
+await writeFile(wrapperPath,wrapper);
 
 // Force the Android system splash surface to true black on every supported theme variant.
 const resourceRoot = "android/app/src/main/res";
