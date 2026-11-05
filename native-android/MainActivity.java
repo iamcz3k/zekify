@@ -8,6 +8,7 @@ import android.graphics.drawable.*;
 import android.os.*;
 import android.text.*;
 import android.view.*;
+import android.webkit.*;
 import android.widget.*;
 import org.json.*;
 import java.net.*;
