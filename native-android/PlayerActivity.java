@@ -217,34 +217,57 @@ public class PlayerActivity extends Activity {
         webView.setVisibility(View.GONE);
 
         toolbar = new LinearLayout(this);
-        toolbar.setGravity(Gravity.CENTER_VERTICAL);
-        toolbar.setPadding(dp(9), dp(5), dp(9), dp(5));
+        toolbar.setOrientation(LinearLayout.VERTICAL);
+        toolbar.setPadding(dp(8), dp(5), dp(8), dp(4));
         toolbar.setBackgroundColor(0xaa090909);
 
+        LinearLayout controls = new LinearLayout(this);
+        controls.setGravity(Gravity.CENTER_VERTICAL);
         View back = iconButton("back");
+        back.setContentDescription("Back to match");
         back.setOnClickListener(v -> finish());
-        toolbar.addView(back);
-
-        status = new TextView(this);
-        status.setTextColor(Color.WHITE);
-        status.setTextSize(12);
-        status.setMaxLines(2);
-        status.setPadding(dp(10), 0, dp(8), 0);
-        status.setText(matchTitle);
-        toolbar.addView(status, new LinearLayout.LayoutParams(0, -2, 1));
+        controls.addView(back);
 
         View reload = iconButton("refresh");
+        reload.setContentDescription("Refresh stream");
         reload.setOnClickListener(v -> retrySource());
-        toolbar.addView(reload);
+        controls.addView(reload);
+
+        View leftSpace = new View(this);
+        controls.addView(leftSpace, new LinearLayout.LayoutParams(0, 1, 1));
+
+        View sourceButton = iconButton("sources");
+        sourceButton.setContentDescription("Available sources");
+        sourceButton.setOnClickListener(v -> chooseSource());
+        controls.addView(sourceButton);
 
         resizeButton = iconButton("fit");
-        resizeButton.setContentDescription("Toggle fit or fill screen");
+        resizeButton.setContentDescription("Fill screen");
         resizeButton.setOnClickListener(v -> toggleResizeMode());
-        toolbar.addView(resizeButton);
-        View sourceButton = iconButton("sources");
-        sourceButton.setContentDescription("Choose stream source");
-        sourceButton.setOnClickListener(v -> chooseSource());
-        toolbar.addView(sourceButton);
+        controls.addView(resizeButton);
+
+        View rightSpace = new View(this);
+        controls.addView(rightSpace, new LinearLayout.LayoutParams(0, 1, 1));
+
+        View volumeDown = iconButton("volume-down");
+        volumeDown.setContentDescription("Volume down");
+        volumeDown.setOnClickListener(v -> adjustVolume(-1));
+        controls.addView(volumeDown);
+
+        View volumeUp = iconButton("volume-up");
+        volumeUp.setContentDescription("Volume up");
+        volumeUp.setOnClickListener(v -> adjustVolume(1));
+        controls.addView(volumeUp);
+        toolbar.addView(controls, new LinearLayout.LayoutParams(-1, dp(46)));
+
+        status = new TextView(this);
+        status.setTextColor(0xffeeeeee);
+        status.setTextSize(10);
+        status.setMaxLines(1);
+        status.setGravity(Gravity.CENTER);
+        status.setPadding(dp(6), dp(1), dp(6), dp(2));
+        status.setText(matchTitle);
+        toolbar.addView(status, new LinearLayout.LayoutParams(-1, dp(19)));
 
         FrameLayout.LayoutParams barParams =
             new FrameLayout.LayoutParams(-1, -2, Gravity.TOP);
@@ -256,13 +279,23 @@ public class PlayerActivity extends Activity {
 
     private View iconButton(String name) {
         FrameLayout holder = new FrameLayout(this);
-        holder.setBackgroundColor(Color.TRANSPARENT);
-        holder.setMinimumWidth(dp(38));
-        holder.setMinimumHeight(dp(40));
-        IconGlyph glyph = new IconGlyph(this,name);
-        holder.addView(glyph,new FrameLayout.LayoutParams(-1,-1));
-        holder.setOnClickListener(v -> { if ("back".equals(name)) finish(); else retrySource(); });
+        holder.setBackground(panel(0x66202020, 12));
+        holder.setMinimumWidth(dp(42));
+        holder.setMinimumHeight(dp(42));
+        FrameLayout.LayoutParams glyphParams = new FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER);
+        holder.addView(new IconGlyph(this, name), glyphParams);
+        holder.setClickable(true);
+        holder.setFocusable(true);
         return holder;
+    }
+
+    private void adjustVolume(int direction) {
+        android.media.AudioManager audio = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
+        if (audio == null) return;
+        int current = audio.getStreamVolume(android.media.AudioManager.STREAM_MUSIC);
+        int max = audio.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC);
+        audio.setStreamVolume(android.media.AudioManager.STREAM_MUSIC,
+            Math.max(0, Math.min(max, current + direction)), 0);
     }
 
     private class GestureSurface implements View.OnTouchListener {
@@ -287,7 +320,7 @@ public class PlayerActivity extends Activity {
     private static class IconGlyph extends View {
         private final String kind; private final android.graphics.Paint p=new android.graphics.Paint(3);
         IconGlyph(Context c,String k){super(c);kind=k;p.setColor(Color.WHITE);p.setStrokeWidth(2.2f);p.setStrokeCap(android.graphics.Paint.Cap.ROUND);p.setStyle(android.graphics.Paint.Style.STROKE);}
-        @Override protected void onDraw(android.graphics.Canvas c){super.onDraw(c);float s=Math.min(getWidth(),getHeight())*.42f;c.save();c.translate(getWidth()/2f,getHeight()/2f);c.scale(s/24f,s/24f);android.graphics.Path q=new android.graphics.Path();if("back".equals(kind)){q.moveTo(15,5);q.lineTo(8,12);q.lineTo(15,19);q.moveTo(8,12);q.lineTo(21,12);}else if("fit".equals(kind)){q.moveTo(4,9);q.lineTo(4,4);q.lineTo(9,4);q.moveTo(15,4);q.lineTo(20,4);q.lineTo(20,9);q.moveTo(20,15);q.lineTo(20,20);q.lineTo(15,20);q.moveTo(9,20);q.lineTo(4,20);q.lineTo(4,15);}else if("sources".equals(kind)){c.drawCircle(-5,-6,2,p);c.drawCircle(-5,0,2,p);c.drawCircle(-5,6,2,p);q.moveTo(-1,-6);q.lineTo(7,-6);q.moveTo(-1,0);q.lineTo(7,0);q.moveTo(-1,6);q.lineTo(7,6);}else{c.drawArc(-8,-8,8,8,-70,290,false,p);q.moveTo(3,-9);q.lineTo(9,-9);q.lineTo(9,-3);}c.drawPath(q,p);c.restore();}
+        @Override protected void onDraw(android.graphics.Canvas c){super.onDraw(c);float s=Math.min(getWidth(),getHeight())*.42f;c.save();c.translate(getWidth()/2f,getHeight()/2f);c.scale(s/24f,s/24f);android.graphics.Path q=new android.graphics.Path();if("back".equals(kind)){q.moveTo(15,5);q.lineTo(8,12);q.lineTo(15,19);q.moveTo(8,12);q.lineTo(21,12);}else if("fit".equals(kind)){q.moveTo(4,9);q.lineTo(4,4);q.lineTo(9,4);q.moveTo(15,4);q.lineTo(20,4);q.lineTo(20,9);q.moveTo(20,15);q.lineTo(20,20);q.lineTo(15,20);q.moveTo(9,20);q.lineTo(4,20);q.lineTo(4,15);}else if("sources".equals(kind)){c.drawCircle(-5,-6,2,p);c.drawCircle(-5,0,2,p);c.drawCircle(-5,6,2,p);q.moveTo(-1,-6);q.lineTo(7,-6);q.moveTo(-1,0);q.lineTo(7,0);q.moveTo(-1,6);q.lineTo(7,6);}else if("volume-up".equals(kind)){q.moveTo(-8,-3);q.lineTo(-4,-3);q.lineTo(1,-8);q.lineTo(1,8);q.lineTo(-4,3);q.lineTo(-8,3);q.close();c.drawArc(-1,-8,9,8,-55,110,false,p);c.drawArc(-1,-12,13,12,-55,110,false,p);}else if("volume-down".equals(kind)){q.moveTo(-8,-3);q.lineTo(-4,-3);q.lineTo(1,-8);q.lineTo(1,8);q.lineTo(-4,3);q.lineTo(-8,3);q.close();c.drawLine(5,0,10,0,p);}else{c.drawArc(-8,-8,8,8,-70,290,false,p);q.moveTo(3,-9);q.lineTo(9,-9);q.lineTo(9,-3);}c.drawPath(q,p);c.restore();}
     }
 
     private JSONObject currentSource() {
