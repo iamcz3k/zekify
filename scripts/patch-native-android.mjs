@@ -35,8 +35,9 @@ if(!gradle.includes("androidx.media3:media3-exoplayer-hls")) {
 await writeFile(gradlePath,gradle);
 const wrapperPath="android/gradle/wrapper/gradle-wrapper.properties";
 let wrapper=await readFile(wrapperPath,"utf8");
-if(wrapper.includes("networkTimeout=")) wrapper=wrapper.replace(/networkTimeout=\\d+/, "networkTimeout=120000");
-else wrapper += "\\nnetworkTimeout=120000\\n";
+const newline=String.fromCharCode(10);
+if(wrapper.includes("networkTimeout=")) wrapper=wrapper.split(newline).map(line=>line.startsWith("networkTimeout=")?"networkTimeout=120000":line).join(newline);
+else wrapper += newline+"networkTimeout=120000"+newline;
 await writeFile(wrapperPath,wrapper);
 
 // Force the Android system splash surface to true black on every supported theme variant.
