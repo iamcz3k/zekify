@@ -54,7 +54,8 @@ public class PlayerActivity extends Activity {
     @Override
     public void onCreate(Bundle state) {
         super.onCreate(state);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        if (android.os.Build.VERSION.SDK_INT >= 30) getWindow().setDecorFitsSystemWindows(false);
         getWindow().setStatusBarColor(Color.TRANSPARENT);
         getWindow().setNavigationBarColor(Color.TRANSPARENT);
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
@@ -74,14 +75,33 @@ public class PlayerActivity extends Activity {
     }
 
     private void hideBars() {
-        getWindow().getDecorView().setSystemUiVisibility(
-            View.SYSTEM_UI_FLAG_FULLSCREEN |
-            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
-            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
-            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
-            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
-            View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-        );
+        Window window = getWindow();
+        window.setStatusBarColor(Color.TRANSPARENT);
+        window.setNavigationBarColor(Color.TRANSPARENT);
+        if (android.os.Build.VERSION.SDK_INT >= 30) {
+            android.view.WindowInsetsController controller = window.getInsetsController();
+            if (controller != null) {
+                controller.hide(android.view.WindowInsets.Type.statusBars()
+                    | android.view.WindowInsets.Type.navigationBars());
+                controller.setSystemBarsBehavior(
+                    android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+            }
+        } else {
+            window.getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_FULLSCREEN |
+                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
+                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            );
+        }
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) hideBars();
     }
 
     private int dp(float value) {
@@ -117,7 +137,7 @@ public class PlayerActivity extends Activity {
 
         playerView = new PlayerView(this);
         playerView.setUseController(false);
-        playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_ZOOM);
+        playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FILL);
         playerView.setOnTouchListener(new GestureSurface(true));
         root.addView(playerView, playerParams);
 
@@ -433,7 +453,7 @@ public class PlayerActivity extends Activity {
     private void toggleResizeMode() {
         fillScreen = !fillScreen;
         if (resizeButton != null) resizeButton.setContentDescription(fillScreen ? "Fit video to screen" : "Fill screen");
-        if (playerView != null) playerView.setResizeMode(fillScreen ? AspectRatioFrameLayout.RESIZE_MODE_ZOOM : AspectRatioFrameLayout.RESIZE_MODE_FIT);
+        if (playerView != null) playerView.setResizeMode(fillScreen ? AspectRatioFrameLayout.RESIZE_MODE_FILL : AspectRatioFrameLayout.RESIZE_MODE_FIT);
         applyWebVideoSizing();
         scheduleControlsHide();
     }
@@ -455,7 +475,7 @@ public class PlayerActivity extends Activity {
 
     private void applyWebVideoSizing() {
         if (webView == null) return;
-        String fit = fillScreen ? "cover" : "contain";
+        String fit = fillScreen ? "fill" : "contain";
         String js = "(function(){"
             + "function size(){var s=document.getElementById('zekify-video-sizing');"
             + "if(!s){s=document.createElement('style');s.id='zekify-video-sizing';"
