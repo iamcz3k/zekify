@@ -10,6 +10,7 @@ if(!manifest.includes('android:name=".PlayerActivity"')){
  manifest=manifest.replace("</application>",'    <activity android:name=".PlayerActivity" android:exported="false" android:screenOrientation="sensorLandscape" android:configChanges="orientation|screenSize|keyboardHidden" />\n    </application>');
 }
 if(!manifest.includes("android.permission.INTERNET")) manifest=manifest.replace("<application",'<uses-permission android:name="android.permission.INTERNET" />\n    <application');
+if(!manifest.includes("android.permission.ACCESS_NETWORK_STATE")) manifest=manifest.replace("<application",'<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />\n    <application');
 if(manifest.includes('android:name="androidx.core.content.FileProvider"')){
  const providerAt=manifest.indexOf('android:name="androidx.core.content.FileProvider"');
  const resourceAt=manifest.indexOf('android:resource="@xml/',providerAt);
