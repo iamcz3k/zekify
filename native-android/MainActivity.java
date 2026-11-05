@@ -2,6 +2,7 @@ package com.v3x.zekify;
 
 import android.app.*;
 import android.content.*;
+import android.net.Uri;
 import android.graphics.*;
 import android.graphics.drawable.*;
 import android.os.*;
