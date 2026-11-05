@@ -194,6 +194,7 @@ public class PlayerActivity extends Activity {
                 }
                 customVideoView = view;
                 customViewCallback = callback;
+                view.setOnTouchListener(new GestureSurface(false));
                 webView.setVisibility(View.GONE);
                 root.addView(view, new FrameLayout.LayoutParams(-1, -1));
                 toolbar.setVisibility(View.VISIBLE);
