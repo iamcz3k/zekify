@@ -40,7 +40,7 @@ public class PlayerActivity extends Activity {
   DefaultHttpDataSource.Factory http=new DefaultHttpDataSource.Factory().setUserAgent(ua).setAllowCrossProtocolRedirects(true).setDefaultRequestProperties(headers);
   DefaultDataSource.Factory data=new DefaultDataSource.Factory(this,http);
   player=new ExoPlayer.Builder(this).build();playerView.setPlayer(player);
-  player.addListener(new Player.Listener(){@Override public void onPlayerError(PlaybackException e){status.setText("Playback error ("+e.errorCodeName+"). Select another source.");Toast.makeText(PlayerActivity.this,"This stream could not be decoded or reached. Try another source.",Toast.LENGTH_LONG).show();}});
+  player.addListener(new Player.Listener(){@Override public void onPlayerError(PlaybackException e){status.setText("Playback error ("+e.getMessage()+"). Select another source.");Toast.makeText(PlayerActivity.this,"This stream could not be decoded or reached. Try another source.",Toast.LENGTH_LONG).show();}});
   String type=s.optString("type",s.optString("format","hls")).toLowerCase(java.util.Locale.ROOT);
   boolean hls=type.contains("hls")||url.toLowerCase(java.util.Locale.ROOT).contains(".m3u8")||s.has("embedUrl");
   MediaItem item=new MediaItem.Builder().setUri(Uri.parse(url)).setMimeType(hls?MimeTypes.APPLICATION_M3U8:null).build();
