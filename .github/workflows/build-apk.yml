@@ -6,7 +6,8 @@ on:
     paths:
       - 'src/**'
       - 'assets/**'
-      - 'scripts/**'\n      - 'native-android/**'
+      - 'scripts/**'
+      - 'native-android/**'
       - 'package.json'
       - 'package-lock.json'
       - 'capacitor.config.ts'
