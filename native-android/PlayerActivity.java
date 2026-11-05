@@ -22,6 +22,7 @@ import androidx.media3.common.Player;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.ui.PlayerView;
+import androidx.media3.ui.AspectRatioFrameLayout;
 
 import org.json.*;
 
@@ -37,6 +38,8 @@ public class PlayerActivity extends Activity {
     private FrameLayout root;
     private LinearLayout toolbar;
     private TextView status;
+    private boolean fillScreen = true;
+    private Button resizeButton;
     private JSONArray sources;
     private int sourceIndex = 0;
     private String matchTitle = "";
@@ -107,6 +110,7 @@ public class PlayerActivity extends Activity {
 
         playerView = new PlayerView(this);
         playerView.setUseController(true);
+        playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_ZOOM);
         root.addView(playerView, playerParams);
 
         webView = new WebView(this);
@@ -146,6 +150,7 @@ public class PlayerActivity extends Activity {
             public void onPageFinished(WebView view, String url) {
                 status.setText("Tap the provider's play button to start");
                 status.setVisibility(View.VISIBLE);
+                applyWebVideoSizing();
             }
 
             @Override
@@ -220,6 +225,12 @@ public class PlayerActivity extends Activity {
         Button reload = button("Reload");
         reload.setOnClickListener(v -> retrySource());
         toolbar.addView(reload);
+
+        resizeButton = button("Fill");
+        resizeButton.setOnClickListener(v -> toggleResizeMode());
+        LinearLayout.LayoutParams resizeParams = new LinearLayout.LayoutParams(-2, -2);
+        resizeParams.leftMargin = dp(6);
+        toolbar.addView(resizeButton, resizeParams);
 
         Button source = button("Sources");
         source.setOnClickListener(v -> chooseSource());
@@ -338,6 +349,20 @@ public class PlayerActivity extends Activity {
             return;
         }
         playDirectMedia(source, url);
+    }
+
+    private void toggleResizeMode() {
+        fillScreen = !fillScreen;
+        if (resizeButton != null) resizeButton.setText(fillScreen ? "Fill" : "Fit");
+        if (playerView != null) playerView.setResizeMode(fillScreen ? AspectRatioFrameLayout.RESIZE_MODE_ZOOM : AspectRatioFrameLayout.RESIZE_MODE_FIT);
+        applyWebVideoSizing();
+    }
+
+    private void applyWebVideoSizing() {
+        if (webView == null) return;
+        String fit = fillScreen ? "cover" : "contain";
+        String js = "(function(){var s=document.getElementById('zekify-video-sizing');if(!s){s=document.createElement('style');s.id='zekify-video-sizing';document.head.appendChild(s);}s.textContent='html,body{width:100%!important;height:100%!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#000!important;}video{width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;object-fit:" + fit + "!important;}';document.querySelectorAll('video').forEach(function(v){v.style.setProperty('object-fit','" + fit + "','important');v.style.setProperty('width','100vw','important');v.style.setProperty('height','100vh','important');});})();";
+        webView.evaluateJavascript(js, null);
     }
 
     private void playEmbeddedPage(String url) {
