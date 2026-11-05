@@ -47,7 +47,7 @@ public class PlayerActivity extends Activity {
     private FrameLayout root;
     private LinearLayout toolbar;
     private TextView status;
-    private boolean fillScreen = true;
+    private int resizeMode = 1; // 0=Fit, 1=Fill, 2=Zoom; default Fill
     private View resizeButton;
     private JSONArray sources;
     private int sourceIndex = 0;
@@ -301,8 +301,8 @@ public class PlayerActivity extends Activity {
         sourceButton.setOnClickListener(v -> chooseSource());
         controls.addView(sourceButton);
 
-        resizeButton = textControl("Fill");
-        resizeButton.setContentDescription("Fill video to screen");
+        resizeButton = textControl("Zoom");
+        resizeButton.setContentDescription("Switch video to Zoom");
         resizeButton.setOnClickListener(v -> toggleResizeMode());
         controls.addView(resizeButton);
 
@@ -516,14 +516,18 @@ public class PlayerActivity extends Activity {
     }
 
     private void toggleResizeMode() {
-        fillScreen = !fillScreen;
+        resizeMode = (resizeMode + 1) % 3;
+        String nextLabel = resizeMode == 0 ? "Fill" : (resizeMode == 1 ? "Zoom" : "Fit");
         if (resizeButton instanceof TextView) {
-            ((TextView) resizeButton).setText(fillScreen ? "Fit" : "Fill");
-            resizeButton.setContentDescription(fillScreen ? "Fit video to screen" : "Fill video to screen");
+            ((TextView) resizeButton).setText(nextLabel);
+            resizeButton.setContentDescription("Switch video to " + nextLabel);
         }
-        if (playerView != null) playerView.setResizeMode(fillScreen
-            ? AspectRatioFrameLayout.RESIZE_MODE_FILL
-            : AspectRatioFrameLayout.RESIZE_MODE_FIT);
+        if (playerView != null) {
+            int mode = resizeMode == 0 ? AspectRatioFrameLayout.RESIZE_MODE_FIT
+                : (resizeMode == 1 ? AspectRatioFrameLayout.RESIZE_MODE_FILL
+                : AspectRatioFrameLayout.RESIZE_MODE_ZOOM);
+            playerView.setResizeMode(mode);
+        }
         applyWebVideoSizing();
         scheduleControlsHide();
     }
@@ -595,7 +599,7 @@ public class PlayerActivity extends Activity {
 
     private void applyWebVideoSizing() {
         if (webView == null) return;
-        String fit = fillScreen ? "fill" : "contain";
+        String fit = resizeMode == 0 ? "contain" : (resizeMode == 1 ? "fill" : "cover");
         String js = "(function(){"
             + "function size(){var s=document.getElementById('zekify-video-sizing');"
             + "if(!s){s=document.createElement('style');s.id='zekify-video-sizing';"
@@ -660,6 +664,7 @@ public class PlayerActivity extends Activity {
                 if (playbackState == Player.STATE_BUFFERING) {
                     status.setText("Connecting to " + currentSourceName(source) + "…");
                 } else if (playbackState == Player.STATE_READY) {
+                    retryCount = 0;
                     status.setText(matchTitle);
                 }
             }
