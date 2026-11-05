@@ -43,24 +43,61 @@ jobs:
         run: node scripts/patch-native-android.mjs
       - name: Set Android version
         run: |
-          sed -i 's/versionCode 1/versionCode 8/' android/app/build.gradle
-          sed -i 's/versionName "1.0"/versionName "2.0.0"/' android/app/build.gradle
+          sed -i 's/versionCode 1/versionCode 9/' android/app/build.gradle
+          sed -i 's/versionName "1.0"/versionName "2.0.1"/' android/app/build.gradle
           grep -E 'versionCode|versionName' android/app/build.gradle
+      - name: Configure persistent release signing (when repository secrets are set)
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ] && [ -n "$ANDROID_KEY_ALIAS" ] && [ -n "$ANDROID_KEY_PASSWORD" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/zekify-release.jks
+            cat >> android/app/build.gradle <<'GRADLE'
+          android {
+              signingConfigs {
+                  release {
+                      storeFile file("../zekify-release.jks")
+                      storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                      keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                      keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+                  }
+              }
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.release
+                  }
+              }
+          }
+          GRADLE
+            echo "ZEKEY_SIGNING=release" >> "$GITHUB_ENV"
+          else
+            echo "ZEKEY_SIGNING=debug" >> "$GITHUB_ENV"
+            echo "::warning::Stable release signing secrets are missing. This APK is debug-signed and may not update an APK signed by a different build runner."
+          fi
       - name: Build installable APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
-          cp app/build/outputs/apk/debug/app-debug.apk ../Zekify-v2.0.0.apk
+          if [ "$ZEKEY_SIGNING" = "release" ]; then
+            ./gradlew assembleRelease
+            cp app/build/outputs/apk/release/app-release.apk ../Zekify-v2.0.1.apk
+          else
+            ./gradlew assembleDebug
+            cp app/build/outputs/apk/debug/app-debug.apk ../Zekify-v2.0.1.apk
+          fi
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs ../Zekify-v2.0.1.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: zekify-v2.0.0-apk
-          path: Zekify-v2.0.0.apk
+          name: zekify-v2.0.1-apk
+          path: Zekify-v2.0.1.apk
           if-no-files-found: error
       - name: Publish APK release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v2.0.0
-          name: Zekify v2.0.0
+          tag_name: v2.0.1
+          name: Zekify v2.0.1
           generate_release_notes: true
-          files: Zekify-v2.0.0.apk
+          files: Zekify-v2.0.1.apk
