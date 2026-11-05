@@ -91,7 +91,28 @@ public class MainActivity extends Activity {
  private String team(JSONObject m,String side){JSONObject teams=m.optJSONObject("teams"),t=teams==null?null:teams.optJSONObject(side);return t==null?"Team":t.optString("name","Team");}
  private String leagueName(JSONObject m){String s=m.optString("league","");return s.trim().isEmpty()?"Other competitions":s.trim();}
  private void renderLeagues(){if(leagueRow==null)return;leagueRow.removeAllViews();LinkedHashSet<String> ls=new LinkedHashSet<>();ls.add("All");for(JSONObject m:matches)ls.add(leagueName(m));for(String s:ls){Button b=btn(s,s.equals(league));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-2,dp(36));p.rightMargin=dp(7);leagueRow.addView(b,p);b.setOnClickListener(v->{league=s;renderLeagues();render();});}}
- private void render(){if(content==null)return;content.removeAllViews();if(selected!=null){View mini=buildInlinePlayer();if(mini!=null)content.addView(mini);}int count=0;for(JSONObject m:matches){String status=m.optString("status","upcoming");if(!status.equals(tab)||(!league.equals("All")&&!league.equals(leagueName(m))))continue;String hay=(m.optString("title")+" "+leagueName(m)+" "+team(m,"home")+" "+team(m,"away")).toLowerCase(Locale.ROOT);if(!hay.contains(query))continue;content.addView(matchCard(m));count++;}if(count==0){TextView empty=txt("No "+tab+" matches match your filters.",14,MUTED,false);pad(empty,12,36,12,36);content.addView(empty);}}
+  private void render(){
+   if(selected!=null){renderMatchScreen();return;}
+   if(content==null)return;content.removeAllViews();int count=0;
+   for(JSONObject m:matches){String status=m.optString("status","upcoming");if(!status.equals(tab)||(!league.equals("All")&&!league.equals(leagueName(m))))continue;String hay=(m.optString("title")+" "+leagueName(m)+" "+team(m,"home")+" "+team(m,"away")).toLowerCase(Locale.ROOT);if(!hay.contains(query))continue;content.addView(matchCard(m));count++;}
+   if(count==0){TextView empty=txt("No "+tab+" matches match your filters.",14,MUTED,false);pad(empty,12,36,12,36);content.addView(empty);}
+  }
+  private void renderMatchScreen(){
+   LinearLayout screen=col();screen.setBackgroundColor(BG);
+   LinearLayout header=row();pad(header,14,9,16,9);
+   NativeIcon back=new NativeIcon(this,"back",Color.WHITE);header.addView(back,new LinearLayout.LayoutParams(dp(42),dp(42)));back.setOnClickListener(v->homeAndRender());
+   LinearLayout brand=row();brand.addView(new Ball(this),new LinearLayout.LayoutParams(dp(30),dp(30)));TextView brandName=txt("ZEKIFY",17,Color.WHITE,true);brandName.setLetterSpacing(.12f);LinearLayout.LayoutParams brandP=new LinearLayout.LayoutParams(0,-2,1);brandP.leftMargin=dp(9);brand.addView(brandName,brandP);header.addView(brand,new LinearLayout.LayoutParams(0,-2,1));
+   NativeIcon menuIcon=new NativeIcon(this,"menu",Color.WHITE);header.addView(menuIcon,new LinearLayout.LayoutParams(dp(42),dp(42)));menuIcon.setOnClickListener(v->menu());screen.addView(header);
+   View divider=new View(this);divider.setBackgroundColor(0x22ffffff);screen.addView(divider,new LinearLayout.LayoutParams(-1,dp(1)));
+   View mini=buildInlinePlayer();if(mini!=null){LinearLayout.LayoutParams miniP=new LinearLayout.LayoutParams(-1,-2);miniP.setMargins(dp(14),dp(12),dp(14),dp(8));screen.addView(mini,miniP);}
+   TextView heading=txt("RECOMMENDED MATCHES",10,ORANGE,true);pad(heading,18,12,18,8);screen.addView(heading);
+   ScrollView recommendedScroll=new ScrollView(this);recommendedScroll.setFillViewport(false);recommendedScroll.setVerticalScrollBarEnabled(false);
+   LinearLayout recommended=col();pad(recommended,14,2,14,18);int shown=0;
+   for(JSONObject match:matches){if(match.optString("id").equals(selected.optString("id")))continue;if(shown>=4)break;recommended.addView(matchCard(match));shown++;}
+   if(shown==0){TextView empty=txt("No other matches available yet.",12,MUTED,false);pad(empty,8,18,8,18);recommended.addView(empty);}
+   recommendedScroll.addView(recommended);screen.addView(recommendedScroll,new LinearLayout.LayoutParams(-1,0,1));
+   root=screen;setContentView(screen);
+  }
  private View matchCard(JSONObject m){LinearLayout card=col();card.setBackground(shape(PANEL,16));pad(card,15,13,15,12);LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2);cp.bottomMargin=dp(11);card.setLayoutParams(cp);
   LinearLayout meta=row();meta.addView(txt(leagueName(m).toUpperCase(Locale.ROOT),10,ORANGE,true),new LinearLayout.LayoutParams(0,-2,1));boolean live=m.optString("status").equals("live");TextView timer=txt("",10,live?0xffff7168:ORANGE,true);meta.addView(timer);bindMatchTimer(timer,m.optLong("date",0),live);card.addView(meta);
   LinearLayout teams=row();pad(teams,0,22,0,20);teams.addView(teamBadge(m,"home"));TextView home=txt(team(m,"home"),14,Color.WHITE,true);LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(0,-2,1);hp.leftMargin=dp(9);teams.addView(home,hp);TextView vs=txt("VS",10,ORANGE,true);teams.addView(vs);TextView away=txt(team(m,"away"),14,Color.WHITE,true);away.setGravity(Gravity.RIGHT);LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(0,-2,1);ap.rightMargin=dp(9);teams.addView(away,ap);teams.addView(teamBadge(m,"away"));card.addView(teams);
@@ -108,7 +129,7 @@ public class MainActivity extends Activity {
  private View buildInlinePlayer(){
   LinearLayout card=col();card.setBackground(shape(0xff111111,18));pad(card,12,12,12,12);
   LinearLayout top=row();top.addView(txt("NOW PLAYING",10,ORANGE,true),new LinearLayout.LayoutParams(0,-2,1));
-  NativeIcon close=new NativeIcon(this,"close",MUTED);top.addView(close,new LinearLayout.LayoutParams(dp(32),dp(32)));close.setOnClickListener(v->{stopInlinePlayback();selected=null;selectedSources=null;render();});card.addView(top);
+  NativeIcon close=new NativeIcon(this,"close",MUTED);top.addView(close,new LinearLayout.LayoutParams(dp(32),dp(32)));close.setOnClickListener(v->homeAndRender());card.addView(top);
   TextView title=txt(team(selected,"home")+" vs "+team(selected,"away"),15,Color.WHITE,true);LinearLayout.LayoutParams tp=new LinearLayout.LayoutParams(-1,-2);tp.topMargin=dp(4);card.addView(title,tp);
   inlineFrame=new FrameLayout(this);inlineFrame.setBackgroundColor(Color.BLACK);LinearLayout.LayoutParams fp=new LinearLayout.LayoutParams(-1,dp(205));fp.topMargin=dp(10);card.addView(inlineFrame,fp);
   if(inlinePlayerView==null){inlinePlayerView=new PlayerView(this);inlinePlayerView.setUseController(false);inlinePlayerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT);}
@@ -120,7 +141,7 @@ public class MainActivity extends Activity {
   inlineStatus=txt(inlineLoading?"Loading available streams…":(selectedSources==null||selectedSources.length()==0?"No streams available":"Connecting to stream…"),11,MUTED,false);inlineStatus.setGravity(Gravity.CENTER);
   LinearLayout.LayoutParams st=new LinearLayout.LayoutParams(-1,-2);st.topMargin=dp(8);card.addView(inlineStatus,st);
   HorizontalScrollView horizontal=new HorizontalScrollView(this);horizontal.setHorizontalScrollBarEnabled(false);inlineSources=row();pad(inlineSources,0,8,0,0);horizontal.addView(inlineSources);card.addView(horizontal);
-  if(selectedSources!=null){for(int i=0;i<Math.min(4,selectedSources.length());i++){JSONObject s=selectedSources.optJSONObject(i);if(s==null)continue;final int ix=i;Button chip=btn(s.optString("source","Source "+(i+1)),i==selectedSourceIndex);LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-2,dp(38));cp.rightMargin=dp(7);inlineSources.addView(chip,cp);chip.setOnClickListener(v->{selectedSourceIndex=ix;startInlineSource(ix);render();});}}
+  if(selectedSources!=null){for(int i=0;i<Math.min(4,selectedSources.length());i++){JSONObject s=selectedSources.optJSONObject(i);if(s==null)continue;final int ix=i;Button chip=btn(s.optString("source","Source "+(i+1)),i==selectedSourceIndex);LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-2,dp(38));cp.rightMargin=dp(7);inlineSources.addView(chip,cp);chip.setOnClickListener(v->{selectedSourceIndex=ix;startInlineSource(ix);});}}
   LinearLayout actions=row();LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(-1,-2);ap.topMargin=dp(8);card.addView(actions,ap);
   Button full=btn("Fullscreen",true);actions.addView(full,new LinearLayout.LayoutParams(0,dp(42),1));full.setOnClickListener(v->launchFullscreen());
   Button retry=btn("Retry",false);LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(0,dp(42),1);rp.leftMargin=dp(8);actions.addView(retry,rp);retry.setOnClickListener(v->startInlineSource(selectedSourceIndex));
