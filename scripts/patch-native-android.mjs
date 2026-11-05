@@ -10,8 +10,10 @@ if(!manifest.includes('android:name=".PlayerActivity"')){
  manifest=manifest.replace("</application>",'    <activity android:name=".PlayerActivity" android:exported="false" android:screenOrientation="sensorLandscape" android:configChanges="orientation|screenSize|keyboardHidden" />\n    </application>');
 }
 if(!manifest.includes("android.permission.INTERNET")) manifest=manifest.replace("<application",'<uses-permission android:name="android.permission.INTERNET" />\n    <application');
-if(!manifest.includes('android:name="androidx.core.content.FileProvider"')){
- manifest=manifest.replace("</application>",'    <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.fileprovider" android:exported="false" android:grantUriPermissions="true"><meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/zekify_file_paths" /></provider>\n    </application>');
+if(manifest.includes('android:name="androidx.core.content.FileProvider"')){
+ manifest=manifest.replace(/(android:name="androidx\\.core\\.content\\.FileProvider"[\\s\\S]*?android:resource="@xml\\/)[^"]+/, '$1zekify_file_paths');
+}else{
+ manifest=manifest.replace("</application>",'    <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.fileprovider" android:exported="false" android:grantUriPermissions="true"><meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/zekify_file_paths" /></provider>\\n    </application>');
 }
 const xmlRoot="android/app/src/main/res/xml";
 await mkdir(xmlRoot,{recursive:true});
