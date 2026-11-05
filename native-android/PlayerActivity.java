@@ -48,6 +48,11 @@ public class PlayerActivity extends Activity {
     private ConnectivityManager connectivityManager;
     private ConnectivityManager.NetworkCallback networkCallback;
     private boolean webLoadFailed = false;
+    private PlayerView playerView;
+    private WebView webView;
+    private FrameLayout root;
+    private LinearLayout toolbar;
+    private TextView status;
     private final Runnable webLoadWatchdog = () -> {
         if (webView != null && webView.getVisibility() == View.VISIBLE && !isFinishing()) {
             webLoadFailed = true;
@@ -55,11 +60,6 @@ public class PlayerActivity extends Activity {
             status.setVisibility(View.VISIBLE);
         }
     };
-    private PlayerView playerView;
-    private WebView webView;
-    private FrameLayout root;
-    private LinearLayout toolbar;
-    private TextView status;
     private int resizeMode = 1; // 0=Fit, 1=Fill, 2=Zoom; default Fill
     private View resizeButton;
     private JSONArray sources;
