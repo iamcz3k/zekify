@@ -58,4 +58,16 @@ for (const folder of ["values","values-night","values-v31","values-night-v31"]) 
   await writeFile(stylePath,styles);
  } catch (e) { if (e.code !== "ENOENT") throw e; }
 }
-console.log("Configured native Android screens, black system splash and Media3 playback.");
+const drawableRoot = "android/app/src/main/res/drawable";
+await mkdir(drawableRoot, {recursive:true});
+for (const icon of [
+ "zekify_ic_back.xml",
+ "zekify_ic_refresh.xml",
+ "zekify_ic_sources.xml",
+ "zekify_ic_fit.xml",
+ "zekify_ic_volume_down.xml",
+ "zekify_ic_volume_up.xml"
+]) {
+ await copyFile("native-android/res/drawable/" + icon, drawableRoot + "/" + icon);
+}
+console.log("Configured native Android screens, player vector icons, black system splash and Media3 playback.");
