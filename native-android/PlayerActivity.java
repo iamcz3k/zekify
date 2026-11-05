@@ -40,7 +40,7 @@ public class PlayerActivity extends Activity {
     private FrameLayout root;
     private LinearLayout toolbar;
     private TextView status;
-    private boolean fillScreen = false;
+    private boolean fillScreen = true;
     private Button resizeButton;
     private JSONArray sources;
     private int sourceIndex = 0;
@@ -117,7 +117,7 @@ public class PlayerActivity extends Activity {
 
         playerView = new PlayerView(this);
         playerView.setUseController(false);
-        playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT);
+        playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_ZOOM);
         playerView.setOnTouchListener(new GestureSurface(true));
         root.addView(playerView, playerParams);
 
@@ -236,7 +236,7 @@ public class PlayerActivity extends Activity {
         reload.setOnClickListener(v -> retrySource());
         toolbar.addView(reload);
 
-        resizeButton = button("Fill");
+        resizeButton = button("Fit");
         resizeButton.setOnClickListener(v -> toggleResizeMode());
         LinearLayout.LayoutParams resizeParams = new LinearLayout.LayoutParams(-2, -2);
         resizeParams.leftMargin = dp(6);
@@ -398,7 +398,7 @@ public class PlayerActivity extends Activity {
     private void toggleResizeMode() {
         fillScreen = !fillScreen;
         if (resizeButton != null) resizeButton.setText(fillScreen ? "Fit" : "Fill");
-        if (playerView != null) playerView.setResizeMode(fillScreen ? AspectRatioFrameLayout.RESIZE_MODE_FILL : AspectRatioFrameLayout.RESIZE_MODE_FIT);
+        if (playerView != null) playerView.setResizeMode(fillScreen ? AspectRatioFrameLayout.RESIZE_MODE_ZOOM : AspectRatioFrameLayout.RESIZE_MODE_FIT);
         applyWebVideoSizing();
         scheduleControlsHide();
     }
