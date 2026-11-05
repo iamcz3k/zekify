@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Hls from "hls.js";
+import { ScreenOrientation } from "@capacitor/screen-orientation";
 
 const API = (import.meta.env.VITE_STREAM_API_BASE || "https://laczekstream.qzz.io").replace(/\/$/, "");
 type Team = { name?: string; badge?: string };
@@ -7,13 +8,19 @@ type Source = { id?: string; streamNo?: number; source?: string; language?: stri
 type Match = { id: string; title?: string; league?: string; date?: number; status: "live" | "upcoming"; available?: boolean; teams?: {home?:Team;away?:Team}; sources?: Source[] };
 const localTime = (value?: number) => value ? new Intl.DateTimeFormat(undefined,{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}).format(new Date(value)) : "Kickoff TBC";
 function Ball({small=false}:{small?:boolean}) { return <span className={small?"ball-icon small":"ball-icon"} aria-hidden="true">⚽</span>; }
+function TeamBadge({team,size="normal"}:{team?:Team,size?:"normal"|"large"}) {
+ const [bad,setBad]=useState(false);
+ const src=team?.badge?.startsWith("/")?API+team.badge:team?.badge;
+ return <span className={"team-badge "+(size==="large"?"large":"")}>{src&&!bad?<img src={src} alt="" onError={()=>setBad(true)}/>:<Ball small/>}</span>;
+}
 export default function App() {
  const [matches,setMatches]=useState<Match[]>([]);
  const [tab,setTab]=useState<"live"|"upcoming">("live");
  const [loading,setLoading]=useState(true),[error,setError]=useState("");
  const [selected,setSelected]=useState<Match|null>(null),[detail,setDetail]=useState<Match|null>(null);
  const [sourceIndex,setSourceIndex]=useState(0),[streamError,setStreamError]=useState("");
- const [retry,setRetry]=useState(0);
+ const [retry,setRetry]=useState(0),[fillMode,setFillMode]=useState(false),[menuOpen,setMenuOpen]=useState(false);
+ const videoWrap=useRef<HTMLDivElement>(null);
  const timezone=Intl.DateTimeFormat().resolvedOptions().timeZone||"device local time";
  async function load(){
   setLoading(true);setError("");
@@ -30,7 +37,9 @@ export default function App() {
  useEffect(()=>{void load();},[]);
  const visible=useMemo(()=>matches.filter(m=>m.status===tab).sort((a,b)=>(a.date??0)-(b.date??0)),[matches,tab]);
  async function openMatch(match:Match){
-  setSelected(match);setDetail(null);setSourceIndex(0);setStreamError("");setRetry(0);
+  setSelected(match);setDetail(null);setSourceIndex(0);setStreamError("");setRetry(0);setFillMode(false);
+  // Android Capacitor native orientation lock works on user tap; web browsers may reject it.
+  try{await ScreenOrientation.lock({orientation:"landscape"});}catch{}
   try{
    const response=await fetch(API+"/api/public/football-streams?mode=detail&sport=football&id="+encodeURIComponent(match.id));
    if(!response.ok) throw new Error("Match details unavailable");
@@ -38,6 +47,21 @@ export default function App() {
    if(!payload.success||!payload.data) throw new Error("No stream details were returned");
    setDetail(payload.data as Match);
   }catch(e){setStreamError(e instanceof Error?e.message:"Could not load stream details");}
+ }
+ async function closePlayer(){
+  setSelected(null);setDetail(null);setFillMode(false);
+  try{await ScreenOrientation.lock({orientation:"portrait"});}catch{try{await ScreenOrientation.unlock();}catch{}}
+ }
+ async function fullscreen(){
+  const el=videoWrap.current;
+  if(!el)return;
+  try{
+   const v=el.querySelector("video") as (HTMLVideoElement & {webkitEnterFullscreen?:()=>void})|null;
+   if(v?.webkitEnterFullscreen){v.webkitEnterFullscreen();return;}
+   if(!document.fullscreenElement){await (el.requestFullscreen?.()??v?.requestFullscreen?.());}
+   else await document.exitFullscreen();
+   try{await ScreenOrientation.lock({orientation:"landscape"});}catch{}
+  }catch{}
  }
  const sources=detail?.sources??[];
  const active=sources[sourceIndex];
@@ -56,14 +80,17 @@ export default function App() {
   else fail();
   return()=>{cancelled=true;hls?.destroy();video.pause();video.removeAttribute("src");video.load();};
  },[stream,retry]);
- const home=detail?.teams?.home?.name??selected?.teams?.home?.name??"Home";
- const away=detail?.teams?.away?.name??selected?.teams?.away?.name??"Away";
+ const home=detail?.teams?.home??selected?.teams?.home;
+ const away=detail?.teams?.away??selected?.teams?.away;
  return <main className="app-shell">
-  <header className="topbar"><div className="brand"><Ball/><span>ZEKIFY</span></div><span className="live-dot">FOOTBALL</span></header>
+  <header className="topbar"><div className="brand"><Ball/><span>ZEKIFY</span></div><div className="header-actions"><span className="live-dot">FOOTBALL</span><button className="menu-btn" aria-label="Open menu" onClick={()=>setMenuOpen(true)}><span>☰</span> Menu</button></div></header>
+  {menuOpen&&<div className="menu-overlay" onClick={()=>setMenuOpen(false)}><aside className="menu-drawer" onClick={e=>e.stopPropagation()}><div className="drawer-head"><div className="brand"><Ball/> ZEKIFY</div><button className="close-menu" onClick={()=>setMenuOpen(false)}>✕</button></div><div className="owner-card"><span className="eyebrow">THE CREATOR</span><h2>Developed by<br/><em>TITUS LACZEK</em></h2><p>Made for the game. Built with passion.</p></div><div className="social-links"><a href="https://x.com/iam_czek" target="_blank" rel="noreferrer"><span>𝕏</span> X / Twitter <b>↗</b></a><a href="https://www.tiktok.com/@iamczek" target="_blank" rel="noreferrer"><span>♪</span> TikTok <b>↗</b></a><a href="https://www.instagram.com/iamczek" target="_blank" rel="noreferrer"><span>◎</span> Instagram <b>↗</b></a><a href="mailto:laczekrsa@proton.me"><span>✉</span> Email <b>↗</b></a></div><p className="drawer-foot">ZEKIFY · FOOTBALL EVERYWHERE</p></aside></div>}
   {selected?<section className="player-page">
-   <button className="back" onClick={()=>{setSelected(null);setDetail(null);}}>‹ Back to matches</button>
-   <div className="match-heading"><small>{detail?.league??selected.league??"FOOTBALL"}</small><h1>{home} <span>vs</span> {away}</h1><p>{localTime(detail?.date??selected.date)}</p></div>
-   <div className="video-wrap">{stream?<video id="zekify-player" controls playsInline autoPlay/>:<div className="player-placeholder"><Ball/><p>{streamError||"Loading stream sources…"}</p></div>}</div>
+   <button className="back" onClick={()=>void closePlayer()}>‹ Back to matches</button>
+   <div className="match-heading"><small>{detail?.league??selected.league??"FOOTBALL"}</small><h1><TeamBadge team={home}/>{home?.name??selected.title??"Home"} <span>vs</span> <TeamBadge team={away}/>{away?.name??"Away"}</h1><p>{localTime(detail?.date??selected.date)}</p></div>
+   <div className="player-controls"><button onClick={()=>setFillMode(v=>!v)} className={fillMode?"control active":"control"}>{fillMode?"↔ Fit video":"⛶ Fill / Zoom"}</button><button className="control" onClick={()=>void fullscreen()}>⛶ Fullscreen</button><button className="control" onClick={()=>{try{void ScreenOrientation.lock({orientation:"landscape"});}catch{}}}>↻ Rotate</button></div>
+   <div className={"video-wrap "+(fillMode?"fill-video":"")} ref={videoWrap}>{stream?<video id="zekify-player" controls playsInline autoPlay/>:<div className="player-placeholder"><Ball/><p>{streamError||"Loading stream sources…"}</p></div>}</div>
+   {fillMode&&<p className="zoom-note">Fill mode crops the video edges to remove black bars. Tap Fit video to restore the original ratio.</p>}
    {streamError&&<p className="hint">{streamError}<button className="retry" onClick={()=>{setRetry(x=>x+1);setStreamError("");}}>Retry source</button></p>}
    {sources.length>0&&<div className="source-panel"><div className="source-title">AVAILABLE SOURCES</div><div className="source-list">{sources.map((s,i)=><button key={s.id??i} className={i===sourceIndex?"source active":"source"} onClick={()=>{setSourceIndex(i);setRetry(x=>x+1);setStreamError("");}}>{s.source||"Source "+(i+1)}{s.hd?" · HD":""}</button>)}</div></div>}
   </section>:<>
@@ -72,7 +99,7 @@ export default function App() {
     <div className="tabs"><button className={tab==="live"?"active":""} onClick={()=>setTab("live")}>● Live</button><button className={tab==="upcoming"?"active":""} onClick={()=>setTab("upcoming")}>Upcoming</button></div>
     {loading?<div className="state">Loading football…</div>:error?<div className="state error">{error}<button onClick={()=>void load()}>Try again</button></div>:visible.length===0?<div className="state">No {tab} matches found right now.</div>:<div className="match-list">{visible.map(m=><button className="match-card" key={m.id} onClick={()=>void openMatch(m)}>
      <div className="match-meta"><span>{m.league||"Football"}</span>{m.status==="live"?<b className="live-label">LIVE</b>:<time>{localTime(m.date)}</time>}</div>
-     <div className="teams"><strong>{m.teams?.home?.name??m.title??"Home"}</strong><span className="versus">VS</span><strong>{m.teams?.away?.name??"Away"}</strong></div>
+     <div className="teams"><div className="team"><TeamBadge team={m.teams?.home}/><strong>{m.teams?.home?.name??m.title??"Home"}</strong></div><span className="versus">VS</span><div className="team away"><TeamBadge team={m.teams?.away}/><strong>{m.teams?.away?.name??"Away"}</strong></div></div>
      <div className="card-footer"><span>{m.status==="live"?"Watch live":"Match details"}</span><span>↗</span></div>
     </button>)}</div>}
    </section>
