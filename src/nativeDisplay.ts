@@ -7,7 +7,7 @@ export interface ZekifyDisplayPlugin {
 }
 
 export const ZekifyDisplay = registerPlugin<ZekifyDisplayPlugin>("ZekifyDisplay", {
-  web: () => ({
+  web: async () => ({
     async setImmersive({ enabled }) { return { enabled }; },
     async setBrightness({ level }) { return { level }; },
     async restore() {},
