@@ -15,6 +15,7 @@ import androidx.media3.datasource.*;
 import androidx.media3.exoplayer.*;
 import androidx.media3.exoplayer.hls.*;
 import androidx.media3.ui.*;
+import androidx.core.content.FileProvider;
 import org.json.*;
 import java.net.*;
 import java.io.*;
@@ -76,9 +77,22 @@ public class MainActivity extends Activity {
   panel.addView(socialRow("tiktok","TikTok","@iamczek","https://www.tiktok.com/@iamczek",dialog));
   panel.addView(socialRow("instagram","Instagram","@iamczek","https://www.instagram.com/iamczek",dialog));
   panel.addView(socialRow("mail","Email","laczekrsa@proton.me","mailto:laczekrsa@proton.me",dialog));
-  LinearLayout share=row();share.setBackground(shape(0xff21170f,14));pad(share,14,14,14,14);LinearLayout.LayoutParams shareP=new LinearLayout.LayoutParams(-1,dp(54));shareP.topMargin=dp(12);panel.addView(share,shareP);NativeIcon shareIcon=new NativeIcon(this,"share",ORANGE);share.addView(shareIcon,new LinearLayout.LayoutParams(dp(24),dp(24)));TextView shareText=txt("Share Zekify",13,Color.WHITE,true);LinearLayout.LayoutParams shareTextP=new LinearLayout.LayoutParams(0,-2,1);shareTextP.leftMargin=dp(12);share.addView(shareText,shareTextP);share.setOnClickListener(v->{Intent send=new Intent(Intent.ACTION_SEND);send.setType("text/plain");send.putExtra(Intent.EXTRA_SUBJECT,"Zekify Football");send.putExtra(Intent.EXTRA_TEXT,"Watch football with Zekify.");startActivity(Intent.createChooser(send,"Share Zekify"));});
+  LinearLayout share=row();share.setBackground(shape(0xff21170f,14));pad(share,14,14,14,14);LinearLayout.LayoutParams shareP=new LinearLayout.LayoutParams(-1,dp(54));shareP.topMargin=dp(12);panel.addView(share,shareP);NativeIcon shareIcon=new NativeIcon(this,"share",ORANGE);share.addView(shareIcon,new LinearLayout.LayoutParams(dp(24),dp(24)));TextView shareText=txt("Share Zekify",13,Color.WHITE,true);LinearLayout.LayoutParams shareTextP=new LinearLayout.LayoutParams(0,-2,1);shareTextP.leftMargin=dp(12);share.addView(shareText,shareTextP);share.setOnClickListener(v->shareInstalledApk());
   View spacer=new View(this);panel.addView(spacer,new LinearLayout.LayoutParams(1,0,1));View divider=new View(this);divider.setBackgroundColor(0x22ffffff);LinearLayout.LayoutParams vlp=new LinearLayout.LayoutParams(-1,dp(1));vlp.topMargin=dp(18);vlp.bottomMargin=dp(14);panel.addView(divider,vlp);TextView foot=txt("ZEKIFY  ·  FOOTBALL EVERYWHERE",9,MUTED,true);foot.setGravity(Gravity.CENTER);panel.addView(foot);
   dialog.setContentView(panel);dialog.setCancelable(true);dialog.setCanceledOnTouchOutside(true);dialog.show();Window w=dialog.getWindow();if(w!=null){w.setBackgroundDrawableResource(android.R.color.transparent);w.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);WindowManager.LayoutParams a=w.getAttributes();a.width=(int)(getResources().getDisplayMetrics().widthPixels*.88f);a.height=-1;a.gravity=Gravity.RIGHT;a.dimAmount=.72f;w.setAttributes(a);}
+ }
+ 
+ private void shareInstalledApk(){
+  io.execute(()->{
+   try{
+    File dir=new File(getCacheDir(),"shared");if(!dir.exists()&&!dir.mkdirs())throw new IOException("Cannot create APK share folder");
+    File apk=new File(dir,"Zekify.apk");File installed=new File(getApplicationInfo().sourceDir);
+    try(InputStream in=new FileInputStream(installed);OutputStream out=new FileOutputStream(apk)){byte[] buffer=new byte[16384];int n;while((n=in.read(buffer))>0)out.write(buffer,0,n);}
+    Uri uri=FileProvider.getUriForFile(this,getPackageName()+".fileprovider",apk);
+    Intent send=new Intent(Intent.ACTION_SEND);send.setType("application/vnd.android.package-archive");send.putExtra(Intent.EXTRA_STREAM,uri);send.setClipData(ClipData.newUri(getContentResolver(),"Zekify APK",uri));send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+    runOnUiThread(()->startActivity(Intent.createChooser(send,"Share Zekify APK")));
+   }catch(Exception e){runOnUiThread(()->Toast.makeText(this,"Could not prepare the APK for sharing.",Toast.LENGTH_LONG).show());}
+  });
  }
  private View socialRow(String icon,String label,String value,String url,Dialog dialog){
   LinearLayout item=row();item.setBackground(shape(0xff191919,14));pad(item,13,11,13,11);LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(62));p.bottomMargin=dp(8);item.setLayoutParams(p);
