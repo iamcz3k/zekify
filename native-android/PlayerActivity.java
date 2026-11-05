@@ -548,7 +548,7 @@ public class PlayerActivity extends Activity {
         labels.add("Auto");
         for (int r = 0; r < info.getRendererCount(); r++) {
             if (info.getRendererType(r) != androidx.media3.common.C.TRACK_TYPE_VIDEO) continue;
-            androidx.media3.common.TrackGroupArray groups = info.getTrackGroups(r);
+            androidx.media3.exoplayer.source.TrackGroupArray groups = info.getTrackGroups(r);
             for (int g = 0; g < groups.length; g++) {
                 TrackGroup group = groups.get(g);
                 java.util.HashSet<Integer> seen = new java.util.HashSet<>();
