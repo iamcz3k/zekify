@@ -268,7 +268,7 @@ public class PlayerActivity extends Activity {
         GestureSurface(boolean direct){this.direct=direct;}
         @Override public boolean onTouch(View view, MotionEvent e) {
             float x=e.getX(), y=e.getY();
-            if(e.getAction()==MotionEvent.ACTION_DOWN){downX=x;downY=y;lastX=x;lastY=y;downTime=System.currentTimeMillis();startPosition=player==null?0:player.getCurrentPosition();moved=false;return true;}
+            if(e.getAction()==MotionEvent.ACTION_DOWN){downX=x;downY=y;lastX=x;lastY=y;downTime=System.currentTimeMillis();startPosition=player==null?0:player.getCurrentPosition();moved=false;return direct;}
             if(e.getAction()==MotionEvent.ACTION_MOVE){
                 float dx=x-downX,dy=y-downY;if(Math.abs(dx)>dp(18)||Math.abs(dy)>dp(18))moved=true;
                 if(moved&&Math.abs(dx)>Math.abs(dy)){ if(player!=null&&player.isCurrentMediaItemSeekable()){long target=Math.max(0,startPosition+(long)(dx*180));player.seekTo(target);} }
@@ -276,7 +276,7 @@ public class PlayerActivity extends Activity {
                 lastX=x;lastY=y;return true;
             }
             if(e.getAction()==MotionEvent.ACTION_UP){
-                long now=System.currentTimeMillis();if(!moved){if(now-lastTap<320){if(x<view.getWidth()/2f)seekBy(-10000);else seekBy(10000);lastTap=0;}else{lastTap=now;toggleControls();}}else if(Math.abs(x-downX)>dp(40)&&Math.abs(y-downY)<dp(35)&&player!=null&&!player.isCurrentMediaItemSeekable()){Toast.makeText(PlayerActivity.this,"Seeking is unavailable for this live stream.",Toast.LENGTH_SHORT).show();}
+                long now=System.currentTimeMillis();if(!moved){if(now-lastTap<320){if(x<view.getWidth()/2f)seekBy(-10000);else seekBy(10000);lastTap=0;if(!direct)return true;}else{lastTap=now;if(direct)toggleControls();}}else if(Math.abs(x-downX)>dp(40)&&Math.abs(y-downY)<dp(35)&&player!=null&&!player.isCurrentMediaItemSeekable()){Toast.makeText(PlayerActivity.this,"Seeking is unavailable for this live stream.",Toast.LENGTH_SHORT).show();}
                 return true;
             }return true;
         }
