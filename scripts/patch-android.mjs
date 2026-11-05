@@ -130,7 +130,7 @@ public class MainActivity extends BridgeActivity {
 `;
 } else {
   if (!activity.includes("registerPlugin(ZekifyDisplayPlugin.class)")) {
-    activity = activity.replace("public class MainActivity extends BridgeActivity {", "public class MainActivity extends BridgeActivity {\n    @Override\n    public void onCreate(android.os.Bundle savedInstanceState) {\n        registerPlugin(ZekifyDisplayPlugin.class);\n        super.onCreate(savedInstanceState);\n    }\n\n    @Override\n    public void onWindowFocusChanged(boolean hasFocus) {\n        super.onWindowFocusChanged(hasFocus);\n        if (hasFocus) ZekifyDisplayPlugin.reapply(getWindow());\n    }");
+    activity = activity.replace("public class MainActivity extends BridgeActivity {", "public class MainActivity extends BridgeActivity {\n    @Override\n    public void onCreate(android.os.Bundle savedInstanceState) {\n        registerPlugin(ZekifyDisplayPlugin.class);\n        super.onCreate(savedInstanceState);\n        getBridge().getWebView().setLongClickable(false);\n        getBridge().getWebView().setOnLongClickListener(v -> true);\n    }\n\n    @Override\n    public void onWindowFocusChanged(boolean hasFocus) {\n        super.onWindowFocusChanged(hasFocus);\n        if (hasFocus) ZekifyDisplayPlugin.reapply(getWindow());\n    }");
   }
 }
 await writeFile(activityPath, activity);
