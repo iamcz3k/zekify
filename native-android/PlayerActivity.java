@@ -40,7 +40,7 @@ public class PlayerActivity extends Activity {
     private FrameLayout root;
     private LinearLayout toolbar;
     private TextView status;
-    private boolean fillScreen = false;
+    private boolean fillScreen = true;
     private View resizeButton;
     private JSONArray sources;
     private int sourceIndex = 0;
@@ -117,7 +117,7 @@ public class PlayerActivity extends Activity {
 
         playerView = new PlayerView(this);
         playerView.setUseController(false);
-        playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT);
+        playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_ZOOM);
         playerView.setOnTouchListener(new GestureSurface(true));
         root.addView(playerView, playerParams);
 
@@ -283,8 +283,12 @@ public class PlayerActivity extends Activity {
         holder.setBackground(panel(0x66202020, 12));
         holder.setMinimumWidth(dp(42));
         holder.setMinimumHeight(dp(42));
-        FrameLayout.LayoutParams glyphParams = new FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER);
-        holder.addView(new IconGlyph(this, name), glyphParams);
+        ImageView glyph = new ImageView(this);
+        glyph.setImageResource(getResources().getIdentifier(
+            "zekify_ic_" + name.replace("-", "_"), "drawable", getPackageName()));
+        glyph.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        FrameLayout.LayoutParams glyphParams = new FrameLayout.LayoutParams(dp(22), dp(22), Gravity.CENTER);
+        holder.addView(glyph, glyphParams);
         holder.setClickable(true);
         holder.setFocusable(true);
         return holder;
@@ -318,11 +322,6 @@ public class PlayerActivity extends Activity {
         }
     }
     private void seekBy(long delta){if(player==null)return;if(!player.isCurrentMediaItemSeekable()){Toast.makeText(this,"This live stream does not support rewind or forward.",Toast.LENGTH_SHORT).show();return;}player.seekTo(Math.max(0,player.getCurrentPosition()+delta));}
-    private static class IconGlyph extends View {
-        private final String kind; private final android.graphics.Paint p=new android.graphics.Paint(3);
-        IconGlyph(Context c,String k){super(c);kind=k;p.setColor(Color.WHITE);p.setStrokeWidth(2.2f);p.setStrokeCap(android.graphics.Paint.Cap.ROUND);p.setStyle(android.graphics.Paint.Style.STROKE);}
-        @Override protected void onDraw(android.graphics.Canvas c){super.onDraw(c);float s=Math.min(getWidth(),getHeight())*.42f;c.save();c.translate(getWidth()/2f,getHeight()/2f);c.scale(s/24f,s/24f);android.graphics.Path q=new android.graphics.Path();if("back".equals(kind)){q.moveTo(15,5);q.lineTo(8,12);q.lineTo(15,19);q.moveTo(8,12);q.lineTo(21,12);}else if("fit".equals(kind)){q.moveTo(4,9);q.lineTo(4,4);q.lineTo(9,4);q.moveTo(15,4);q.lineTo(20,4);q.lineTo(20,9);q.moveTo(20,15);q.lineTo(20,20);q.lineTo(15,20);q.moveTo(9,20);q.lineTo(4,20);q.lineTo(4,15);}else if("sources".equals(kind)){c.drawCircle(-5,-6,2,p);c.drawCircle(-5,0,2,p);c.drawCircle(-5,6,2,p);q.moveTo(-1,-6);q.lineTo(7,-6);q.moveTo(-1,0);q.lineTo(7,0);q.moveTo(-1,6);q.lineTo(7,6);}else if("volume-up".equals(kind)){q.moveTo(-8,-3);q.lineTo(-4,-3);q.lineTo(1,-8);q.lineTo(1,8);q.lineTo(-4,3);q.lineTo(-8,3);q.close();c.drawArc(-1,-8,9,8,-55,110,false,p);c.drawArc(-1,-12,13,12,-55,110,false,p);}else if("volume-down".equals(kind)){q.moveTo(-8,-3);q.lineTo(-4,-3);q.lineTo(1,-8);q.lineTo(1,8);q.lineTo(-4,3);q.lineTo(-8,3);q.close();c.drawLine(5,0,10,0,p);}else{c.drawArc(-8,-8,8,8,-70,290,false,p);q.moveTo(3,-9);q.lineTo(9,-9);q.lineTo(9,-3);}c.drawPath(q,p);c.restore();}
-    }
 
     private JSONObject currentSource() {
         return sources == null ? null : sources.optJSONObject(sourceIndex);
@@ -457,7 +456,20 @@ public class PlayerActivity extends Activity {
     private void applyWebVideoSizing() {
         if (webView == null) return;
         String fit = fillScreen ? "cover" : "contain";
-        String js = "(function(){var s=document.getElementById('zekify-video-sizing');if(!s){s=document.createElement('style');s.id='zekify-video-sizing';document.head.appendChild(s);}s.textContent='html,body{width:100%!important;height:100%!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#000!important;}video{width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;object-fit:" + fit + "!important;}';document.querySelectorAll('video').forEach(function(v){v.style.setProperty('object-fit','" + fit + "','important');v.style.setProperty('width','100vw','important');v.style.setProperty('height','100vh','important');});})();";
+        String js = "(function(){"
+            + "function size(){var s=document.getElementById('zekify-video-sizing');"
+            + "if(!s){s=document.createElement('style');s.id='zekify-video-sizing';"
+            + "(document.head||document.documentElement).appendChild(s);}"
+            + "s.textContent='html,body{width:100%!important;height:100%!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#000!important;}'"
+            + "+'iframe,video,#player,.player,.jwplayer,.video-js,.plyr,.container{width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;object-fit:"
+            + fit + "!important;margin:0!important;}';"
+            + "document.querySelectorAll('iframe,video,#player,.player,.jwplayer,.video-js,.plyr,.container').forEach(function(v){"
+            + "v.style.setProperty('width','100vw','important');v.style.setProperty('height','100vh','important');"
+            + "v.style.setProperty('max-width','none','important');v.style.setProperty('max-height','none','important');"
+            + "v.style.setProperty('object-fit','" + fit + "','important');});}"
+            + "size();if(!window.zekifySizingObserver){window.zekifySizingObserver=new MutationObserver(size);"
+            + "window.zekifySizingObserver.observe(document.documentElement,{childList:true,subtree:true});}"
+            + "})();";
         webView.evaluateJavascript(js, null);
     }
 
