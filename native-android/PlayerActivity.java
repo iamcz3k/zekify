@@ -40,8 +40,8 @@ public class PlayerActivity extends Activity {
     private FrameLayout root;
     private LinearLayout toolbar;
     private TextView status;
-    private boolean fillScreen = true;
-    private Button resizeButton;
+    private boolean fillScreen = false;
+    private View resizeButton;
     private JSONArray sources;
     private int sourceIndex = 0;
     private String matchTitle = "";
@@ -117,7 +117,7 @@ public class PlayerActivity extends Activity {
 
         playerView = new PlayerView(this);
         playerView.setUseController(false);
-        playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_ZOOM);
+        playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT);
         playerView.setOnTouchListener(new GestureSurface(true));
         root.addView(playerView, playerParams);
 
@@ -195,8 +195,9 @@ public class PlayerActivity extends Activity {
                 customVideoView = view;
                 customViewCallback = callback;
                 webView.setVisibility(View.GONE);
-                toolbar.setVisibility(View.GONE);
                 root.addView(view, new FrameLayout.LayoutParams(-1, -1));
+                toolbar.setVisibility(View.VISIBLE);
+                toolbar.bringToFront();
                 controlsHandler.removeCallbacks(hideControlsTask);
                 hideBars();
             }
@@ -236,13 +237,14 @@ public class PlayerActivity extends Activity {
         reload.setOnClickListener(v -> retrySource());
         toolbar.addView(reload);
 
-        resizeButton = button("Fit");
+        resizeButton = iconButton("fit");
+        resizeButton.setContentDescription("Toggle fit or fill screen");
         resizeButton.setOnClickListener(v -> toggleResizeMode());
-        LinearLayout.LayoutParams resizeParams = new LinearLayout.LayoutParams(-2, -2);
-        resizeParams.leftMargin = dp(6);
-        toolbar.addView(resizeButton, resizeParams);
-
-        HorizontalScrollView sourceScroll = new HorizontalScrollView(this); sourceScroll.setHorizontalScrollBarEnabled(false); LinearLayout chips = new LinearLayout(this); chips.setGravity(Gravity.CENTER_VERTICAL); for (int i=0;i<sources.length();i++){ final int ix=i; JSONObject s=sources.optJSONObject(i); Button chip=button(s==null?"Source "+(i+1):s.optString("source","Source "+(i+1))); chip.setTextSize(10); chip.setPadding(dp(7),0,dp(7),0); chip.setBackground(panel(i==sourceIndex?0xff49301f:0xdd191919,10)); chip.setOnClickListener(v->{sourceIndex=ix;playSource();}); LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-2,dp(34)); cp.rightMargin=dp(5); chips.addView(chip,cp);} sourceScroll.addView(chips); LinearLayout.LayoutParams sourceParams = new LinearLayout.LayoutParams(0,dp(40),1); sourceParams.leftMargin=dp(5); toolbar.addView(sourceScroll,sourceParams);
+        toolbar.addView(resizeButton);
+        View sourceButton = iconButton("sources");
+        sourceButton.setContentDescription("Choose stream source");
+        sourceButton.setOnClickListener(v -> chooseSource());
+        toolbar.addView(sourceButton);
 
         FrameLayout.LayoutParams barParams =
             new FrameLayout.LayoutParams(-1, -2, Gravity.TOP);
@@ -276,7 +278,7 @@ public class PlayerActivity extends Activity {
                 lastX=x;lastY=y;return direct||moved;
             }
             if(e.getAction()==MotionEvent.ACTION_UP){
-                long now=System.currentTimeMillis();if(!moved){if(now-lastTap<320){if(x<view.getWidth()/2f)seekBy(-10000);else seekBy(10000);lastTap=0;if(!direct)return true;}else{lastTap=now;if(direct)toggleControls();}}else if(Math.abs(x-downX)>dp(40)&&Math.abs(y-downY)<dp(35)&&player!=null&&!player.isCurrentMediaItemSeekable()){Toast.makeText(PlayerActivity.this,"Seeking is unavailable for this live stream.",Toast.LENGTH_SHORT).show();}
+                long now=System.currentTimeMillis();if(!moved){if(now-lastTap<320){if(x<view.getWidth()/2f)seekBy(-10000);else seekBy(10000);lastTap=0;if(!direct)return true;}else{lastTap=now;toggleControls();}}else if(Math.abs(x-downX)>dp(40)&&Math.abs(y-downY)<dp(35)&&player!=null&&!player.isCurrentMediaItemSeekable()){Toast.makeText(PlayerActivity.this,"Seeking is unavailable for this live stream.",Toast.LENGTH_SHORT).show();}
                 return direct||moved;
             }return direct;
         }
@@ -285,7 +287,7 @@ public class PlayerActivity extends Activity {
     private static class IconGlyph extends View {
         private final String kind; private final android.graphics.Paint p=new android.graphics.Paint(3);
         IconGlyph(Context c,String k){super(c);kind=k;p.setColor(Color.WHITE);p.setStrokeWidth(2.2f);p.setStrokeCap(android.graphics.Paint.Cap.ROUND);p.setStyle(android.graphics.Paint.Style.STROKE);}
-        @Override protected void onDraw(android.graphics.Canvas c){super.onDraw(c);float s=Math.min(getWidth(),getHeight())*.42f;c.save();c.translate(getWidth()/2f,getHeight()/2f);c.scale(s/24f,s/24f);android.graphics.Path q=new android.graphics.Path();if("back".equals(kind)){q.moveTo(15,5);q.lineTo(8,12);q.lineTo(15,19);q.moveTo(8,12);q.lineTo(21,12);}else{c.drawArc(-8,-8,8,8,-70,290,false,p);q.moveTo(3,-9);q.lineTo(9,-9);q.lineTo(9,-3);}c.drawPath(q,p);c.restore();}
+        @Override protected void onDraw(android.graphics.Canvas c){super.onDraw(c);float s=Math.min(getWidth(),getHeight())*.42f;c.save();c.translate(getWidth()/2f,getHeight()/2f);c.scale(s/24f,s/24f);android.graphics.Path q=new android.graphics.Path();if("back".equals(kind)){q.moveTo(15,5);q.lineTo(8,12);q.lineTo(15,19);q.moveTo(8,12);q.lineTo(21,12);}else if("fit".equals(kind)){q.moveTo(4,9);q.lineTo(4,4);q.lineTo(9,4);q.moveTo(15,4);q.lineTo(20,4);q.lineTo(20,9);q.moveTo(20,15);q.lineTo(20,20);q.lineTo(15,20);q.moveTo(9,20);q.lineTo(4,20);q.lineTo(4,15);}else if("sources".equals(kind)){c.drawCircle(-5,-6,2,p);c.drawCircle(-5,0,2,p);c.drawCircle(-5,6,2,p);q.moveTo(-1,-6);q.lineTo(7,-6);q.moveTo(-1,0);q.lineTo(7,0);q.moveTo(-1,6);q.lineTo(7,6);}else{c.drawArc(-8,-8,8,8,-70,290,false,p);q.moveTo(3,-9);q.lineTo(9,-9);q.lineTo(9,-3);}c.drawPath(q,p);c.restore();}
     }
 
     private JSONObject currentSource() {
@@ -397,7 +399,7 @@ public class PlayerActivity extends Activity {
 
     private void toggleResizeMode() {
         fillScreen = !fillScreen;
-        if (resizeButton != null) resizeButton.setText(fillScreen ? "Fit" : "Fill");
+        if (resizeButton != null) resizeButton.setContentDescription(fillScreen ? "Fit video to screen" : "Fill screen");
         if (playerView != null) playerView.setResizeMode(fillScreen ? AspectRatioFrameLayout.RESIZE_MODE_ZOOM : AspectRatioFrameLayout.RESIZE_MODE_FIT);
         applyWebVideoSizing();
         scheduleControlsHide();
@@ -411,7 +413,7 @@ public class PlayerActivity extends Activity {
 
     private void scheduleControlsHide() {
         controlsHandler.removeCallbacks(hideControlsTask);
-        controlsHandler.postDelayed(hideControlsTask, 5000);
+        // Keep playback controls available; do not auto-hide the toolbar.
     }
 
     private void toggleControls() {
@@ -518,6 +520,7 @@ public class PlayerActivity extends Activity {
         }
         webView.setVisibility(View.VISIBLE);
         toolbar.setVisibility(View.VISIBLE);
+        toolbar.bringToFront();
         controlsVisible = true;
         scheduleControlsHide();
         hideBars();
