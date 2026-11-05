@@ -47,6 +47,7 @@ public class PlayerActivity extends Activity {
     private String matchTitle = "";
     private View customVideoView;
     private WebChromeClient.CustomViewCallback customViewCallback;
+    private boolean customViewTransition = false;
     private final Handler controlsHandler = new Handler(Looper.getMainLooper());
     private boolean controlsVisible = true;
     private final Runnable hideControlsTask = () -> setControlsVisible(false);
@@ -56,6 +57,12 @@ public class PlayerActivity extends Activity {
         super.onCreate(state);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         if (android.os.Build.VERSION.SDK_INT >= 30) getWindow().setDecorFitsSystemWindows(false);
+        if (android.os.Build.VERSION.SDK_INT >= 28) {
+            WindowManager.LayoutParams windowParams = getWindow().getAttributes();
+            windowParams.layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+            getWindow().setAttributes(windowParams);
+        }
         getWindow().setStatusBarColor(Color.TRANSPARENT);
         getWindow().setNavigationBarColor(Color.TRANSPARENT);
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
@@ -78,6 +85,14 @@ public class PlayerActivity extends Activity {
         Window window = getWindow();
         window.setStatusBarColor(Color.TRANSPARENT);
         window.setNavigationBarColor(Color.TRANSPARENT);
+        window.getDecorView().setSystemUiVisibility(
+            View.SYSTEM_UI_FLAG_FULLSCREEN |
+            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
+            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+            View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+        );
         if (android.os.Build.VERSION.SDK_INT >= 30) {
             android.view.WindowInsetsController controller = window.getInsetsController();
             if (controller != null) {
@@ -208,19 +223,36 @@ public class PlayerActivity extends Activity {
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public void onShowCustomView(View view, CustomViewCallback callback) {
-                if (customVideoView != null) {
+                if (customVideoView != null || customViewTransition) {
                     callback.onCustomViewHidden();
                     return;
                 }
-                customVideoView = view;
-                customViewCallback = callback;
-                view.setOnTouchListener(new GestureSurface(false));
-                webView.setVisibility(View.GONE);
-                root.addView(view, new FrameLayout.LayoutParams(-1, -1));
-                toolbar.setVisibility(View.VISIBLE);
-                toolbar.bringToFront();
-                controlsHandler.removeCallbacks(hideControlsTask);
-                hideBars();
+                customViewTransition = true;
+                try {
+                    android.view.ViewParent parent = view.getParent();
+                    if (parent instanceof ViewGroup) {
+                        ((ViewGroup) parent).removeView(view);
+                    }
+                    view.setOnTouchListener(new GestureSurface(false));
+                    root.addView(view, new FrameLayout.LayoutParams(-1, -1));
+                    customVideoView = view;
+                    customViewCallback = callback;
+                    webView.setVisibility(View.GONE);
+                    toolbar.setVisibility(View.VISIBLE);
+                    toolbar.bringToFront();
+                    controlsHandler.removeCallbacks(hideControlsTask);
+                    hideBars();
+                } catch (RuntimeException error) {
+                    customVideoView = null;
+                    customViewCallback = null;
+                    webView.setVisibility(View.VISIBLE);
+                    try { callback.onCustomViewHidden(); } catch (RuntimeException ignored) {}
+                    Toast.makeText(PlayerActivity.this,
+                        "This provider could not open fullscreen. Playback is still available.",
+                        Toast.LENGTH_LONG).show();
+                } finally {
+                    customViewTransition = false;
+                }
             }
 
             @Override
@@ -577,19 +609,31 @@ public class PlayerActivity extends Activity {
     }
 
     private void hideCustomVideoView() {
-        if (customVideoView == null) return;
-        root.removeView(customVideoView);
+        if (customVideoView == null || customViewTransition) return;
+        customViewTransition = true;
+        View videoView = customVideoView;
+        WebChromeClient.CustomViewCallback callback = customViewCallback;
         customVideoView = null;
-        if (customViewCallback != null) {
-            customViewCallback.onCustomViewHidden();
-            customViewCallback = null;
+        customViewCallback = null;
+        try {
+            android.view.ViewParent parent = videoView.getParent();
+            if (parent instanceof ViewGroup) {
+                ((ViewGroup) parent).removeView(videoView);
+            }
+            if (webView != null) webView.setVisibility(View.VISIBLE);
+            if (toolbar != null) {
+                toolbar.setVisibility(View.VISIBLE);
+                toolbar.bringToFront();
+            }
+            controlsVisible = true;
+            scheduleControlsHide();
+            hideBars();
+        } finally {
+            customViewTransition = false;
         }
-        webView.setVisibility(View.VISIBLE);
-        toolbar.setVisibility(View.VISIBLE);
-        toolbar.bringToFront();
-        controlsVisible = true;
-        scheduleControlsHide();
-        hideBars();
+        if (callback != null) {
+            try { callback.onCustomViewHidden(); } catch (RuntimeException ignored) {}
+        }
     }
 
     private void showError(String message) {
