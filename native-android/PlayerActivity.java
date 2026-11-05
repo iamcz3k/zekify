@@ -241,7 +241,8 @@ public class PlayerActivity extends Activity {
                     if (request.isForMainFrame() || mediaRequest) {
                         webLoadFailed = true;
                         status.setText("Stream request failed (" + response.getStatusCode() + "). Tap Retry or choose another source.");
-                    status.setVisibility(View.VISIBLE);
+                        status.setVisibility(View.VISIBLE);
+                    }
                 }
             }
 
