@@ -1,0 +1,61 @@
+name: Capture real Zekify app screenshots
+
+on:
+  push:
+    branches: [native-android-v2]
+    paths:
+      - ".github/workflows/capture-screenshots.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Launch Android emulator and capture app screens
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: |
+            set -euo pipefail
+            mkdir -p screenshots
+            curl -fL --retry 3 --retry-delay 2 \
+              "https://github.com/iamcz3k/zekify/releases/download/v2.0.1/Zekify-v2.0.1.apk" \
+              -o /tmp/Zekify-v2.0.1.apk
+            adb install /tmp/Zekify-v2.0.1.apk
+            adb shell am force-stop com.v3x.zekify || true
+            adb shell am start -n com.v3x.zekify/.MainActivity
+            sleep 25
+            adb shell screencap -p /sdcard/zekify-home.png
+            adb pull /sdcard/zekify-home.png screenshots/01-home.png
+
+            # Switch to Upcoming using the native app's visible tab row.
+            adb shell input tap 810 360
+            sleep 5
+            adb shell screencap -p /sdcard/zekify-upcoming.png
+            adb pull /sdcard/zekify-upcoming.png screenshots/02-upcoming.png
+
+            # Open the native app menu and capture its creator/details panel.
+            adb shell input tap 1015 85
+            sleep 2
+            adb shell screencap -p /sdcard/zekify-menu.png
+            adb pull /sdcard/zekify-menu.png screenshots/03-menu.png
+
+            test -s screenshots/01-home.png
+            test -s screenshots/02-upcoming.png
+            test -s screenshots/03-menu.png
+
+      - name: Upload genuine emulator screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: zekify-real-screenshots
+          path: screenshots/*.png
+          if-no-files-found: error
+          retention-days: 30
