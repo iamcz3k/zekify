@@ -23,6 +23,9 @@ import androidx.media3.exoplayer.hls.HlsMediaSource;
 import androidx.media3.common.Player;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
+import androidx.media3.common.TrackSelectionOverride;
+import androidx.media3.common.TrackGroup;
 import androidx.media3.ui.PlayerView;
 import androidx.media3.ui.AspectRatioFrameLayout;
 
@@ -35,6 +38,10 @@ import java.util.Map;
 
 public class PlayerActivity extends Activity {
     private ExoPlayer player;
+    private DefaultTrackSelector trackSelector;
+    private String activeUrl = "";
+    private int retryCount = 0;
+    private final Handler recoveryHandler = new Handler(Looper.getMainLooper());
     private PlayerView playerView;
     private WebView webView;
     private FrameLayout root;
@@ -294,10 +301,15 @@ public class PlayerActivity extends Activity {
         sourceButton.setOnClickListener(v -> chooseSource());
         controls.addView(sourceButton);
 
-        resizeButton = iconButton("fit");
-        resizeButton.setContentDescription("Fill screen");
+        resizeButton = textControl("Fill");
+        resizeButton.setContentDescription("Fill video to screen");
         resizeButton.setOnClickListener(v -> toggleResizeMode());
         controls.addView(resizeButton);
+
+        View qualityButton = textControl("Quality");
+        qualityButton.setContentDescription("Choose stream quality");
+        qualityButton.setOnClickListener(v -> chooseQuality());
+        controls.addView(qualityButton);
 
         View rightSpace = new View(this);
         controls.addView(rightSpace, new LinearLayout.LayoutParams(0, 1, 1));
@@ -328,6 +340,22 @@ public class PlayerActivity extends Activity {
         root.setOnClickListener(v -> toggleControls());
         setContentView(root);
         scheduleControlsHide();
+    }
+
+    private View textControl(String label) {
+        TextView button = new TextView(this);
+        button.setText(label);
+        button.setTextColor(Color.WHITE);
+        button.setTextSize(11);
+        button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        button.setGravity(Gravity.CENTER);
+        button.setPadding(dp(9), 0, dp(9), 0);
+        button.setBackground(panel(0x66202020, 10));
+        button.setMinimumWidth(dp(48));
+        button.setMinimumHeight(dp(42));
+        button.setClickable(true);
+        button.setFocusable(true);
+        return button;
     }
 
     private View iconButton(String name) {
@@ -441,10 +469,13 @@ public class PlayerActivity extends Activity {
     }
 
     private void stopPlayback() {
+        recoveryHandler.removeCallbacksAndMessages(null);
         if (player != null) {
+            player.stop();
             player.release();
             player = null;
         }
+        trackSelector = null;
         if (playerView != null) playerView.setPlayer(null);
         if (webView != null) {
             webView.stopLoading();
@@ -469,6 +500,8 @@ public class PlayerActivity extends Activity {
         }
 
         stopPlayback();
+        activeUrl = url;
+        retryCount = 0;
         String label = currentSourceName(source);
         status.setText("Loading " + label + "…");
         status.setVisibility(View.VISIBLE);
@@ -484,10 +517,65 @@ public class PlayerActivity extends Activity {
 
     private void toggleResizeMode() {
         fillScreen = !fillScreen;
-        if (resizeButton != null) resizeButton.setContentDescription(fillScreen ? "Fit video to screen" : "Fill screen");
-        if (playerView != null) playerView.setResizeMode(fillScreen ? AspectRatioFrameLayout.RESIZE_MODE_FILL : AspectRatioFrameLayout.RESIZE_MODE_FIT);
+        if (resizeButton instanceof TextView) {
+            ((TextView) resizeButton).setText(fillScreen ? "Fit" : "Fill");
+            resizeButton.setContentDescription(fillScreen ? "Fit video to screen" : "Fill video to screen");
+        }
+        if (playerView != null) playerView.setResizeMode(fillScreen
+            ? AspectRatioFrameLayout.RESIZE_MODE_FILL
+            : AspectRatioFrameLayout.RESIZE_MODE_FIT);
         applyWebVideoSizing();
         scheduleControlsHide();
+    }
+
+    private void chooseQuality() {
+        if (player == null || trackSelector == null) {
+            Toast.makeText(this, "Quality selection is controlled by this stream provider.", Toast.LENGTH_LONG).show();
+            return;
+        }
+        androidx.media3.exoplayer.trackselection.MappingTrackSelector.MappedTrackInfo info =
+            trackSelector.getCurrentMappedTrackInfo();
+        if (info == null) {
+            Toast.makeText(this, "This source has not exposed selectable quality levels.", Toast.LENGTH_LONG).show();
+            return;
+        }
+        java.util.ArrayList<TrackSelectionOverride> overrides = new java.util.ArrayList<>();
+        java.util.ArrayList<String> labels = new java.util.ArrayList<>();
+        labels.add("Auto");
+        for (int r = 0; r < info.getRendererCount(); r++) {
+            if (info.getRendererType(r) != androidx.media3.common.C.TRACK_TYPE_VIDEO) continue;
+            androidx.media3.common.TrackGroupArray groups = info.getTrackGroups(r);
+            for (int g = 0; g < groups.length; g++) {
+                TrackGroup group = groups.get(g);
+                java.util.HashSet<Integer> seen = new java.util.HashSet<>();
+                for (int t = 0; t < group.length; t++) {
+                    androidx.media3.common.Format format = group.getFormat(t);
+                    if (format.height > 0 && seen.add(format.height)) {
+                        labels.add(format.height + "p");
+                        overrides.add(new TrackSelectionOverride(group, t));
+                    }
+                }
+            }
+        }
+        if (labels.size() == 1) {
+            Toast.makeText(this, "Only one quality is available for this stream.", Toast.LENGTH_LONG).show();
+            return;
+        }
+        String[] options = labels.toArray(new String[0]);
+        new AlertDialog.Builder(this)
+            .setTitle("Stream quality")
+            .setItems(options, (dialog, which) -> {
+                if (which == 0) {
+                    trackSelector.setParameters(trackSelector.buildUponParameters()
+                        .clearOverridesOfType(androidx.media3.common.C.TRACK_TYPE_VIDEO).build());
+                } else {
+                    TrackSelectionOverride override = overrides.get(which - 1);
+                    trackSelector.setParameters(trackSelector.buildUponParameters()
+                        .setOverrideForType(override).build());
+                }
+            })
+            .setNegativeButton("Cancel", null)
+            .show();
     }
 
     private void setControlsVisible(boolean visible) {
@@ -530,6 +618,7 @@ public class PlayerActivity extends Activity {
         playerView.setVisibility(View.GONE);
         webView.setVisibility(View.VISIBLE);
         webView.onResume();
+        webView.stopLoading();
         webView.loadUrl(url);
     }
 
@@ -562,7 +651,8 @@ public class PlayerActivity extends Activity {
             .setDefaultRequestProperties(headers);
         DefaultDataSource.Factory data = new DefaultDataSource.Factory(this, http);
 
-        player = new ExoPlayer.Builder(this).build();
+        trackSelector = new DefaultTrackSelector(this);
+        player = new ExoPlayer.Builder(this).setTrackSelector(trackSelector).build();
         playerView.setPlayer(player);
         player.addListener(new Player.Listener() {
             @Override
@@ -576,10 +666,21 @@ public class PlayerActivity extends Activity {
 
             @Override
             public void onPlayerError(PlaybackException error) {
-                status.setText("Direct stream failed. Choose another source.");
-                Toast.makeText(PlayerActivity.this,
-                    "This direct stream could not be played. Try another source.",
-                    Toast.LENGTH_LONG).show();
+                if (retryCount < 2 && !isFinishing()) {
+                    final int attempt = ++retryCount;
+                    status.setText("Stream connection lost. Retrying (" + attempt + "/2)…");
+                    recoveryHandler.postDelayed(() -> {
+                        if (player != null && !isFinishing()) {
+                            player.prepare();
+                            player.play();
+                        }
+                    }, attempt * 1500L);
+                } else {
+                    status.setText("Stream failed to load. Tap Retry or choose another source.");
+                    Toast.makeText(PlayerActivity.this,
+                        "Stream connection failed. Retry or switch source.",
+                        Toast.LENGTH_LONG).show();
+                }
             }
         });
 
@@ -601,8 +702,18 @@ public class PlayerActivity extends Activity {
     }
 
     private void retrySource() {
+        retryCount = 0;
+        recoveryHandler.removeCallbacksAndMessages(null);
         if (webView != null && webView.getVisibility() == View.VISIBLE) {
-            webView.reload();
+            webView.stopLoading();
+            webView.loadUrl("about:blank");
+            webView.postDelayed(() -> {
+                if (webView != null && !isFinishing() && !activeUrl.isEmpty()) {
+                    status.setText("Retrying stream…");
+                    status.setVisibility(View.VISIBLE);
+                    webView.loadUrl(activeUrl);
+                }
+            }, 250);
         } else {
             playSource();
         }
@@ -660,6 +771,7 @@ public class PlayerActivity extends Activity {
     @Override
     protected void onDestroy() {
         controlsHandler.removeCallbacks(hideControlsTask);
+        recoveryHandler.removeCallbacksAndMessages(null);
         if (customVideoView != null) hideCustomVideoView();
         stopPlayback();
         if (webView != null) {
