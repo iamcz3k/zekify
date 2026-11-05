@@ -273,12 +273,12 @@ public class PlayerActivity extends Activity {
                 float dx=x-downX,dy=y-downY;if(Math.abs(dx)>dp(18)||Math.abs(dy)>dp(18))moved=true;
                 if(moved&&Math.abs(dx)>Math.abs(dy)){ if(player!=null&&player.isCurrentMediaItemSeekable()){long target=Math.max(0,startPosition+(long)(dx*180));player.seekTo(target);} }
                 else if(moved&&Math.abs(dy)>Math.abs(dx)){float delta=(lastY-y)/Math.max(1,view.getHeight());if(downX<view.getWidth()/2f){WindowManager.LayoutParams lp=getWindow().getAttributes();float b=lp.screenBrightness<0?0.5f:lp.screenBrightness;lp.screenBrightness=Math.max(0.02f,Math.min(1f,b+delta));getWindow().setAttributes(lp);}else{android.media.AudioManager am=(android.media.AudioManager)getSystemService(AUDIO_SERVICE);int max=am.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC);int cur=am.getStreamVolume(android.media.AudioManager.STREAM_MUSIC);am.setStreamVolume(android.media.AudioManager.STREAM_MUSIC,Math.max(0,Math.min(max,cur+(int)(delta*max))),0);} }
-                lastX=x;lastY=y;return true;
+                lastX=x;lastY=y;return direct||moved;
             }
             if(e.getAction()==MotionEvent.ACTION_UP){
                 long now=System.currentTimeMillis();if(!moved){if(now-lastTap<320){if(x<view.getWidth()/2f)seekBy(-10000);else seekBy(10000);lastTap=0;if(!direct)return true;}else{lastTap=now;if(direct)toggleControls();}}else if(Math.abs(x-downX)>dp(40)&&Math.abs(y-downY)<dp(35)&&player!=null&&!player.isCurrentMediaItemSeekable()){Toast.makeText(PlayerActivity.this,"Seeking is unavailable for this live stream.",Toast.LENGTH_SHORT).show();}
-                return true;
-            }return true;
+                return direct||moved;
+            }return direct;
         }
     }
     private void seekBy(long delta){if(player==null)return;if(!player.isCurrentMediaItemSeekable()){Toast.makeText(this,"This live stream does not support rewind or forward.",Toast.LENGTH_SHORT).show();return;}player.seekTo(Math.max(0,player.getCurrentPosition()+delta));}
