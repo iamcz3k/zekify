@@ -220,7 +220,7 @@ public class PlayerActivity extends Activity {
         toolbar.setPadding(dp(9), dp(5), dp(9), dp(5));
         toolbar.setBackgroundColor(0xaa090909);
 
-        Button back = iconButton("back");
+        View back = iconButton("back");
         back.setOnClickListener(v -> finish());
         toolbar.addView(back);
 
@@ -232,7 +232,7 @@ public class PlayerActivity extends Activity {
         status.setText(matchTitle);
         toolbar.addView(status, new LinearLayout.LayoutParams(0, -2, 1));
 
-        Button reload = iconButton("refresh");
+        View reload = iconButton("refresh");
         reload.setOnClickListener(v -> retrySource());
         toolbar.addView(reload);
 
