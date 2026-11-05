@@ -2,9 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Hls from "hls.js";
 import { App as CapacitorApp } from "@capacitor/app";
 import { ScreenOrientation } from "@capacitor/screen-orientation";
-import { registerPlugin } from "@capacitor/core";
-
-const ImmersiveMode = registerPlugin<{ enter(): Promise<void>; exit(): Promise<void> }>("ImmersiveMode");
 const API = (import.meta.env.VITE_STREAM_API_BASE || "https://laczekstream.qzz.io").replace(/\/$/, "");
 type Team = { name?: string; badge?: string };
 type Source = { id?: string; streamNo?: number; source?: string; language?: string; hd?: boolean; embedUrl?: string };
@@ -62,7 +59,6 @@ export default function App() {
  async function openMatch(match:Match){
   setSelected(match);setDetail(null);setPlaying(false);setSourceIndex(0);setStreamError("");setRetry(0);setFillMode(true);
   try{await ScreenOrientation.lock({orientation:"portrait"});}catch{}
-  try{await ImmersiveMode.exit();}catch{}
   try{
    const response=await fetch(API+"/api/public/football-streams?mode=detail&sport=football&id="+encodeURIComponent(match.id));
    if(!response.ok) throw new Error("Match details unavailable");
@@ -75,11 +71,9 @@ export default function App() {
   if(!detail?.sources?.length){setStreamError("No stream sources are available for this match yet.");return;}
   setPlaying(true);setControlsVisible(true);setIsPaused(false);
   try{await ScreenOrientation.lock({orientation:"landscape"});}catch{}
-  try{await ImmersiveMode.enter();}catch{}
  }
  async function exitPlayer(){
   setPlaying(false);setControlsVisible(true);
-  try{await ImmersiveMode.exit();}catch{}
   try{await ScreenOrientation.lock({orientation:"portrait"});}catch{try{await ScreenOrientation.unlock();}catch{}}
  }
  function backToMatches(){
@@ -95,7 +89,7 @@ export default function App() {
   }).then(handle=>{listener=handle;});
   return()=>{void listener?.remove();};
  },[playing,selected,menuOpen]);
- useEffect(()=>()=>{void ImmersiveMode.exit();void ScreenOrientation.lock({orientation:"portrait"});},[]);
+ useEffect(()=>()=>{void ScreenOrientation.lock({orientation:"portrait"});},[]);
  const sources=detail?.sources??[];
  const active=sources[sourceIndex];
  const stream=active?.embedUrl?.startsWith("/")?API+active.embedUrl:active?.embedUrl??"";
@@ -116,7 +110,6 @@ export default function App() {
  async function toggleFullscreen(){
   const el=videoWrap.current;if(!el)return;
   try{if(!document.fullscreenElement)await el.requestFullscreen?.();else await document.exitFullscreen();}catch{}
-  try{await ImmersiveMode.enter();}catch{}
  }
  function togglePlayback(){
   const video=videoRef.current;if(!video)return;
