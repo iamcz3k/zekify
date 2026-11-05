@@ -37,7 +37,7 @@ public class ZekifyDisplayPlugin extends Plugin {
 
     public static void applySystemBars(Window window) {
         if (window == null) return;
-        View decor = window.getDecorView();
+        WindowCompat.setDecorFitsSystemWindows(window, immersiveEnabled);\n        window.setStatusBarColor(android.graphics.Color.BLACK);\n        window.setNavigationBarColor(android.graphics.Color.BLACK);\n        View decor = window.getDecorView();
         WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, decor);
         if (controller == null) return;
         if (immersiveEnabled) {
