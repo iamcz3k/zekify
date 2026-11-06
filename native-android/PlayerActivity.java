@@ -39,6 +39,14 @@ import java.util.Locale;
 import java.util.Map;
 
 public class PlayerActivity extends Activity {
+    static ExoPlayer transferredPlayer;
+    static WebView transferredWebView;
+    static ExoPlayer returningPlayer;
+    static WebView returningWebView;
+    static int returningSourceIndex = -1;
+    static boolean returnToMainActivity;
+    private boolean handedOffFromMain;
+    private boolean handedBackToMain;
     private ExoPlayer player;
     private DefaultTrackSelector trackSelector;
     private String activeUrl = "";
@@ -96,9 +104,25 @@ public class PlayerActivity extends Activity {
         if (sourceIndex >= sources.length()) sourceIndex = 0;
         matchTitle = getIntent().getStringExtra("match");
         if (matchTitle == null) matchTitle = "";
+        handedOffFromMain = returnToMainActivity;
+        returnToMainActivity = false;
+        player = transferredPlayer;
+        transferredPlayer = null;
         build();
         registerNetworkRecovery();
-        if (sources.length() > 0) playSource();
+        activeUrl = getIntent().getStringExtra("activeUrl");
+        if (activeUrl == null) activeUrl = "";
+        if (player != null) {
+            playerView.setPlayer(player);
+            status.setText(matchTitle);
+            status.setVisibility(View.VISIBLE);
+            scheduleControlsHide();
+        } else if (webView != null && webView.getVisibility() == View.VISIBLE) {
+            webView.onResume();
+            status.setText(matchTitle);
+            status.setVisibility(View.VISIBLE);
+            scheduleControlsHide();
+        } else if (sources.length() > 0) playSource();
         else showError("No stream sources are available.");
     }
 
@@ -271,9 +295,7 @@ public class PlayerActivity extends Activity {
                     customVideoView = view;
                     customViewCallback = callback;
                     webView.setVisibility(View.GONE);
-                    toolbar.setVisibility(View.VISIBLE);
-                    toolbar.bringToFront();
-                    controlsHandler.removeCallbacks(hideControlsTask);
+                    setControlsVisible(false);
                     hideBars();
                 } catch (RuntimeException error) {
                     customVideoView = null;
@@ -301,6 +323,43 @@ public class PlayerActivity extends Activity {
 
         root.addView(webView, playerParams);
         webView.setVisibility(View.GONE);
+        if (transferredWebView != null) {
+            WebView placeholder = webView;
+            if (placeholder.getParent() instanceof ViewGroup) {
+                ((ViewGroup) placeholder.getParent()).removeView(placeholder);
+            }
+            placeholder.destroy();
+            webView = transferredWebView;
+            transferredWebView = null;
+            if (webView.getParent() instanceof ViewGroup) {
+                ((ViewGroup) webView.getParent()).removeView(webView);
+            }
+            webView.setOnTouchListener(new GestureSurface(false));
+            webView.setWebChromeClient(new WebChromeClient() {
+                @Override public void onShowCustomView(View view, CustomViewCallback callback) {
+                    if (customVideoView != null || customViewTransition) { callback.onCustomViewHidden(); return; }
+                    customViewTransition = true;
+                    try {
+                        if (view.getParent() instanceof ViewGroup) ((ViewGroup) view.getParent()).removeView(view);
+                        view.setOnTouchListener(new GestureSurface(false));
+                        root.addView(view, new FrameLayout.LayoutParams(-1, -1));
+                        customVideoView = view;
+                        customViewCallback = callback;
+                        webView.setVisibility(View.GONE);
+                        setControlsVisible(false);
+                        hideBars();
+                    } catch (RuntimeException error) {
+                        customVideoView = null;
+                        customViewCallback = null;
+                        try { callback.onCustomViewHidden(); } catch (RuntimeException ignored) {}
+                    } finally { customViewTransition = false; }
+                }
+                @Override public void onHideCustomView() { hideCustomVideoView(); }
+            });
+            root.addView(webView, playerParams);
+            webView.setVisibility(View.VISIBLE);
+            webView.postDelayed(this::applyWebVideoSizing, 500L);
+        }
 
         toolbar = new LinearLayout(this);
         toolbar.setOrientation(LinearLayout.VERTICAL);
@@ -628,11 +687,14 @@ public class PlayerActivity extends Activity {
         controlsVisible = visible;
         if (toolbar != null) toolbar.setVisibility(visible ? View.VISIBLE : View.GONE);
         if (visible) scheduleControlsHide();
+        else controlsHandler.removeCallbacks(hideControlsTask);
     }
 
     private void scheduleControlsHide() {
         controlsHandler.removeCallbacks(hideControlsTask);
-        // Keep playback controls available; do not auto-hide the toolbar.
+        if (controlsVisible && toolbar != null && toolbar.getVisibility() == View.VISIBLE) {
+            controlsHandler.postDelayed(hideControlsTask, 5000L);
+        }
     }
 
     private void toggleControls() {
@@ -784,11 +846,8 @@ public class PlayerActivity extends Activity {
                 ((ViewGroup) parent).removeView(videoView);
             }
             if (webView != null) webView.setVisibility(View.VISIBLE);
-            if (toolbar != null) {
-                toolbar.setVisibility(View.VISIBLE);
-                toolbar.bringToFront();
-            }
-            controlsVisible = true;
+            if (toolbar != null) toolbar.bringToFront();
+            setControlsVisible(true);
             scheduleControlsHide();
             hideBars();
         } finally {
@@ -813,10 +872,28 @@ public class PlayerActivity extends Activity {
         if (player != null) player.play();
     }
 
+    private void returnPlaybackToMain() {
+        if (!handedOffFromMain || handedBackToMain) return;
+        if (playerView != null) playerView.setPlayer(null);
+        returningPlayer = player;
+        player = null;
+        if (webView != null) {
+            webView.setWebChromeClient(new WebChromeClient());
+            if (webView.getParent() instanceof ViewGroup) {
+                ((ViewGroup) webView.getParent()).removeView(webView);
+            }
+            returningWebView = webView;
+            webView = null;
+        }
+        returningSourceIndex = sourceIndex;
+        handedBackToMain = true;
+    }
+
     @Override
     protected void onPause() {
         if (webView != null) webView.onPause();
         if (player != null) player.pause();
+        if (isFinishing()) returnPlaybackToMain();
         super.onPause();
     }
 
@@ -830,10 +907,13 @@ public class PlayerActivity extends Activity {
         controlsHandler.removeCallbacks(hideControlsTask);
         recoveryHandler.removeCallbacksAndMessages(null);
         if (customVideoView != null) hideCustomVideoView();
-        stopPlayback();
-        if (webView != null) {
-            webView.destroy();
-            webView = null;
+        if (handedOffFromMain && !handedBackToMain) returnPlaybackToMain();
+        if (!handedBackToMain) {
+            stopPlayback();
+            if (webView != null) {
+                webView.destroy();
+                webView = null;
+            }
         }
         super.onDestroy();
     }
