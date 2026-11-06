@@ -128,10 +128,12 @@ mainActivity = mainActivity.replace(
  '@Override protected void onResume(){super.onResume();ZekifyUpdateManager.resumeInstall(this);if(PlayerActivity.returningSourceIndex>=0)'
 );
 
-mainActivity = mainActivity.replace(
- 'private final Set<String> badgeRequests=Collections.synchronizedSet(new HashSet<>());',
- 'private final Set<String> badgeRequests=Collections.synchronizedSet(new HashSet<>());\n private final java.util.concurrent.ConcurrentHashMap<String,java.util.concurrent.CopyOnWriteArrayList<java.lang.ref.WeakReference<FrameLayout>>> badgeWaiters=new java.util.concurrent.ConcurrentHashMap<>();'
-);
+if (!mainActivity.includes("badgeWaiters")) {
+ mainActivity = mainActivity.replace(
+  'private final Set<String> badgeRequests=Collections.synchronizedSet(new HashSet<>());',
+  'private final Set<String> badgeRequests=Collections.synchronizedSet(new HashSet<>());\n private final java.util.concurrent.ConcurrentHashMap<String,java.util.concurrent.CopyOnWriteArrayList<java.lang.ref.WeakReference<FrameLayout>>> badgeWaiters=new java.util.concurrent.ConcurrentHashMap<>();'
+ );
+}
 mainActivity = mainActivity.replace(
  'if(!badgeRequests.add(badgeUrl))return frame;',
  'badgeWaiters.computeIfAbsent(badgeUrl,k->new java.util.concurrent.CopyOnWriteArrayList<>()).add(new java.lang.ref.WeakReference<>(frame));\n  if(!badgeRequests.add(badgeUrl))return frame;'
