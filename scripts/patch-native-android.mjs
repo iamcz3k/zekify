@@ -97,6 +97,11 @@ mainActivity = mainActivity.replace(
  'if(bitmap==null||frame==null||!expectedUrl.equals(frame.getTag())||!frame.isAttachedToWindow())return;',
  'if(bitmap==null||frame==null||!expectedUrl.equals(frame.getTag()))return;'
 );
+mainActivity = mainActivity.replace(
+ 'if(inlineWebView!=null){inlineWebView.stopLoading();inlineWebView.loadUrl("about:blank");}inlineFrame=null;',
+ 'if(inlineWebView!=null){inlineWebView.stopLoading();inlineWebView.loadUrl("about:blank");inlineWebView.setVisibility(View.GONE);}inlineFrame=null;'
+);
+
 if (!mainActivity.includes("badgeWaiters")) throw new Error("Badge cache navigation patch did not apply");
 await writeFile(mainActivityPath, mainActivity);
 
