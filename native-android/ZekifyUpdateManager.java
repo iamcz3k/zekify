@@ -181,7 +181,7 @@ public final class ZekifyUpdateManager {
         dialog.setContentView(page);
         dialog.setCancelable(false);
         dialog.setCanceledOnTouchOutside(false);
-        button.setOnClickListener(v -> { if (action != null) action.run(); });
+        button.setOnClickListener(v -> { dialog.dismiss(); if (action != null) action.run(); });
         dialog.show();
         Window window = dialog.getWindow();
         if (window != null) {
@@ -341,9 +341,7 @@ public final class ZekifyUpdateManager {
     private static Set<String> certificateDigests(PackageInfo info) throws Exception {
         Signature[] signatures;
         if (Build.VERSION.SDK_INT >= 28 && info.signingInfo != null) {
-            signatures = info.signingInfo.hasMultipleSigners()
-                ? info.signingInfo.getApkContentsSigners()
-                : info.signingInfo.getSigningCertificateHistory();
+            signatures = info.signingInfo.getApkContentsSigners();
         } else {
             signatures = info.signatures;
         }
@@ -370,7 +368,7 @@ public final class ZekifyUpdateManager {
         Set<String> installed = certificateDigests(current);
         Set<String> incoming = certificateDigests(candidate);
         if (installed.isEmpty() || !installed.equals(incoming))
-            throw new Exception("The APK was signed with a different key. Installation blocked.");
+            throw new Exception("Signing certificate mismatch. Installed certificate: " + installed + ". Downloaded APK certificate: " + incoming + ". Android blocks updates signed with a different key.");
         if (candidate.versionName == null || compareVersions(candidate.versionName, current.versionName) <= 0)
             throw new Exception("The downloaded APK is not newer than the installed version.");
     }
