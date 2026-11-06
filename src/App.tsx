@@ -24,7 +24,8 @@ function TeamBadge({team,size="normal"}:{team?:Team,size?:"normal"|"large"}) {
  return <span className={"team-badge "+(size==="large"?"large":"")}>{src&&!bad?<img src={src} alt="" onError={()=>setBad(true)}/>:<Ball small/>}</span>;
 }
 export default function App() {
- const [matches,setMatches]=useState<Match[]>([]);\n const [page,setPage]=useState<"home"|"settings"|"notifications"|"bugs"|"updater">("home");\n const [preferences,setPreferences]=useState({notifications:true,autoplay:false,miniPlayer:true,cache:true,haptics:false,theme:"AMOLED black",quality:"Auto"});\n const [bugLogs,setBugLogs]=useState<{code:string;message:string;time:string}[]>([]);\n const [notice,setNotice]=useState("");
+ const [matches,setMatches]=useState<Match[]>([]);
+ const [page,setPage]=useState<"home"|"settings"|"notifications"|"bugs"|"updater">("home");\n const [preferences,setPreferences]=useState({notifications:true,autoplay:false,miniPlayer:true,cache:true,haptics:false,theme:"AMOLED black",quality:"Auto"});\n const [bugLogs,setBugLogs]=useState<{code:string;message:string;time:string}[]>([]);\n const [notice,setNotice]=useState("");
  const [tab,setTab]=useState<"live"|"upcoming">("live");
  const [leagueFilter,setLeagueFilter]=useState("All");
  const [searchQuery,setSearchQuery]=useState("");
@@ -47,7 +48,10 @@ export default function App() {
   }catch(e){setError(e instanceof Error?e.message:"Could not load matches");}
   finally{setLoading(false);}
  }
- useEffect(()=>{void load();},[]);\n useEffect(()=>{try{const raw=localStorage.getItem("zekify-preferences");if(raw)setPreferences(p=>({...p,...JSON.parse(raw)}));const logs=localStorage.getItem("zekify-error-logs");if(logs)setBugLogs(JSON.parse(logs));}catch{}} ,[]);\n useEffect(()=>{try{localStorage.setItem("zekify-preferences",JSON.stringify(preferences));}catch{}},[preferences]);\n useEffect(()=>{const record=(message:string)=>{const code="ZKF-"+Math.random().toString(36).slice(2,8).toUpperCase();setBugLogs(old=>{const next=[{code,message:message.slice(0,240),time:new Date().toLocaleString()},...old].slice(0,30);try{localStorage.setItem("zekify-error-logs",JSON.stringify(next));}catch{}return next;});};const onError=(e:ErrorEvent)=>record(e.message||"Unexpected app error");const onReject=(e:PromiseRejectionEvent)=>record(String(e.reason??"Unhandled promise rejection"));window.addEventListener("error",onError);window.addEventListener("unhandledrejection",onReject);return()=>{window.removeEventListener("error",onError);window.removeEventListener("unhandledrejection",onReject);};},[]);
+ useEffect(()=>{void load();},[]);
+ useEffect(()=>{try{const raw=localStorage.getItem("zekify-preferences");if(raw)setPreferences(p=>({...p,...JSON.parse(raw)}));const logs=localStorage.getItem("zekify-error-logs");if(logs)setBugLogs(JSON.parse(logs));}catch{}} ,[]);
+ useEffect(()=>{try{localStorage.setItem("zekify-preferences",JSON.stringify(preferences));}catch{}},[preferences]);
+ useEffect(()=>{const record=(message:string)=>{const code="ZKF-"+Math.random().toString(36).slice(2,8).toUpperCase();setBugLogs(old=>{const next=[{code,message:message.slice(0,240),time:new Date().toLocaleString()},...old].slice(0,30);try{localStorage.setItem("zekify-error-logs",JSON.stringify(next));}catch{}return next;});};const onError=(e:ErrorEvent)=>record(e.message||"Unexpected app error");const onReject=(e:PromiseRejectionEvent)=>record(String(e.reason??"Unhandled promise rejection"));window.addEventListener("error",onError);window.addEventListener("unhandledrejection",onReject);return()=>{window.removeEventListener("error",onError);window.removeEventListener("unhandledrejection",onReject);};},[]);
  const leagues=useMemo(()=>["All",...Array.from(new Set(matches.map(m=>(m.league||"Other competitions").trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b))],[matches]);
  const visible=useMemo(()=>{
   const query=searchQuery.trim().toLocaleLowerCase();
@@ -87,7 +91,8 @@ export default function App() {
  useEffect(()=>{
   let listener:{remove:()=>Promise<void>}|undefined;
   void CapacitorApp.addListener("backButton",()=>{
-   if(menuOpen){setMenuOpen(false);return;}\n   if(page!=="home"){setPage("home");return;}
+   if(menuOpen){setMenuOpen(false);return;}
+   if(page!=="home"){setPage("home");return;}
    if(playing){void exitPlayer();return;}
    if(selected){backToMatches();return;}
   }).then(handle=>{listener=handle;});
