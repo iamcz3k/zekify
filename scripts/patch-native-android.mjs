@@ -98,6 +98,20 @@ for (const icon of [
 const mainActivityPath = root + "/MainActivity.java";
 let mainActivity = await readFile(mainActivityPath, "utf8");
 mainActivity = mainActivity.replace(
+ 'private String team(JSONObject m,String side){JSONObject teams=m.optJSONObject("teams"),t=teams==null?null:teams.optJSONObject(side);return t==null?"Team":t.optString("name","Team");}',
+ 'private String team(JSONObject m,String side){if(m==null)return "Team";JSONObject teams=m.optJSONObject("teams"),t=teams==null?null:teams.optJSONObject(side);String name=t==null?"":t.optString("name","").trim();return name.isEmpty()||"null".equalsIgnoreCase(name)?"Team":name;}'
+);
+mainActivity = mainActivity.replace(
+ 'View spacer=new View(this);panel.addView(spacer,new LinearLayout.LayoutParams(1,0,1));View divider=new View(this);',
+ 'View divider=new View(this);'
+);
+mainActivity = mainActivity.replace(
+ 'dialog.setContentView(panel);dialog.setCancelable(true);dialog.setCanceledOnTouchOutside(true);dialog.show();Window w=dialog.getWindow();',
+ 'ScrollView menuScroll=new ScrollView(this);menuScroll.setFillViewport(true);menuScroll.setVerticalScrollBarEnabled(false);menuScroll.setBackgroundColor(Color.TRANSPARENT);menuScroll.addView(panel,new ScrollView.LayoutParams(-1,-2));dialog.setContentView(menuScroll);dialog.setCancelable(true);dialog.setCanceledOnTouchOutside(true);dialog.show();Window w=dialog.getWindow();'
+);
+if (!mainActivity.includes('ScrollView menuScroll=new ScrollView(this)')) throw new Error("Scrollable menu patch did not apply");
+if (!mainActivity.includes('String name=t==null?"":t.optString("name","").trim()')) throw new Error("Safe team name patch did not apply");
+mainActivity = mainActivity.replace(
  'private Dialog startupDialog;',
  'private Dialog startupDialog;\n private boolean updateCheckStarted=false;'
 );
