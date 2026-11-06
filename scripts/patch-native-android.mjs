@@ -4,13 +4,17 @@ const root="android/app/src/main/java/"+pkg.replaceAll(".","/");
 await mkdir(root,{recursive:true});
 await copyFile("native-android/MainActivity.java",root+"/MainActivity.java");
 await copyFile("native-android/PlayerActivity.java",root+"/PlayerActivity.java");
+await copyFile("native-android/MatchReminderReceiver.java",root+"/MatchReminderReceiver.java");
 const manifestPath="android/app/src/main/AndroidManifest.xml";
 let manifest=await readFile(manifestPath,"utf8");
+if(manifest.includes('android:name=".MainActivity"')&&!manifest.match(/<activity[^>]*android:name=".MainActivity"[^>]*android:launchMode=/)){manifest=manifest.replace(/(<activity[^>]*android:name=".MainActivity"[^>]*)(>)/,'$1 android:launchMode="singleTop"$2');}
+if(!manifest.includes('android:name=".MatchReminderReceiver"')) manifest=manifest.replace("</application>",'    <receiver android:name=".MatchReminderReceiver" android:enabled="true" android:exported="false" />\n    </application>');
 if(!manifest.includes('android:name=".PlayerActivity"')){
  manifest=manifest.replace("</application>",'    <activity android:name=".PlayerActivity" android:exported="false" android:screenOrientation="sensorLandscape" android:configChanges="orientation|screenSize|keyboardHidden" />\n    </application>');
 }
 if(!manifest.includes("android.permission.INTERNET")) manifest=manifest.replace("<application",'<uses-permission android:name="android.permission.INTERNET" />\n    <application');
 if(!manifest.includes("android.permission.ACCESS_NETWORK_STATE")) manifest=manifest.replace("<application",'<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />\n    <application');
+if(!manifest.includes("android.permission.POST_NOTIFICATIONS")) manifest=manifest.replace("<application",'<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <application');
 if(manifest.includes('android:name="androidx.core.content.FileProvider"')){
  const providerAt=manifest.indexOf('android:name="androidx.core.content.FileProvider"');
  const resourceAt=manifest.indexOf('android:resource="@xml/',providerAt);
