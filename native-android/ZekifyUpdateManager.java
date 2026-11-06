@@ -385,14 +385,11 @@ public final class ZekifyUpdateManager {
 
     private static void install(Activity activity, File apk) {
         if (Build.VERSION.SDK_INT >= 26 && !activity.getPackageManager().canRequestPackageInstalls()) {
-            new AlertDialog.Builder(activity).setTitle("Allow Zekify updates")
-                .setMessage("Android needs permission to install updates downloaded by Zekify. Allow installs from this app, then return to Zekify.")
-                .setNegativeButton("Cancel", null)
-                .setPositiveButton("Open settings", (d, w) -> {
-                    Intent settings = new Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                        Uri.parse("package:" + activity.getPackageName()));
-                    activity.startActivity(settings);
-                }).show();
+            requiredPage(activity, "Allow update installation", "Android requires permission for Zekify to install its verified updates. Open Android settings, allow installs from Zekify, then return here.", "Open Android settings", () -> {
+                Intent settings = new Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    Uri.parse("package:" + activity.getPackageName()));
+                activity.startActivity(settings);
+            });
             return;
         }
         try {
