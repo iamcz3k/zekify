@@ -780,7 +780,22 @@ public class PlayerActivity extends Activity {
             public void onPlaybackStateChanged(int playbackState) {
                 if (playbackState == Player.STATE_BUFFERING) {
                     status.setText("Connecting to " + currentSourceName(source) + "…");
+                    recoveryHandler.removeCallbacksAndMessages(null);
+                    recoveryHandler.postDelayed(() -> {
+                        if (player != null && !isFinishing() && player.getPlaybackState() == Player.STATE_BUFFERING) {
+                            if (retryCount < 2) {
+                                retryCount++;
+                                status.setText("Stream stalled. Reconnecting (" + retryCount + "/2)…");
+                                player.seekToDefaultPosition();
+                                player.prepare();
+                                player.play();
+                            } else {
+                                status.setText("Stream is still buffering. Tap Retry or choose another source.");
+                            }
+                        }
+                    }, 18000L);
                 } else if (playbackState == Player.STATE_READY) {
+                    recoveryHandler.removeCallbacksAndMessages(null);
                     retryCount = 0;
                     status.setText(matchTitle);
                 }
