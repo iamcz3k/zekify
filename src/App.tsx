@@ -148,7 +148,7 @@ export default function App() {
      <div className="card-footer"><span>{m.status==="live"?"Match details":"Match details"}</span><span>→</span></div>
     </button>)}</div>}
    </section>
-  </>}
+  </>:null}
   {!playing&&!selected&&page==="home"&&<nav className="bottom-nav" aria-label="Main navigation"><button className="active" onClick={()=>setPage("home")}><Home size={19}/>Home</button><button onClick={()=>{setTab("upcoming");setPage("home");}}><CalendarDays size={19}/>Upcoming</button><button onClick={()=>{setPage("home");setTimeout(()=>document.querySelector<HTMLInputElement>(".match-search input")?.focus(),0);}}><Search size={19}/>Search</button><button onClick={()=>setMenuOpen(true)}><Menu size={19}/>Menu</button></nav>}
   {!playing&&<footer><Ball small/> ZEKIFY <span>·</span> MADE FOR THE GAME</footer>}
  </main>;
