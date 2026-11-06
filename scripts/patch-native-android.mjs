@@ -4,6 +4,20 @@ const root="android/app/src/main/java/"+pkg.replaceAll(".","/");
 await mkdir(root,{recursive:true});
 await copyFile("native-android/MainActivity.java",root+"/MainActivity.java");
 await copyFile("native-android/PlayerActivity.java",root+"/PlayerActivity.java");
+
+const playerActivityPath = root + "/PlayerActivity.java";
+let playerActivity = await readFile(playerActivityPath, "utf8");
+playerActivity = playerActivity.replace(
+ 'if (!controlsVisible) setControlsVisible(true);',
+ 'if (customVideoView != null) { setControlsVisible(false); return; } if (!controlsVisible) setControlsVisible(true);'
+);
+playerActivity = playerActivity.replace(
+ 'controlsVisible = visible;',
+ 'if (customVideoView != null) visible = false; controlsVisible = visible;'
+);
+if (!playerActivity.includes('if (customVideoView != null) { setControlsVisible(false); return; }')) throw new Error("Fullscreen controls guard did not apply");
+await writeFile(playerActivityPath, playerActivity);
+
 await copyFile("native-android/MatchReminderReceiver.java",root+"/MatchReminderReceiver.java");
 await copyFile("native-android/MatchReminderBootReceiver.java",root+"/MatchReminderBootReceiver.java");
 await copyFile("native-android/ZekifyUpdateManager.java",root+"/ZekifyUpdateManager.java");
