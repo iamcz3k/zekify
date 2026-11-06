@@ -10,7 +10,6 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'capacitor.config.ts'
-      - '.github/workflows/build-apk.yml'
 permissions:
   contents: write
 jobs:
@@ -79,10 +78,10 @@ jobs:
               buildTypes {""",
                   1,
               )
-          pattern = r"(buildTypes\\s*\\{\\s*release\\s*\\{)"
+          pattern = r"(buildTypes\s*\{\s*release\s*\{)"
           source, count = re.subn(
               pattern,
-              r"\\1\\n            signingConfig signingConfigs.release",
+              r"\1\n            signingConfig signingConfigs.release",
               source,
               count=1,
           )
