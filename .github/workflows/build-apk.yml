@@ -45,8 +45,8 @@ jobs:
           python3 -c "import xml.etree.ElementTree as ET; ET.parse('android/app/src/main/AndroidManifest.xml'); print('AndroidManifest.xml is valid XML')"
       - name: Set Android version
         run: |
-          sed -i 's/versionCode 1/versionCode 10/' android/app/build.gradle
-          sed -i 's/versionName "1.0"/versionName "2.1.0"/' android/app/build.gradle
+          sed -i 's/versionCode 1/versionCode 11/' android/app/build.gradle
+          sed -i 's/versionName "1.0"/versionName "2.2.0"/' android/app/build.gradle
           grep -E 'versionCode|versionName' android/app/build.gradle
       - name: Configure release signing
         env:
@@ -87,24 +87,28 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew assembleRelease
-          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v2.1.0.apk
+          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v2.2.0.apk
           cd ..
           rm -f android/zekify-release.jks
-          test -s Zekify-v2.1.0.apk
+          test -s Zekify-v2.2.0.apk
+      - name: Generate update checksum
+        run: sha256sum Zekify-v2.2.0.apk > Zekify-v2.2.0.apk.sha256
       - name: Verify APK signature
         run: |
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v2.1.0.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v2.2.0.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: zekify-v2.1.0-signed-apk
-          path: Zekify-v2.1.0.apk
+          name: zekify-v2.2.0-signed-apk
+          path: |
+            Zekify-v2.2.0.apk
+            Zekify-v2.2.0.apk.sha256
           if-no-files-found: error
       - name: Publish signed APK release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view v2.1.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload v2.1.0 Zekify-v2.1.0.apk --clobber --repo "$GITHUB_REPOSITORY"
+          if gh release view v2.2.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload v2.2.0 Zekify-v2.2.0.apk Zekify-v2.2.0.apk.sha256 --clobber --repo "$GITHUB_REPOSITORY"
           else
-            gh release create v2.1.0 Zekify-v2.1.0.apk --title "Zekify v2.1.0" --notes "Zekify Android feature update." --target "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY"
+            gh release create v2.2.0 Zekify-v2.2.0.apk Zekify-v2.2.0.apk.sha256 --title "Zekify v2.2.0" --notes "Zekify Android feature update." --target "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY"
           fi
