@@ -701,7 +701,9 @@ public class PlayerActivity extends Activity {
     }
 
     private void toggleControls() {
-        setControlsVisible(!controlsVisible);
+        // A tap reveals hidden controls; while visible, it restarts the five-second timeout.
+        if (!controlsVisible) setControlsVisible(true);
+        else scheduleControlsHide();
     }
 
     private void applyWebVideoSizing() {
