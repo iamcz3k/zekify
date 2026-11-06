@@ -425,6 +425,10 @@ public class PlayerActivity extends Activity {
         FrameLayout.LayoutParams barParams =
             new FrameLayout.LayoutParams(-1, -2, Gravity.TOP);
         root.addView(toolbar, barParams);
+        if (handedOffFromMain) {
+            controlsVisible = false;
+            toolbar.setVisibility(View.GONE);
+        }
         root.setOnClickListener(v -> toggleControls());
         setContentView(root);
         scheduleControlsHide();
@@ -701,7 +705,9 @@ public class PlayerActivity extends Activity {
     }
 
     private void toggleControls() {
-        setControlsVisible(!controlsVisible);
+        // A tap reveals hidden controls; while visible, it restarts the five-second timeout.
+        if (!controlsVisible) setControlsVisible(true);
+        else scheduleControlsHide();
     }
 
     private void applyWebVideoSizing() {

@@ -2,7 +2,7 @@ name: Build and release Zekify APK
 on:
   workflow_dispatch:
   push:
-    branches: [telegram-football-bot, native-android-v2, main]
+    branches: [telegram-football-bot, native-android-v2, zekify/feature-suite, main]
     paths:
       - 'src/**'
       - 'assets/**'
@@ -56,8 +56,8 @@ jobs:
           python3 -c "import xml.etree.ElementTree as ET; ET.parse('android/app/src/main/AndroidManifest.xml'); print('AndroidManifest.xml is valid XML')"
       - name: Set Android version
         run: |
-          sed -i 's/versionCode 1/versionCode 9/' android/app/build.gradle
-          sed -i 's/versionName "1.0"/versionName "2.0.1"/' android/app/build.gradle
+          sed -i 's/versionCode 1/versionCode 10/' android/app/build.gradle
+          sed -i 's/versionName "1.0"/versionName "2.1.0"/' android/app/build.gradle
           grep -E 'versionCode|versionName' android/app/build.gradle
       - name: Configure persistent release signing (when repository secrets are set)
         env:
@@ -96,20 +96,23 @@ jobs:
           chmod +x gradlew
           if [ "$ZEKEY_SIGNING" = "release" ]; then
             ./gradlew assembleRelease
-            cp app/build/outputs/apk/release/app-release.apk ../Zekify-v2.0.1.apk
+            cp app/build/outputs/apk/release/app-release.apk ../Zekify-v2.1.0.apk
           else
             ./gradlew assembleDebug
-            cp app/build/outputs/apk/debug/app-debug.apk ../Zekify-v2.0.1.apk
+            cp app/build/outputs/apk/debug/app-debug.apk ../Zekify-v2.1.0.apk
           fi
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs ../Zekify-v2.0.1.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs ../Zekify-v2.1.0.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: zekify-v2.0.1-apk
-          path: Zekify-v2.0.1.apk
+          name: zekify-v2.1.0-apk
+          path: Zekify-v2.1.0.apk
           if-no-files-found: error
       - name: Publish APK release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view v2.0.1 --repo "$GITHUB_REPOSITORY"
-          gh release upload v2.0.1 Zekify-v2.0.1.apk --clobber --repo "$GITHUB_REPOSITORY"
+          if gh release view v2.1.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload v2.1.0 Zekify-v2.1.0.apk --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create v2.1.0 Zekify-v2.1.0.apk --title "Zekify v2.1.0" --notes "Zekify Android feature update." --target "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY"
+          fi
