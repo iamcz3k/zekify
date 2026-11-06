@@ -882,6 +882,7 @@ public class PlayerActivity extends Activity {
         player = null;
         if (webView != null) {
             webView.setWebChromeClient(new WebChromeClient());
+            webView.setOnTouchListener(null);
             if (webView.getParent() instanceof ViewGroup) {
                 ((ViewGroup) webView.getParent()).removeView(webView);
             }
