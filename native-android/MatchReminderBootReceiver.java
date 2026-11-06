@@ -25,7 +25,7 @@ public class MatchReminderBootReceiver extends BroadcastReceiver {
         try {
             JSONObject records = new JSONObject(raw == null ? "{}" : raw);
             JSONArray matches = new JSONArray();
-            for (String id : ids) { JSONObject saved = records.optJSONObject(id); if (saved != null) matches.put(saved); }
+            for (String id : ids) { JSONObject savedMatch = records.optJSONObject(id); if (savedMatch != null) matches.put(savedMatch); }
             if (matches.length() == 0) { String cached = prefs.getString("matches_json", ""); if (cached != null && !cached.isEmpty()) matches = new JSONArray(cached); }
             for (int i = 0; i < matches.length(); i++) {
                 JSONObject match = matches.optJSONObject(i);
