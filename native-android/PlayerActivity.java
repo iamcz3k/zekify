@@ -324,6 +324,7 @@ public class PlayerActivity extends Activity {
         root.addView(webView, playerParams);
         webView.setVisibility(View.GONE);
         if (transferredWebView != null) {
+            int transferredWebViewVisibility = transferredWebView.getVisibility();
             WebView placeholder = webView;
             if (placeholder.getParent() instanceof ViewGroup) {
                 ((ViewGroup) placeholder.getParent()).removeView(placeholder);
@@ -357,8 +358,10 @@ public class PlayerActivity extends Activity {
                 @Override public void onHideCustomView() { hideCustomVideoView(); }
             });
             root.addView(webView, playerParams);
-            webView.setVisibility(View.VISIBLE);
-            webView.postDelayed(this::applyWebVideoSizing, 500L);
+            webView.setVisibility(transferredWebViewVisibility);
+            if (transferredWebViewVisibility == View.VISIBLE) {
+                webView.postDelayed(this::applyWebVideoSizing, 500L);
+            }
         }
 
         toolbar = new LinearLayout(this);
