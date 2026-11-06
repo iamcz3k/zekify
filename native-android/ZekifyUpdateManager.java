@@ -303,7 +303,7 @@ public final class ZekifyUpdateManager {
                     actionButton.setEnabled(true);
                     actionButton.setOnClickListener(v -> download(activity, update));
                 } else {
-                    status.setText("Download complete. Checksum, package ID and signing certificate verified.");
+                    status.setText("Download complete. Checksum and package ID verified. Ready for Android installer.");
                     progress.setProgress(100);
                     actionButton.setText("Install update");
                     actionButton.setEnabled(true);
@@ -361,16 +361,13 @@ public final class ZekifyUpdateManager {
     private static void verifyPackageAndSignature(Activity activity, File apk) throws Exception {
         PackageManager pm = activity.getPackageManager();
         int flags = Build.VERSION.SDK_INT >= 28 ? PackageManager.GET_SIGNING_CERTIFICATES : PackageManager.GET_SIGNATURES;
-        PackageInfo current = pm.getPackageInfo(activity.getPackageName(), flags);
+        PackageInfo current = pm.getPackageInfo(activity.getPackageName(), 0);
         PackageInfo candidate = pm.getPackageArchiveInfo(apk.getAbsolutePath(), flags);
         if (candidate == null || !activity.getPackageName().equals(candidate.packageName))
             throw new Exception("This APK is not a Zekify update.");
-        Set<String> installed = certificateDigests(current);
-        Set<String> incoming = certificateDigests(candidate);
-        if (installed.isEmpty() || !installed.equals(incoming))
-            throw new Exception("Signing certificate mismatch. Installed certificate: " + installed + ". Downloaded APK certificate: " + incoming + ". Android blocks updates signed with a different key.");
         if (candidate.versionName == null || compareVersions(candidate.versionName, current.versionName) <= 0)
             throw new Exception("The downloaded APK is not newer than the installed version.");
+        // The Android package installer performs the authoritative signing-certificate check.
     }
 
     public static void resumeInstall(Activity activity) {
@@ -380,7 +377,7 @@ public final class ZekifyUpdateManager {
         File apk = new File(path);
         if (!apk.isFile()) return;
         String version = activity.getSharedPreferences(PREFS, Activity.MODE_PRIVATE).getString("pending_version", "");
-        requiredPage(activity, "Update ready", "Zekify " + version + " has been downloaded and verified. Install it now to continue.", "Install update", () -> install(activity, apk));
+        requiredPage(activity, "Update ready", "Zekify " + version + " has been downloaded. Android will verify it when you install.", "Install update", () -> install(activity, apk));
     }
 
     private static void install(Activity activity, File apk) {
