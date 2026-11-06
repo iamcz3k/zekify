@@ -114,5 +114,5 @@ jobs:
           if gh release view v2.1.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload v2.1.0 Zekify-v2.1.0.apk --clobber --repo "$GITHUB_REPOSITORY"
           else
-            gh release create v2.1.0 Zekify-v2.1.0.apk --title "Zekify v2.1.0" --notes "Zekify Android feature update." --repo "$GITHUB_REPOSITORY"
+            gh release create v2.1.0 Zekify-v2.1.0.apk --title "Zekify v2.1.0" --notes "Zekify Android feature update." --target "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY"
           fi
