@@ -2,7 +2,6 @@ package com.v3x.zekify;
 
 import android.Manifest;
 import android.app.AlarmManager;
-import android.app.BroadcastReceiver;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -16,7 +15,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.net.URLEncoder;
 import java.util.Set;
 import org.json.JSONArray;
 import org.json.JSONObject;
