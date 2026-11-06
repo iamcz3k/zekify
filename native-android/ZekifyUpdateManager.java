@@ -170,6 +170,18 @@ public final class ZekifyUpdateManager {
         LinearLayout.LayoutParams btnp = new LinearLayout.LayoutParams(-1, -2);
         btnp.topMargin = dp(activity, 30);
         page.addView(button, btnp);
+        TextView websiteLink = new TextView(activity);
+        websiteLink.setText("Alternatively, download Zekify from our website");
+        websiteLink.setTextColor(0xffff8a3d);
+        websiteLink.setTextSize(13);
+        websiteLink.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams websiteParams = new LinearLayout.LayoutParams(-1, -2);
+        websiteParams.topMargin = dp(activity, 16);
+        page.addView(websiteLink, websiteParams);
+        websiteLink.setOnClickListener(v -> {
+            try { activity.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://laczek.dpdns.org/zekify"))); }
+            catch (Exception ignored) { android.widget.Toast.makeText(activity, "Could not open the website.", android.widget.Toast.LENGTH_SHORT).show(); }
+        });
         TextView foot = new TextView(activity);
         foot.setText("This required update must be installed before continuing to Zekify.");
         foot.setTextColor(0xff777777);
@@ -245,6 +257,18 @@ public final class ZekifyUpdateManager {
         LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(-1, -2);
         actionParams.topMargin = dp(activity, 30);
         layout.addView(actionButton, actionParams);
+        TextView websiteLink = new TextView(activity);
+        websiteLink.setText("Alternatively, download Zekify from our website");
+        websiteLink.setTextColor(0xffff8a3d);
+        websiteLink.setTextSize(13);
+        websiteLink.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams websiteParams = new LinearLayout.LayoutParams(-1, -2);
+        websiteParams.topMargin = dp(activity, 16);
+        layout.addView(websiteLink, websiteParams);
+        websiteLink.setOnClickListener(v -> {
+            try { activity.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://laczek.dpdns.org/zekify"))); }
+            catch (Exception ignored) { android.widget.Toast.makeText(activity, "Could not open the website.", android.widget.Toast.LENGTH_SHORT).show(); }
+        });
         page.setContentView(layout);
         page.setCancelable(false);
         page.setCanceledOnTouchOutside(false);
