@@ -1,5 +1,8 @@
 name: Build and release Zekify APK
 on:
+  push:
+    branches:
+      - native-android-v2
   workflow_dispatch:
 permissions:
   contents: write
@@ -8,6 +11,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[release v2.2.0]')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
