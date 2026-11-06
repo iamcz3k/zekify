@@ -25,7 +25,10 @@ function TeamBadge({team,size="normal"}:{team?:Team,size?:"normal"|"large"}) {
 }
 export default function App() {
  const [matches,setMatches]=useState<Match[]>([]);
- const [page,setPage]=useState<"home"|"settings"|"notifications"|"bugs"|"updater">("home");\n const [preferences,setPreferences]=useState({notifications:true,autoplay:false,miniPlayer:true,cache:true,haptics:false,theme:"AMOLED black",quality:"Auto"});\n const [bugLogs,setBugLogs]=useState<{code:string;message:string;time:string}[]>([]);\n const [notice,setNotice]=useState("");
+ const [page,setPage]=useState<"home"|"settings"|"notifications"|"bugs"|"updater">("home");
+ const [preferences,setPreferences]=useState({notifications:true,autoplay:false,miniPlayer:true,cache:true,haptics:false,theme:"AMOLED black",quality:"Auto"});
+ const [bugLogs,setBugLogs]=useState<{code:string;message:string;time:string}[]>([]);
+ const [notice,setNotice]=useState("");
  const [tab,setTab]=useState<"live"|"upcoming">("live");
  const [leagueFilter,setLeagueFilter]=useState("All");
  const [searchQuery,setSearchQuery]=useState("");
