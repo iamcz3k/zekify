@@ -41,6 +41,7 @@ public class MainActivity extends Activity {
  private static final String REMINDER_IDS="scheduled_match_ids";
  private String pendingMatchId="";
  private final Set<String> badgeRequests=Collections.synchronizedSet(new HashSet<>());
+ private final java.util.concurrent.ConcurrentHashMap<String,java.util.concurrent.CopyOnWriteArrayList<java.lang.ref.WeakReference<FrameLayout>>> badgeWaiters=new java.util.concurrent.ConcurrentHashMap<>();
  private final ArrayList<JSONObject> matches=new ArrayList<>();
  private LinearLayout root,content,leagueRow;
  private EditText search;
@@ -142,9 +143,17 @@ public class MainActivity extends Activity {
  private String leagueName(JSONObject m){String s=m.optString("league","");return s.trim().isEmpty()?"Other competitions":s.trim();}
  private void renderLeagues(){if(leagueRow==null)return;leagueRow.removeAllViews();LinkedHashSet<String> ls=new LinkedHashSet<>();ls.add("All");for(JSONObject m:matches)ls.add(leagueName(m));for(String s:ls){Button b=btn(s,s.equals(league));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-2,dp(36));p.rightMargin=dp(7);leagueRow.addView(b,p);b.setOnClickListener(v->{league=s;renderLeagues();render();});}}
   private void render(){
+   try{renderContent();}
+   catch(RuntimeException error){
+    if(appPrefs!=null){StringWriter trace=new StringWriter();error.printStackTrace(new PrintWriter(trace));appPrefs.edit().putString("last_render_error",trace.toString()).putLong("last_render_error_at",System.currentTimeMillis()).apply();}
+    if(content!=null){content.removeAllViews();TextView failed=txt("Some match data could not be displayed. Tap to reload.",13,MUTED,false);pad(failed,12,28,12,28);failed.setOnClickListener(v->load());content.addView(failed);}
+    android.util.Log.e("Zekify","Match rendering failed",error);
+   }
+  }
+  private void renderContent(){
    if(selected!=null){renderMatchScreen();return;}
    if(content==null)return;content.removeAllViews();int count=0;
-   for(JSONObject m:matches){String status=m.optString("status","upcoming").trim().toLowerCase(Locale.ROOT);if(status.equals("not started")||status.equals("scheduled")||status.equals("ns")||status.equals("tbd"))status="upcoming";if(status.equals("in play")||status.equals("1h")||status.equals("2h")||status.equals("live now"))status="live";if(!status.equals(tab)||(!league.equals("All")&&!league.equals(leagueName(m))))continue;String hay=(m.optString("title")+" "+leagueName(m)+" "+team(m,"home")+" "+team(m,"away")).toLowerCase(Locale.ROOT);if(!hay.contains(query))continue;content.addView(matchCard(m));count++;}
+   for(JSONObject match:matches){if(match==null)continue;try{String status=match.optString("status","upcoming").trim().toLowerCase(Locale.ROOT);if(status.equals("not started")||status.equals("scheduled")||status.equals("ns")||status.equals("tbd"))status="upcoming";if(status.equals("in play")||status.equals("1h")||status.equals("2h")||status.equals("live now"))status="live";if(!status.equals(tab)||(!league.equals("All")&&!league.equals(leagueName(match))))continue;String hay=(match.optString("title")+" "+leagueName(match)+" "+team(match,"home")+" "+team(match,"away")).toLowerCase(Locale.ROOT);if(!hay.contains(query))continue;content.addView(matchCard(match));count++;}catch(RuntimeException cardError){android.util.Log.w("Zekify","Skipped malformed match card",cardError);}}
    if(count==0){TextView empty=txt("No "+tab+" matches match your filters.",14,MUTED,false);pad(empty,12,36,12,36);content.addView(empty);}
   }
   private void renderMatchScreen(){
@@ -179,6 +188,7 @@ public class MainActivity extends Activity {
   Bitmap cached;
   synchronized(badgeCache){cached=badgeCache.get(badgeUrl);}
   if(cached!=null){showBadge(frame,cached,badgeUrl);return frame;}
+  badgeWaiters.computeIfAbsent(badgeUrl,k->new java.util.concurrent.CopyOnWriteArrayList<>()).add(new java.lang.ref.WeakReference<>(frame));
   if(!badgeRequests.add(badgeUrl))return frame;
   imageIo.execute(()->{
    Bitmap bitmap=null;HttpURLConnection connection=null;
@@ -195,18 +205,19 @@ public class MainActivity extends Activity {
    }catch(Exception ignored){}
    finally{if(connection!=null)connection.disconnect();badgeRequests.remove(badgeUrl);}
    final Bitmap result=bitmap;
-   if(result!=null&&!isFinishing())runOnUiThread(()->showBadge(frame,result,badgeUrl));
+   java.util.List<java.lang.ref.WeakReference<FrameLayout>> waiting=badgeWaiters.remove(badgeUrl);
+   if(result!=null&&waiting!=null&&!isFinishing())runOnUiThread(()->{for(java.lang.ref.WeakReference<FrameLayout> ref:waiting){FrameLayout target=ref.get();if(target!=null)showBadge(target,result,badgeUrl);}});
   });
   return frame;
  }
  private void showBadge(FrameLayout frame,Bitmap bitmap,String expectedUrl){
-  if(bitmap==null||frame==null||!expectedUrl.equals(frame.getTag())||!frame.isAttachedToWindow())return;
+  if(bitmap==null||frame==null||!expectedUrl.equals(frame.getTag()))return;
   frame.removeAllViews();ImageView image=new ImageView(this);image.setImageBitmap(bitmap);image.setScaleType(ImageView.ScaleType.FIT_CENTER);
   frame.addView(image,new FrameLayout.LayoutParams(dp(34),dp(34)));
  }
  private String date(long v){if(v<=0)return "Kickoff TBC";return new java.text.SimpleDateFormat("EEE, d MMM · HH:mm",Locale.getDefault()).format(new Date(v));}
  private String timerText(long kickoff,boolean live){long now=System.currentTimeMillis();long diff=live?Math.max(0,now-kickoff):Math.max(0,kickoff-now);long sec=diff/1000;long days=sec/86400;long hours=(sec%86400)/3600;long mins=(sec%3600)/60;long seconds=sec%60;String value=String.format(Locale.getDefault(),"%02d:%02d:%02d",hours,mins,seconds);return live?"LIVE · "+(days>0?days+"d ":"")+value:"KICKOFF IN · "+(days>0?days+"d ":"")+value;}
- private void bindMatchTimer(TextView view,long kickoff,boolean live){Runnable tick=new Runnable(){public void run(){if(isFinishing()||view.getWindowToken()==null)return;view.setText(timerText(kickoff,live));view.postDelayed(this,1000);}};view.setTag(tick);view.post(tick);}
+ private void bindMatchTimer(TextView view,long kickoff,boolean live){Runnable tick=new Runnable(){public void run(){if(isFinishing()||view.getWindowToken()==null)return;view.setText(timerText(kickoff,live));view.postDelayed(this,15000);}};view.setTag(tick);view.post(tick);}
  private void selectMatch(JSONObject m){
   if(selected!=null&&selected.optString("id").equals(m.optString("id")))return;
   stopInlinePlayback();selected=m;detail=null;selectedSources=null;selectedSourceIndex=0;inlineLoading=true;render();
