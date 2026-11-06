@@ -137,7 +137,7 @@ export default function App() {
    {gestureOverlay&&<div className="gesture-indicator" onClick={e=>e.stopPropagation()}>{gestureOverlay==="brightness"?<Sun size={22}/>:<Volume2 size={22}/>}<strong>{Math.round((gestureOverlay==="brightness"?brightness:volume)*100)}%</strong><div className="gesture-track"><span style={{width:((gestureOverlay==="brightness"?brightness:volume)*100)+"%"}}/></div></div>}
    {streamError&&<div className="immersive-error" onClick={e=>e.stopPropagation()}>{streamError}<button onClick={()=>{setRetry(v=>v+1);setStreamError("");}}>Retry</button></div>}
    {sources.length>1&&controlsVisible&&<div className="immersive-source-list" onClick={e=>e.stopPropagation()}>{sources.map((s,i)=><button key={s.id??i} className={i===sourceIndex?"active":""} onClick={()=>{setSourceIndex(i);setRetry(v=>v+1);setStreamError("");}}>{s.source||"Source "+(i+1)}{s.hd?" · HD":""}</button>)}</div>}
-  </section>:<>
+  </section>:page==="home"?<>
    <section className="matches-section"><div className="section-head"><div><span className="eyebrow">THE ACTION</span><h2>Matches</h2></div><button className="refresh" onClick={()=>void load()}><RefreshCw size={15}/> Refresh</button></div>
     <div className="tabs"><button className={tab==="live"?"active":""} onClick={()=>setTab("live")}>● Live</button><button className={tab==="upcoming"?"active":""} onClick={()=>setTab("upcoming")}>Upcoming</button></div>
     <label className="match-search"><span>⌕</span><input type="search" value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="Search teams, matches or leagues" aria-label="Search matches"/></label>
