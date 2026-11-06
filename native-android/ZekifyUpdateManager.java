@@ -2,6 +2,7 @@ package com.v3x.zekify;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -11,6 +12,7 @@ import android.os.Build;
 import android.os.Environment;
 import android.view.Gravity;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -129,29 +131,129 @@ public final class ZekifyUpdateManager {
         } finally { connection.disconnect(); }
     }
 
+    private static Dialog requiredPage(Activity activity, String title, String message, String buttonText, Runnable action) {
+        LinearLayout page = new LinearLayout(activity);
+        page.setOrientation(LinearLayout.VERTICAL);
+        page.setGravity(Gravity.CENTER_VERTICAL);
+        page.setPadding(dp(activity, 28), dp(activity, 34), dp(activity, 28), dp(activity, 34));
+        page.setBackgroundColor(0xff090909);
+        TextView brand = new TextView(activity);
+        brand.setText("ZEKIFY  /  SYSTEM UPDATE");
+        brand.setTextColor(0xffff8a3d);
+        brand.setTextSize(12);
+        brand.setTypeface(null, 1);
+        page.addView(brand);
+        TextView heading = new TextView(activity);
+        heading.setText(title);
+        heading.setTextColor(0xffffffff);
+        heading.setTextSize(27);
+        heading.setTypeface(null, 1);
+        LinearLayout.LayoutParams hp = new LinearLayout.LayoutParams(-1, -2);
+        hp.topMargin = dp(activity, 24);
+        page.addView(heading, hp);
+        TextView body = new TextView(activity);
+        body.setText(message);
+        body.setTextColor(0xffbdbdbd);
+        body.setTextSize(15);
+        body.setLineSpacing(dp(activity, 4), 1f);
+        LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(-1, -2);
+        bp.topMargin = dp(activity, 14);
+        page.addView(body, bp);
+        TextView button = new TextView(activity);
+        button.setText(buttonText);
+        button.setTextColor(0xff111111);
+        button.setTextSize(15);
+        button.setTypeface(null, 1);
+        button.setGravity(Gravity.CENTER);
+        button.setPadding(dp(activity, 16), dp(activity, 17), dp(activity, 16), dp(activity, 17));
+        button.setBackgroundColor(0xffff8a3d);
+        LinearLayout.LayoutParams btnp = new LinearLayout.LayoutParams(-1, -2);
+        btnp.topMargin = dp(activity, 30);
+        page.addView(button, btnp);
+        TextView foot = new TextView(activity);
+        foot.setText("This required update must be installed before continuing to Zekify.");
+        foot.setTextColor(0xff777777);
+        foot.setTextSize(12);
+        LinearLayout.LayoutParams fp = new LinearLayout.LayoutParams(-1, -2);
+        fp.topMargin = dp(activity, 20);
+        page.addView(foot, fp);
+        Dialog dialog = new Dialog(activity);
+        dialog.setContentView(page);
+        dialog.setCancelable(false);
+        dialog.setCanceledOnTouchOutside(false);
+        button.setOnClickListener(v -> { if (action != null) action.run(); });
+        dialog.show();
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+            window.setBackgroundDrawableResource(android.R.color.transparent);
+        }
+        return dialog;
+    }
+
+    public static void showRequiredUpdate(Activity activity, Update update) {
+        if (activity == null || activity.isFinishing() || update == null) return;
+        String notes = update.notes == null || update.notes.trim().isEmpty() ? "Stability improvements and important fixes." : update.notes;
+        if (notes.length() > 1200) notes = notes.substring(0, 1200) + "…";
+        requiredPage(activity, "Update required", "Zekify " + update.version + " is ready.\n\n" + notes, "Download update", () -> download(activity, update));
+    }
+
     public static void download(Activity activity, Update update) {
-        AtomicBoolean cancelled = new AtomicBoolean(false);
-        LinearLayout layout = new LinearLayout(activity);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(dp(activity, 22), dp(activity, 18), dp(activity, 22), dp(activity, 8));
-        TextView status = new TextView(activity);
-        status.setText("Preparing secure download…");
-        status.setTextColor(0xffeeeeee);
+        if (activity == null || activity.isFinishing()) return;
         ProgressBar progress = new ProgressBar(activity, null, android.R.attr.progressBarStyleHorizontal);
         progress.setMax(100);
         progress.setProgress(0);
-        LinearLayout.LayoutParams pp = new LinearLayout.LayoutParams(-1, dp(activity, 8));
-        pp.topMargin = dp(activity, 16);
-        layout.addView(status);
-        layout.addView(progress, pp);
-        AlertDialog dialog = new AlertDialog.Builder(activity)
-            .setTitle("Downloading Zekify " + update.version)
-            .setView(layout)
-            .setNegativeButton("Cancel", (d, w) -> cancelled.set(true))
-            .create();
-        dialog.setOnCancelListener(d -> cancelled.set(true));
-        dialog.show();
-
+        TextView status = new TextView(activity);
+        status.setText("Preparing secure download…");
+        status.setTextColor(0xffbdbdbd);
+        status.setTextSize(14);
+        Dialog page = new Dialog(activity);
+        LinearLayout layout = new LinearLayout(activity);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setGravity(Gravity.CENTER_VERTICAL);
+        layout.setPadding(dp(activity, 28), dp(activity, 34), dp(activity, 28), dp(activity, 34));
+        layout.setBackgroundColor(0xff090909);
+        TextView brand = new TextView(activity);
+        brand.setText("ZEKIFY  /  SYSTEM UPDATE");
+        brand.setTextColor(0xffff8a3d);
+        brand.setTextSize(12);
+        brand.setTypeface(null, 1);
+        layout.addView(brand);
+        TextView heading = new TextView(activity);
+        heading.setText("Installing update " + update.version);
+        heading.setTextColor(0xffffffff);
+        heading.setTextSize(25);
+        heading.setTypeface(null, 1);
+        LinearLayout.LayoutParams headingParams = new LinearLayout.LayoutParams(-1, -2);
+        headingParams.topMargin = dp(activity, 24);
+        layout.addView(heading, headingParams);
+        LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(-1, -2);
+        statusParams.topMargin = dp(activity, 14);
+        layout.addView(status, statusParams);
+        LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(-1, dp(activity, 8));
+        progressParams.topMargin = dp(activity, 22);
+        layout.addView(progress, progressParams);
+        TextView actionButton = new TextView(activity);
+        actionButton.setText("Downloading…");
+        actionButton.setTextColor(0xff111111);
+        actionButton.setTextSize(15);
+        actionButton.setTypeface(null, 1);
+        actionButton.setGravity(Gravity.CENTER);
+        actionButton.setPadding(dp(activity, 16), dp(activity, 17), dp(activity, 16), dp(activity, 17));
+        actionButton.setBackgroundColor(0xffff8a3d);
+        actionButton.setEnabled(false);
+        LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(-1, -2);
+        actionParams.topMargin = dp(activity, 30);
+        layout.addView(actionButton, actionParams);
+        page.setContentView(layout);
+        page.setCancelable(false);
+        page.setCanceledOnTouchOutside(false);
+        page.show();
+        Window pageWindow = page.getWindow();
+        if (pageWindow != null) {
+            pageWindow.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+            pageWindow.setBackgroundDrawableResource(android.R.color.transparent);
+        }
         IO.execute(() -> {
             File apk = null;
             String failure = null;
@@ -169,13 +271,12 @@ public final class ZekifyUpdateManager {
                     byte[] buffer = new byte[16384];
                     int count, received = 0;
                     while ((count = input.read(buffer)) != -1) {
-                        if (cancelled.get()) throw new Exception("Download cancelled.");
                         output.write(buffer, 0, count);
                         received += count;
                         int value = total > 0 ? (int) Math.min(100, received * 100L / total) : 0;
                         String size = total > 0 ? String.format(Locale.ROOT, "%.1f / %.1f MB", received / 1048576f, total / 1048576f) : String.format(Locale.ROOT, "%.1f MB", received / 1048576f);
                         activity.runOnUiThread(() -> {
-                            if (dialog.isShowing()) {
+                            if (page.isShowing()) {
                                 progress.setProgress(value);
                                 status.setText(total > 0 ? "Downloading… " + value + "% · " + size : "Downloading… " + size);
                             }
@@ -188,22 +289,25 @@ public final class ZekifyUpdateManager {
                 verifyPackageAndSignature(activity, apk);
                 activity.getSharedPreferences(PREFS, Activity.MODE_PRIVATE).edit().putString("pending_apk", apk.getAbsolutePath()).putString("pending_version", update.version).apply();
             } catch (Exception e) {
-                failure = e.getMessage() == null ? "Download failed." : e.getMessage();
+                failure = e.getMessage() == null ? "Update download failed. Tap Retry." : e.getMessage();
                 if (apk != null) apk.delete();
             }
             String error = failure;
             File downloaded = apk;
             activity.runOnUiThread(() -> {
-                if (dialog.isShowing()) dialog.dismiss();
                 if (activity.isFinishing()) return;
                 if (error != null) {
-                    new AlertDialog.Builder(activity).setTitle("Update failed").setMessage(error)
-                        .setPositiveButton("OK", null).show();
+                    status.setText(error);
+                    progress.setVisibility(android.view.View.GONE);
+                    actionButton.setText("Retry download");
+                    actionButton.setEnabled(true);
+                    actionButton.setOnClickListener(v -> download(activity, update));
                 } else {
-                    new AlertDialog.Builder(activity).setTitle("Download complete")
-                        .setMessage("Zekify " + update.version + " has been downloaded and verified.")
-                        .setNegativeButton("Later", null)
-                        .setPositiveButton("Install update", (d, w) -> install(activity, downloaded)).show();
+                    status.setText("Download complete. Checksum, package ID and signing certificate verified.");
+                    progress.setProgress(100);
+                    actionButton.setText("Install update");
+                    actionButton.setEnabled(true);
+                    actionButton.setOnClickListener(v -> install(activity, downloaded));
                 }
             });
         });
@@ -272,18 +376,13 @@ public final class ZekifyUpdateManager {
     }
 
     public static void resumeInstall(Activity activity) {
-        if (Build.VERSION.SDK_INT < 26 || !activity.getPackageManager().canRequestPackageInstalls()) return;
+        if (activity == null || activity.isFinishing()) return;
         String path = activity.getSharedPreferences(PREFS, Activity.MODE_PRIVATE).getString("pending_apk", "");
         if (path == null || path.isEmpty()) return;
         File apk = new File(path);
-        if (!apk.isFile() || installPromptVisible) return;
-        installPromptVisible = true;
+        if (!apk.isFile()) return;
         String version = activity.getSharedPreferences(PREFS, Activity.MODE_PRIVATE).getString("pending_version", "");
-        new AlertDialog.Builder(activity).setTitle("Update ready to install")
-            .setMessage("Zekify " + version + " is downloaded and verified.")
-            .setNegativeButton("Later", (d, w) -> installPromptVisible = false)
-            .setPositiveButton("Install update", (d, w) -> { installPromptVisible = false; install(activity, apk); })
-            .setOnDismissListener(d -> installPromptVisible = false).show();
+        requiredPage(activity, "Update ready", "Zekify " + version + " has been downloaded and verified. Install it now to continue.", "Install update", () -> install(activity, apk));
     }
 
     private static void install(Activity activity, File apk) {
