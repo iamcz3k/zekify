@@ -1,17 +1,6 @@
 name: Build and release Zekify APK
 on:
   workflow_dispatch:
-  push:
-    branches: [telegram-football-bot, native-android-v2, zekify/feature-suite, main]
-    paths:
-      - 'src/**'
-      - 'assets/**'
-      - 'scripts/**'
-      - 'native-android/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'capacitor.config.ts'
-      - '.github/workflows/build-apk.yml'
 permissions:
   contents: write
 concurrency:
@@ -38,7 +27,7 @@ jobs:
           yes | "$SDKMANAGER" --licenses
           "$SDKMANAGER" --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
           echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
-      - name: Install Node dependencies (use prebuilt Sharp binaries)
+      - name: Install Node dependencies
         env:
           SHARP_IGNORE_GLOBAL_LIBVIPS: "1"
           npm_config_fetch_retries: "3"
@@ -59,23 +48,27 @@ jobs:
           sed -i 's/versionCode 1/versionCode 10/' android/app/build.gradle
           sed -i 's/versionName "1.0"/versionName "2.1.0"/' android/app/build.gradle
           grep -E 'versionCode|versionName' android/app/build.gradle
-      - name: Configure persistent release signing (when repository secrets are set)
+      - name: Configure release signing
         env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ] && [ -n "$ANDROID_KEY_ALIAS" ] && [ -n "$ANDROID_KEY_PASSWORD" ]; then
-            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/zekify-release.jks
-            cat >> android/app/build.gradle <<'GRADLE'
+          test -n "$KEYSTORE_BASE64" || (echo "Missing KEYSTORE_BASE64 secret" && exit 1)
+          test -n "$KEYSTORE_PASSWORD" || (echo "Missing KEYSTORE_PASSWORD secret" && exit 1)
+          test -n "$KEY_ALIAS" || (echo "Missing KEY_ALIAS secret" && exit 1)
+          test -n "$KEY_PASSWORD" || (echo "Missing KEY_PASSWORD secret" && exit 1)
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > android/zekify-release.jks
+          test -s android/zekify-release.jks
+          cat >> android/app/build.gradle <<'GRADLE'
           android {
               signingConfigs {
                   release {
                       storeFile file("../zekify-release.jks")
-                      storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
-                      keyAlias System.getenv("ANDROID_KEY_ALIAS")
-                      keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+                      storePassword System.getenv("KEYSTORE_PASSWORD")
+                      keyAlias System.getenv("KEY_ALIAS")
+                      keyPassword System.getenv("KEY_PASSWORD")
                   }
               }
               buildTypes {
@@ -85,29 +78,28 @@ jobs:
               }
           }
           GRADLE
-            echo "ZEKEY_SIGNING=release" >> "$GITHUB_ENV"
-          else
-            echo "ZEKEY_SIGNING=debug" >> "$GITHUB_ENV"
-            echo "::warning::Stable release signing secrets are missing. This APK is debug-signed and may not update an APK signed by a different build runner."
-          fi
-      - name: Build installable APK
+      - name: Build signed release APK
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           cd android
           chmod +x gradlew
-          if [ "$ZEKEY_SIGNING" = "release" ]; then
-            ./gradlew assembleRelease
-            cp app/build/outputs/apk/release/app-release.apk ../Zekify-v2.1.0.apk
-          else
-            ./gradlew assembleDebug
-            cp app/build/outputs/apk/debug/app-debug.apk ../Zekify-v2.1.0.apk
-          fi
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs ../Zekify-v2.1.0.apk
+          ./gradlew assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v2.1.0.apk
+          cd ..
+          rm -f android/zekify-release.jks
+          test -s Zekify-v2.1.0.apk
+      - name: Verify APK signature
+        run: |
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v2.1.0.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: zekify-v2.1.0-apk
+          name: zekify-v2.1.0-signed-apk
           path: Zekify-v2.1.0.apk
           if-no-files-found: error
-      - name: Publish APK release
+      - name: Publish signed APK release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
