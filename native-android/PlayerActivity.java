@@ -116,12 +116,12 @@ public class PlayerActivity extends Activity {
             playerView.setPlayer(player);
             status.setText(matchTitle);
             status.setVisibility(View.VISIBLE);
-            scheduleControlsHide();
+            setControlsVisible(!handedOffFromMain);
         } else if (webView != null && webView.getVisibility() == View.VISIBLE) {
             webView.onResume();
             status.setText(matchTitle);
             status.setVisibility(View.VISIBLE);
-            scheduleControlsHide();
+            setControlsVisible(!handedOffFromMain);
         } else if (sources.length() > 0) playSource();
         else showError("No stream sources are available.");
     }
