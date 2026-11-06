@@ -1,0 +1,54 @@
+name: Verify Zekify Android
+on:
+  push:
+    branches:
+      - zekify-v2.2-stabilization
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install Android SDK packages
+        run: |
+          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses
+          "$SDKMANAGER" --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+      - name: Install Node dependencies
+        run: npm install --include=optional --no-audit --no-fund
+      - run: npm run build
+      - run: npx cap add android
+      - run: npm run assets:generate
+      - run: npx cap sync android
+      - name: Apply native Android configuration
+        run: node scripts/patch-native-android.mjs
+      - name: Validate native manifest and reminder receivers
+        run: |
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          root = ET.parse('android/app/src/main/AndroidManifest.xml').getroot()
+          ns = {'a': 'http://schemas.android.com/apk/res/android'}
+          permissions = {node.attrib.get('{http://schemas.android.com/apk/res/android}name') for node in root.findall('uses-permission')}
+          assert 'android.permission.POST_NOTIFICATIONS' in permissions
+          assert 'android.permission.RECEIVE_BOOT_COMPLETED' in permissions
+          receivers = {node.attrib.get('{http://schemas.android.com/apk/res/android}name') for node in root.findall('.//receiver')}
+          assert '.MatchReminderReceiver' in receivers
+          assert '.MatchReminderBootReceiver' in receivers
+          print('Manifest permissions and notification receivers verified')
+          PY
+      - name: Compile Android debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
