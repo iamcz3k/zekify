@@ -44,11 +44,13 @@ public class MainActivity extends Activity {
  private final java.util.concurrent.ConcurrentHashMap<String,java.util.concurrent.CopyOnWriteArrayList<java.lang.ref.WeakReference<FrameLayout>>> badgeWaiters=new java.util.concurrent.ConcurrentHashMap<>();
  private final ArrayList<JSONObject> matches=new ArrayList<>();
  private LinearLayout root,content,leagueRow;
+ private ScrollView matchesScroll;
  private EditText search;
  private String tab="live",league="All",query="";
  private JSONObject selected,detail; private LinearLayout sourceList; private WebView matchPreview; private int selectedSourceIndex=0; private JSONArray selectedSources; private FrameLayout inlineFrame; private PlayerView inlinePlayerView; private ExoPlayer inlinePlayer; private WebView inlineWebView; private TextView inlineStatus; private LinearLayout inlineSources; private boolean inlineLoading=false; private Dialog startupDialog;
  private final int ORANGE=Color.rgb(255,138,61),BG=Color.rgb(5,5,5),PANEL=Color.rgb(17,17,17),MUTED=Color.rgb(145,145,145);
- @Override public void onCreate(Bundle b){super.onCreate(b);appPrefs=getSharedPreferences("zekify_cache",MODE_PRIVATE);pendingMatchId=getIntent().getStringExtra("matchId")==null?"":getIntent().getStringExtra("matchId");getWindow().setStatusBarColor(BG);getWindow().setNavigationBarColor(BG);getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR^View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);createReminderChannel();home();showStartupSplash();registerNetworkRecovery();load();}
+ @Override public void onCreate(Bundle b){super.onCreate(b);appPrefs=getSharedPreferences("zekify_cache",MODE_PRIVATE);installCrashRecorder();pendingMatchId=getIntent().getStringExtra("matchId")==null?"":getIntent().getStringExtra("matchId");getWindow().setStatusBarColor(BG);getWindow().setNavigationBarColor(BG);getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR^View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);createReminderChannel();home();showStartupSplash();registerNetworkRecovery();load();}
+ private void installCrashRecorder(){Thread.UncaughtExceptionHandler previous=Thread.getDefaultUncaughtExceptionHandler();Thread.setDefaultUncaughtExceptionHandler((thread,error)->{try{StringWriter trace=new StringWriter();error.printStackTrace(new PrintWriter(trace));appPrefs.edit().putString("last_uncaught_error",trace.toString()).putLong("last_uncaught_error_at",System.currentTimeMillis()).apply();}catch(Exception ignored){}if(previous!=null)previous.uncaughtException(thread,error);else{android.os.Process.killProcess(android.os.Process.myPid());System.exit(10);}});}
  private void showStartupSplash(){
   startupDialog=new Dialog(this);startupDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);FrameLayout splash=new FrameLayout(this);splash.setBackgroundColor(Color.BLACK);
   LinearLayout center=col();center.setGravity(Gravity.CENTER);FrameLayout.LayoutParams cp=new FrameLayout.LayoutParams(-1,-2,Gravity.CENTER);splash.addView(center,cp);
@@ -81,7 +83,7 @@ public class MainActivity extends Activity {
   LinearLayout searchBox=row();searchBox.setBackground(shape(PANEL,12));pad(searchBox,14,0,14,0);searchBox.addView(new NativeIcon(this,"search",MUTED),new LinearLayout.LayoutParams(dp(19),dp(19)));search=new EditText(this);search.setSingleLine(true);search.setTextSize(13);search.setTextColor(Color.WHITE);search.setHintTextColor(MUTED);search.setHint("Search teams, matches or leagues");search.setBackgroundColor(Color.TRANSPARENT);search.setTextIsSelectable(false);search.setLongClickable(false);pad(search,10,0,0,0);search.setText(query);searchBox.addView(search,new LinearLayout.LayoutParams(0,-1,1));LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,dp(48));sp.setMargins(dp(18),0,dp(18),dp(10));root.addView(searchBox,sp);
   search.addTextChangedListener(new TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int before,int count){query=s.toString().toLowerCase(Locale.ROOT);render();}public void afterTextChanged(Editable e){}});
   HorizontalScrollView hs=new HorizontalScrollView(this);hs.setHorizontalScrollBarEnabled(false);leagueRow=row();pad(leagueRow,18,0,18,12);hs.addView(leagueRow);root.addView(hs);
-  ScrollView sc=new ScrollView(this);sc.setFillViewport(true);content=col();pad(content,18,2,18,24);sc.addView(content);root.addView(sc,new LinearLayout.LayoutParams(-1,0,1));setContentView(root);renderLeagues();
+  ScrollView sc=new ScrollView(this);matchesScroll=sc;sc.setFillViewport(true);sc.setVerticalScrollBarEnabled(false);content=col();pad(content,18,2,18,24);sc.addView(content);sc.setOnScrollChangeListener((View v,int sx,int sy,int oldSx,int oldSy)->loadVisibleBadges());root.addView(sc,new LinearLayout.LayoutParams(-1,0,1));setContentView(root);renderLeagues();
  }
  private void menu(){
   Dialog dialog=new Dialog(this);LinearLayout panel=col();panel.setBackground(shape(0xff101010,24));pad(panel,20,18,20,20);
@@ -154,7 +156,7 @@ public class MainActivity extends Activity {
    if(selected!=null){renderMatchScreen();return;}
    if(content==null)return;content.removeAllViews();int count=0;
    for(JSONObject match:matches){if(match==null)continue;try{String status=match.optString("status","upcoming").trim().toLowerCase(Locale.ROOT);if(status.equals("not started")||status.equals("scheduled")||status.equals("ns")||status.equals("tbd"))status="upcoming";if(status.equals("in play")||status.equals("1h")||status.equals("2h")||status.equals("live now"))status="live";if(!status.equals(tab)||(!league.equals("All")&&!league.equals(leagueName(match))))continue;String hay=(match.optString("title")+" "+leagueName(match)+" "+team(match,"home")+" "+team(match,"away")).toLowerCase(Locale.ROOT);if(!hay.contains(query))continue;content.addView(matchCard(match));count++;}catch(RuntimeException cardError){android.util.Log.w("Zekify","Skipped malformed match card",cardError);}}
-   if(count==0){TextView empty=txt("No "+tab+" matches match your filters.",14,MUTED,false);pad(empty,12,36,12,36);content.addView(empty);}
+   if(count==0){TextView empty=txt("No "+tab+" matches match your filters.",14,MUTED,false);pad(empty,12,36,12,36);content.addView(empty);}if(matchesScroll!=null)matchesScroll.postDelayed(this::loadVisibleBadges,80L);
   }
   private void renderMatchScreen(){
    LinearLayout screen=col();screen.setBackgroundColor(BG);
@@ -185,30 +187,37 @@ public class MainActivity extends Activity {
   if(url.isEmpty())return frame;
   if(url.startsWith("/"))url=API+url;
   final String badgeUrl=url;frame.setTag(badgeUrl);
-  Bitmap cached;
-  synchronized(badgeCache){cached=badgeCache.get(badgeUrl);}
-  if(cached!=null){showBadge(frame,cached,badgeUrl);return frame;}
+  frame.setTag(badgeUrl);
+  Bitmap cached;synchronized(badgeCache){cached=badgeCache.get(badgeUrl);}
+  if(cached!=null)showBadge(frame,cached,badgeUrl);
+  return frame;
+ }
+ private void loadVisibleBadges(){
+  ScrollView scroll=matchesScroll;if(scroll==null||content==null||scroll.getHeight()<=0)return;
+  int top=scroll.getScrollY(),bottom=top+scroll.getHeight();
+  for(int i=0;i<content.getChildCount();i++){View card=content.getChildAt(i);if(card.getBottom()>top&&card.getTop()<bottom)loadBadgesIn(card);}
+ }
+ private void loadBadgesIn(View view){
+  if(view instanceof FrameLayout){Object tag=view.getTag();if(tag instanceof String){String url=(String)tag;if(url.startsWith("http"))requestBadge((FrameLayout)view,url);}}
+  if(view instanceof android.view.ViewGroup){android.view.ViewGroup group=(android.view.ViewGroup)view;for(int i=0;i<group.getChildCount();i++)loadBadgesIn(group.getChildAt(i));}
+ }
+ private void requestBadge(FrameLayout frame,String badgeUrl){
+  if(frame==null||!badgeUrl.equals(frame.getTag()))return;
+  Bitmap cached;synchronized(badgeCache){cached=badgeCache.get(badgeUrl);}if(cached!=null){showBadge(frame,cached,badgeUrl);return;}
   badgeWaiters.computeIfAbsent(badgeUrl,k->new java.util.concurrent.CopyOnWriteArrayList<>()).add(new java.lang.ref.WeakReference<>(frame));
-  if(!badgeRequests.add(badgeUrl))return frame;
+  if(!badgeRequests.add(badgeUrl))return;
   imageIo.execute(()->{
    Bitmap bitmap=null;HttpURLConnection connection=null;
    try{
     File badgeDir=getDir("badges",MODE_PRIVATE);File badgeFile=new File(badgeDir,Integer.toHexString(badgeUrl.hashCode())+".png");
     if(badgeFile.exists())bitmap=BitmapFactory.decodeFile(badgeFile.getAbsolutePath());
-    if(bitmap==null){connection=(HttpURLConnection)new URL(badgeUrl).openConnection();
-    connection.setConnectTimeout(5000);connection.setReadTimeout(7000);connection.setInstanceFollowRedirects(true);connection.setUseCaches(true);
-    connection.setRequestProperty("User-Agent","Zekify/2.0 Android");
-    int code=connection.getResponseCode();
-    if(code>=200&&code<300){try(InputStream input=connection.getInputStream()){bitmap=BitmapFactory.decodeStream(input);}}
-    }
+    if(bitmap==null){connection=(HttpURLConnection)new URL(badgeUrl).openConnection();connection.setConnectTimeout(5000);connection.setReadTimeout(7000);connection.setInstanceFollowRedirects(true);connection.setUseCaches(true);connection.setRequestProperty("User-Agent","Zekify/2.0 Android");int code=connection.getResponseCode();if(code>=200&&code<300){try(InputStream input=connection.getInputStream()){bitmap=BitmapFactory.decodeStream(input);}}}
     if(bitmap!=null){synchronized(badgeCache){badgeCache.put(badgeUrl,bitmap);}if(!badgeFile.exists()){try(FileOutputStream out=new FileOutputStream(badgeFile)){bitmap.compress(Bitmap.CompressFormat.PNG,100,out);}catch(Exception ignored){}}}
    }catch(Exception ignored){}
    finally{if(connection!=null)connection.disconnect();badgeRequests.remove(badgeUrl);}
-   final Bitmap result=bitmap;
-   java.util.List<java.lang.ref.WeakReference<FrameLayout>> waiting=badgeWaiters.remove(badgeUrl);
+   final Bitmap result=bitmap;java.util.List<java.lang.ref.WeakReference<FrameLayout>> waiting=badgeWaiters.remove(badgeUrl);
    if(result!=null&&waiting!=null&&!isFinishing())runOnUiThread(()->{for(java.lang.ref.WeakReference<FrameLayout> ref:waiting){FrameLayout target=ref.get();if(target!=null)showBadge(target,result,badgeUrl);}});
   });
-  return frame;
  }
  private void showBadge(FrameLayout frame,Bitmap bitmap,String expectedUrl){
   if(bitmap==null||frame==null||!expectedUrl.equals(frame.getTag()))return;
