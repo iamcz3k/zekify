@@ -2,7 +2,7 @@ name: Build and release Zekify APK
 on:
   workflow_dispatch:
   push:
-    branches: [telegram-football-bot, native-android-v2, main]
+    branches: [telegram-football-bot, native-android-v2, zekify/feature-suite, main]
     paths:
       - 'src/**'
       - 'assets/**'
