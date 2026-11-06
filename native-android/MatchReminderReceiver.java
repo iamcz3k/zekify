@@ -29,7 +29,11 @@ public class MatchReminderReceiver extends BroadcastReceiver {
         String kind = intent.getStringExtra("kind");
         if (id == null || id.isEmpty()) return;
         if ("reminder".equals(kind)) {
-            show(context, id, title, "Kickoff in 15 minutes. Get ready to watch.");
+            Set<String> scheduled = context.getSharedPreferences("zekify_cache", Context.MODE_PRIVATE)
+                .getStringSet("scheduled_match_ids", java.util.Collections.emptySet());
+            if (scheduled != null && scheduled.contains(id)) {
+                show(context, id, title, "Kickoff in 15 minutes. Get ready to watch.");
+            }
             return;
         }
         if (!"kickoff-check".equals(kind)) return;
