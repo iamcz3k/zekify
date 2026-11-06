@@ -21,10 +21,12 @@ public class MatchReminderBootReceiver extends BroadcastReceiver {
         Set<String> saved = prefs.getStringSet("scheduled_match_ids", Collections.emptySet());
         Set<String> ids = saved == null ? new HashSet<>() : new HashSet<>(saved);
         if (ids.isEmpty()) return;
-        String raw = prefs.getString("matches_json", "");
-        if (raw == null || raw.isEmpty()) return;
+        String raw = prefs.getString("scheduled_match_records", "{}");
         try {
-            JSONArray matches = new JSONArray(raw);
+            JSONObject records = new JSONObject(raw == null ? "{}" : raw);
+            JSONArray matches = new JSONArray();
+            for (String id : ids) { JSONObject saved = records.optJSONObject(id); if (saved != null) matches.put(saved); }
+            if (matches.length() == 0) { String cached = prefs.getString("matches_json", ""); if (cached != null && !cached.isEmpty()) matches = new JSONArray(cached); }
             for (int i = 0; i < matches.length(); i++) {
                 JSONObject match = matches.optJSONObject(i);
                 if (match == null) continue;
@@ -53,6 +55,6 @@ public class MatchReminderBootReceiver extends BroadcastReceiver {
         PendingIntent pending = PendingIntent.getBroadcast(context, requestCode, alarmIntent,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         AlarmManager alarm = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-        if (alarm != null) alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending);
+        if (alarm != null) { try { alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending); } catch (SecurityException ignored) { pending.cancel(); } } else pending.cancel();
     }
 }
