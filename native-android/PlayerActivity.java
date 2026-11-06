@@ -425,6 +425,10 @@ public class PlayerActivity extends Activity {
         FrameLayout.LayoutParams barParams =
             new FrameLayout.LayoutParams(-1, -2, Gravity.TOP);
         root.addView(toolbar, barParams);
+        if (handedOffFromMain) {
+            controlsVisible = false;
+            toolbar.setVisibility(View.GONE);
+        }
         root.setOnClickListener(v -> toggleControls());
         setContentView(root);
         scheduleControlsHide();
