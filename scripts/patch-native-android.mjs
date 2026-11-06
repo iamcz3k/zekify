@@ -121,6 +121,19 @@ mainActivity = mainActivity.replace(
  'if(inlineWebView!=null){inlineWebView.stopLoading();inlineWebView.loadUrl("about:blank");inlineWebView.setVisibility(View.GONE);}inlineFrame=null;'
 );
 
+
+mainActivity = mainActivity.replace(
+ 'root=screen;setContentView(screen);',
+ 'root=screen;setContentView(screen);screen.setAlpha(0f);screen.animate().alpha(1f).setDuration(180L).start();'
+);
+mainActivity = mainActivity.replace(
+ 'setContentView(root);renderLeagues();',
+ 'setContentView(root);root.setAlpha(0f);root.animate().alpha(1f).setDuration(180L).start();renderLeagues();'
+);
+mainActivity = mainActivity.replace(
+ 'card.setOnClickListener(v->selectMatch(m));return card;',
+ 'card.setOnClickListener(v->{card.animate().alpha(0.88f).setDuration(65L).withEndAction(()->{card.animate().alpha(1f).setDuration(100L).start();selectMatch(m);}).start();});return card;'
+);
 if (!mainActivity.includes("badgeWaiters")) throw new Error("Badge cache navigation patch did not apply");
 await writeFile(mainActivityPath, mainActivity);
 
