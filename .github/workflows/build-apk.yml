@@ -1,4 +1,4 @@
-# v2.2.6 release build
+# v2.2.7 release build
 # Build is intentionally gated to release-marked commits or manual dispatch.
 name: Build and release Zekify APK
 on:
@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[release v2.2.6]')
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[release v2.2.7]')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -51,8 +51,8 @@ jobs:
           python3 -c "import xml.etree.ElementTree as ET; ET.parse('android/app/src/main/AndroidManifest.xml'); print('AndroidManifest.xml is valid XML')"
       - name: Set Android version
         run: |
-          sed -i 's/versionCode 1/versionCode 17/' android/app/build.gradle
-          sed -i 's/versionName "1.0"/versionName "2.2.6"/' android/app/build.gradle
+          sed -i 's/versionCode 1/versionCode 18/' android/app/build.gradle
+          sed -i 's/versionName "1.0"/versionName "2.2.7"/' android/app/build.gradle
           grep -E 'versionCode|versionName' android/app/build.gradle
       - name: Configure release signing
         env:
@@ -93,32 +93,32 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew assembleRelease
-          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v2.2.6.apk
+          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v2.2.7.apk
           cd ..
           rm -f android/zekify-release.jks
-          test -s Zekify-v2.2.6.apk
+          test -s Zekify-v2.2.7.apk
       - name: Generate update checksum
-        run: sha256sum Zekify-v2.2.6.apk > Zekify-v2.2.6.apk.sha256
+        run: sha256sum Zekify-v2.2.7.apk > Zekify-v2.2.7.apk.sha256
       - name: Verify APK signature
         run: |
           set -o pipefail
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v2.2.6.apk | tee signing-certificate.txt
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v2.2.7.apk | tee signing-certificate.txt
           CERT="$(awk '/Signer #1 certificate SHA-256 digest:/ {print $NF; exit}' signing-certificate.txt)"
           echo "Release signing certificate: $CERT"
           test "$CERT" = "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119" || (echo "Unexpected signing key. Refusing to publish an incompatible update." && exit 1)
       - uses: actions/upload-artifact@v4
         with:
-          name: zekify-v2.2.6-signed-apk
+          name: zekify-v2.2.7-signed-apk
           path: |
-            Zekify-v2.2.6.apk
-            Zekify-v2.2.6.apk.sha256
+            Zekify-v2.2.7.apk
+            Zekify-v2.2.7.apk.sha256
           if-no-files-found: error
       - name: Publish signed APK release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view v2.2.6 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload v2.2.6 Zekify-v2.2.6.apk Zekify-v2.2.6.apk.sha256 --clobber --repo "$GITHUB_REPOSITORY"
+          if gh release view v2.2.7 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload v2.2.7 Zekify-v2.2.7.apk Zekify-v2.2.7.apk.sha256 --clobber --repo "$GITHUB_REPOSITORY"
           else
-            gh release create v2.2.6 Zekify-v2.2.6.apk Zekify-v2.2.6.apk.sha256 --title "Zekify v2.2.6" --notes "Zekify stability fixes plus a blocking full-screen in-app updater, verified download and signing-certificate checks." --target "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY"
+            gh release create v2.2.7 Zekify-v2.2.7.apk Zekify-v2.2.7.apk.sha256 --title "Zekify v2.2.7" --notes "Zekify stability fixes plus a blocking full-screen in-app updater, verified download and signing-certificate checks." --target "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY"
           fi
