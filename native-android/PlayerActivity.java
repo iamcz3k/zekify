@@ -43,8 +43,10 @@ import java.util.Map;
 
 public class PlayerActivity extends Activity {
     static ExoPlayer transferredPlayer;
+    static PlayerView transferredPlayerView;
     static WebView transferredWebView;
     static ExoPlayer returningPlayer;
+    static PlayerView returningPlayerView;
     static WebView returningWebView;
     static int returningSourceIndex = -1;
     static boolean returnToMainActivity;
@@ -76,7 +78,7 @@ public class PlayerActivity extends Activity {
     };
     private int resizeMode = 1; // 0=Fit, 1=Fill, 2=Zoom; default Fill
     private View resizeButton;
-    private TextView stretchButton;
+    private View stretchButton;
     private boolean stretchEnabled = true;
     private JSONArray sources;
     private int sourceIndex = 0;
@@ -210,7 +212,11 @@ public class PlayerActivity extends Activity {
         FrameLayout.LayoutParams playerParams =
             new FrameLayout.LayoutParams(-1, -1);
 
-        playerView = new PlayerView(this);
+        playerView = transferredPlayerView != null ? transferredPlayerView : new PlayerView(this);
+        transferredPlayerView = null;
+        if (playerView.getParent() instanceof ViewGroup) {
+            ((ViewGroup) playerView.getParent()).removeView(playerView);
+        }
         playerView.setUseController(false);
         playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FILL);
         playerView.setOnTouchListener(new GestureSurface(true));
@@ -446,7 +452,7 @@ public class PlayerActivity extends Activity {
         }
         sourceScroll.addView(sourceStrip);
         toolbar.addView(sourceScroll, new LinearLayout.LayoutParams(0, dp(42), 1));
-        stretchButton = (TextView) textControl("⤢");
+        stretchButton = iconButton("stretch");
         stretchButton.setContentDescription("Disable edge-to-edge stretch");
         stretchButton.setOnClickListener(v -> toggleStretch());
         toolbar.addView(stretchButton, new LinearLayout.LayoutParams(dp(42), dp(42)));
@@ -696,15 +702,21 @@ public class PlayerActivity extends Activity {
     private void toggleStretch() {
         stretchEnabled = !stretchEnabled;
         resizeMode = stretchEnabled ? 1 : 0;
-        if (stretchButton != null) {
-            stretchButton.setText(stretchEnabled ? "⤢" : "□");
-            stretchButton.setContentDescription(stretchEnabled
-                ? "Disable edge-to-edge stretch" : "Stretch video to all screen edges");
+        if (stretchButton instanceof ViewGroup && ((ViewGroup) stretchButton).getChildCount() > 0
+            && ((ViewGroup) stretchButton).getChildAt(0) instanceof ImageView) {
+            ImageView glyph = (ImageView) ((ViewGroup) stretchButton).getChildAt(0);
+            int icon = getResources().getIdentifier(
+                stretchEnabled ? "zekify_ic_stretch" : "zekify_ic_fit", "drawable", getPackageName());
+            if (icon != 0) glyph.setImageResource(icon);
         }
+        if (stretchButton != null) stretchButton.setContentDescription(stretchEnabled
+            ? "Disable edge-to-edge stretch" : "Stretch video to all screen edges");
         if (playerView != null) {
             playerView.setResizeMode(stretchEnabled
                 ? AspectRatioFrameLayout.RESIZE_MODE_FILL
                 : AspectRatioFrameLayout.RESIZE_MODE_FIT);
+            playerView.requestLayout();
+            playerView.invalidate();
         }
         applyWebVideoSizing();
         scheduleControlsHide();
@@ -1000,7 +1012,13 @@ public class PlayerActivity extends Activity {
 
     private void returnPlaybackToMain() {
         if (!handedOffFromMain || handedBackToMain) return;
-        if (playerView != null) playerView.setPlayer(null);
+        if (playerView != null) {
+            if (playerView.getParent() instanceof ViewGroup) {
+                ((ViewGroup) playerView.getParent()).removeView(playerView);
+            }
+            returningPlayerView = playerView;
+            playerView = null;
+        }
         returningPlayer = player;
         player = null;
         if (webView != null) {
