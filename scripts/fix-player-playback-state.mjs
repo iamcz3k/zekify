@@ -52,13 +52,14 @@ replaceOnce(
   "terminal error visibility"
 );
 
-// Reassert the app's full-fill mode whenever a native source is selected,
-// instead of inheriting a previous provider's aspect/resize state.
-replaceOnce(
-  '        playerView.setVisibility(View.VISIBLE);\n\n        Map<String, String> headers',
-  '        playerView.setResizeMode(stretchEnabled ? AspectRatioFrameLayout.RESIZE_MODE_FILL : AspectRatioFrameLayout.RESIZE_MODE_FIT);\n        playerView.setVisibility(View.VISIBLE);\n\n        Map<String, String> headers',
-  "native source fill mode"
-);
+// The native PlayerActivity template already applies resize mode and MATCH_PARENT
+// layout before each direct source starts. Verify that implementation instead of
+// injecting a duplicate block through an obsolete anchor.
+if (!source.includes('playerView.setResizeMode(stretchEnabled') ||
+    !source.includes('playerView.setLayoutParams(new FrameLayout.LayoutParams(') ||
+    !source.includes('playerView.requestLayout();')) {
+  throw new Error("Native source fill sizing is missing from PlayerActivity");
+}
 
 await writeFile(path, source);
 console.log("Applied verified player-state and source-fill fixes.");
