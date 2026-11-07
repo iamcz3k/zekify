@@ -23,7 +23,7 @@ public class FloatingPlayerService extends Service {
   Intent intent=new Intent(context,FloatingPlayerService.class);
   if(Build.VERSION.SDK_INT>=26)context.startForegroundService(intent);else context.startService(intent);
  }
- public static boolean isShowing(){return instance!=null&&instance.overlay!=null;}
+ public static boolean isShowing(){return pendingSurface!=null;}
  public static void hideForReturn(){FloatingPlayerService current=instance;if(current!=null){current.removeOverlay(false);current.stopSelf();}}
  @Override public void onCreate(){
   super.onCreate();instance=this;windowManager=(WindowManager)getSystemService(WINDOW_SERVICE);
