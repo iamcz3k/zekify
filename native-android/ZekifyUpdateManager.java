@@ -1,6 +1,11 @@
 package com.v3x.zekify;
 
 import android.app.Activity;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.Typeface;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.Intent;
@@ -137,12 +142,27 @@ public final class ZekifyUpdateManager {
         page.setGravity(Gravity.CENTER_VERTICAL);
         page.setPadding(dp(activity, 28), dp(activity, 34), dp(activity, 28), dp(activity, 34));
         page.setBackgroundColor(0xff090909);
+        LinearLayout brandRow = new LinearLayout(activity);
+        brandRow.setGravity(Gravity.CENTER_VERTICAL);
+        brandRow.addView(new BrandMark(activity), new LinearLayout.LayoutParams(dp(activity, 34), dp(activity, 34)));
         TextView brand = new TextView(activity);
-        brand.setText("ZEKIFY  /  SYSTEM UPDATE");
-        brand.setTextColor(0xffff8a3d);
-        brand.setTextSize(12);
-        brand.setTypeface(null, 1);
-        page.addView(brand);
+        brand.setText("ZEKIFY");
+        brand.setTextColor(Color.WHITE);
+        brand.setTextSize(15);
+        brand.setLetterSpacing(0.12f);
+        brand.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
+        LinearLayout.LayoutParams brandTextParams = new LinearLayout.LayoutParams(-2, -2);
+        brandTextParams.leftMargin = dp(activity, 12);
+        brandRow.addView(brand, brandTextParams);
+        TextView brandSub = new TextView(activity);
+        brandSub.setText("SYSTEM UPDATE");
+        brandSub.setTextColor(0xffff8a3d);
+        brandSub.setTextSize(10);
+        brandSub.setTypeface(null, Typeface.BOLD);
+        LinearLayout.LayoutParams brandSubParams = new LinearLayout.LayoutParams(-2, -2);
+        brandSubParams.leftMargin = dp(activity, 10);
+        brandRow.addView(brandSub, brandSubParams);
+        page.addView(brandRow);
         TextView heading = new TextView(activity);
         heading.setText(title);
         heading.setTextColor(0xffffffff);
@@ -225,12 +245,27 @@ public final class ZekifyUpdateManager {
         layout.setGravity(Gravity.CENTER_VERTICAL);
         layout.setPadding(dp(activity, 28), dp(activity, 34), dp(activity, 28), dp(activity, 34));
         layout.setBackgroundColor(0xff090909);
+        LinearLayout brandRow = new LinearLayout(activity);
+        brandRow.setGravity(Gravity.CENTER_VERTICAL);
+        brandRow.addView(new BrandMark(activity), new LinearLayout.LayoutParams(dp(activity, 34), dp(activity, 34)));
         TextView brand = new TextView(activity);
-        brand.setText("ZEKIFY  /  SYSTEM UPDATE");
-        brand.setTextColor(0xffff8a3d);
-        brand.setTextSize(12);
-        brand.setTypeface(null, 1);
-        layout.addView(brand);
+        brand.setText("ZEKIFY");
+        brand.setTextColor(Color.WHITE);
+        brand.setTextSize(15);
+        brand.setLetterSpacing(0.12f);
+        brand.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
+        LinearLayout.LayoutParams brandTextParams = new LinearLayout.LayoutParams(-2, -2);
+        brandTextParams.leftMargin = dp(activity, 12);
+        brandRow.addView(brand, brandTextParams);
+        TextView brandSub = new TextView(activity);
+        brandSub.setText("SYSTEM UPDATE");
+        brandSub.setTextColor(0xffff8a3d);
+        brandSub.setTextSize(10);
+        brandSub.setTypeface(null, Typeface.BOLD);
+        LinearLayout.LayoutParams brandSubParams = new LinearLayout.LayoutParams(-2, -2);
+        brandSubParams.leftMargin = dp(activity, 10);
+        brandRow.addView(brandSub, brandSubParams);
+        layout.addView(brandRow);
         TextView heading = new TextView(activity);
         heading.setText("Installing update " + update.version);
         heading.setTextColor(0xffffffff);
@@ -423,6 +458,32 @@ public final class ZekifyUpdateManager {
             new AlertDialog.Builder(activity).setTitle("Could not open installer")
                 .setMessage(e.getMessage() == null ? "Android could not start the package installer." : e.getMessage())
                 .setPositiveButton("OK", null).show();
+        }
+    }
+
+    private static final class BrandMark extends android.view.View {
+        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        BrandMark(Activity activity) { super(activity); }
+        @Override protected void onDraw(Canvas canvas) {
+            float cx = getWidth() / 2f, cy = getHeight() / 2f;
+            float radius = Math.min(getWidth(), getHeight()) * 0.45f;
+            paint.setStyle(Paint.Style.FILL);
+            paint.setColor(0xfff4f4f4);
+            canvas.drawCircle(cx, cy, radius, paint);
+            Path pentagon = new Path();
+            pentagon.moveTo(cx, cy-radius*.42f);
+            pentagon.lineTo(cx+radius*.34f, cy-radius*.12f);
+            pentagon.lineTo(cx+radius*.21f, cy+radius*.30f);
+            pentagon.lineTo(cx-radius*.21f, cy+radius*.30f);
+            pentagon.lineTo(cx-radius*.34f, cy-radius*.12f);
+            pentagon.close();
+            paint.setColor(0xffff8a3d);
+            canvas.drawPath(pentagon, paint);
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(Math.max(1f, radius*.055f));
+            paint.setColor(0xff171717);
+            canvas.drawCircle(cx, cy, radius, paint);
+            paint.setStyle(Paint.Style.FILL);
         }
     }
 
