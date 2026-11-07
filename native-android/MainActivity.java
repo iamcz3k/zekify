@@ -3,6 +3,8 @@ package com.v3x.zekify;
 import android.app.*;
 import android.content.*;
 import android.net.Uri;
+import android.content.res.Configuration;
+import android.util.Rational;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.graphics.*;
@@ -47,7 +49,7 @@ public class MainActivity extends Activity {
  private ScrollView matchesScroll;
  private EditText search;
  private String tab="live",league="All",query="";
- private JSONObject selected,detail; private LinearLayout sourceList; private WebView matchPreview; private int selectedSourceIndex=0; private JSONArray selectedSources; private FrameLayout inlineFrame; private PlayerView inlinePlayerView; private ExoPlayer inlinePlayer; private WebView inlineWebView; private TextView inlineStatus; private LinearLayout inlineSources; private boolean inlineLoading=false; private Dialog startupDialog;
+ private JSONObject selected,detail; private LinearLayout sourceList; private WebView matchPreview; private int selectedSourceIndex=0; private JSONArray selectedSources; private FrameLayout inlineFrame; private PlayerView inlinePlayerView; private ExoPlayer inlinePlayer; private WebView inlineWebView; private TextView inlineStatus; private LinearLayout inlineSources; private boolean inlineLoading=false; private Dialog startupDialog; private boolean mainPipActive=false;
  private final int ORANGE=Color.rgb(255,138,61),BG=Color.rgb(5,5,5),PANEL=Color.rgb(17,17,17),MUTED=Color.rgb(145,145,145);
  @Override public void onCreate(Bundle b){super.onCreate(b);appPrefs=getSharedPreferences("zekify_cache",MODE_PRIVATE);installCrashRecorder();pendingMatchId=getIntent().getStringExtra("matchId")==null?"":getIntent().getStringExtra("matchId");getWindow().setStatusBarColor(BG);getWindow().setNavigationBarColor(BG);getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR^View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);createReminderChannel();home();applySettings();showStartupSplash();registerNetworkRecovery();load();}
  private void installCrashRecorder(){Thread.UncaughtExceptionHandler previous=Thread.getDefaultUncaughtExceptionHandler();Thread.setDefaultUncaughtExceptionHandler((thread,error)->{try{StringWriter trace=new StringWriter();error.printStackTrace(new PrintWriter(trace));recordBug("APP_CRASH",error,trace.toString());appPrefs.edit().putString("last_uncaught_error",trace.toString()).putLong("last_uncaught_error_at",System.currentTimeMillis()).apply();}catch(Exception ignored){}if(previous!=null)previous.uncaughtException(thread,error);else{android.os.Process.killProcess(android.os.Process.myPid());System.exit(10);}});}
@@ -362,8 +364,24 @@ public class MainActivity extends Activity {
  private void registerNetworkRecovery(){connectivityManager=(ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);if(connectivityManager==null)return;networkCallback=new ConnectivityManager.NetworkCallback(){@Override public void onAvailable(Network network){inlineNetworkHandler.postDelayed(()->{if(isFinishing())return;if(setting("auto_refresh",true))load();if(setting("auto_reconnect",true)&&selectedSources!=null&&inlineStatus!=null){String state=inlineStatus.getText().toString().toLowerCase(Locale.ROOT);if(state.contains("failed")||state.contains("timed out")||state.contains("stopped"))startInlineSource(selectedSourceIndex);}},1000L);}};try{connectivityManager.registerDefaultNetworkCallback(networkCallback);}catch(RuntimeException ignored){networkCallback=null;}}
  private void homeAndRender(){stopInlinePlayback();selected=null;selectedSources=null;home();renderLeagues();render();}
  @Override public void onBackPressed(){if(selected!=null){homeAndRender();return;}if(setting("confirm_exit",false)){new AlertDialog.Builder(this).setTitle("Exit Zekify?").setMessage("Close the app now?").setNegativeButton("Stay",null).setPositiveButton("Exit",(d,w)->finish()).show();}else finish();}
+
+ @Override public void onUserLeaveHint(){
+  super.onUserLeaveHint();
+  if(Build.VERSION.SDK_INT<26||!setting("floating_player",false)||selected==null)return;
+  View videoSurface=null;
+  if(inlinePlayer!=null&&inlinePlayer.isPlaying()&&inlinePlayerView!=null)videoSurface=inlinePlayerView;
+  else if(inlineWebView!=null&&inlineWebView.getVisibility()==View.VISIBLE&&inlineStatus!=null&&!inlineStatus.getText().toString().toLowerCase(Locale.ROOT).contains("failed"))videoSurface=inlineWebView;
+  if(videoSurface==null)return;
+  if(videoSurface.getParent() instanceof ViewGroup)((ViewGroup)videoSurface.getParent()).removeView(videoSurface);
+  FrameLayout pipSurface=new FrameLayout(this);pipSurface.setBackgroundColor(Color.BLACK);pipSurface.addView(videoSurface,new FrameLayout.LayoutParams(-1,-1));setContentView(pipSurface);
+  try{PictureInPictureParams params=new PictureInPictureParams.Builder().setAspectRatio(new Rational(16,9)).build();mainPipActive=enterPictureInPictureMode(params);if(!mainPipActive){inlineFrame=null;render();}}catch(RuntimeException error){mainPipActive=false;inlineFrame=null;render();}
+ }
+ @Override public void onPictureInPictureModeChanged(boolean inPictureInPictureMode,Configuration newConfig){
+  super.onPictureInPictureModeChanged(inPictureInPictureMode,newConfig);
+  if(!inPictureInPictureMode&&mainPipActive&&!isFinishing()){mainPipActive=false;inlineFrame=null;render();}
+ }
  @Override protected void onResume(){super.onResume();if(PlayerActivity.returningSourceIndex>=0){selectedSourceIndex=PlayerActivity.returningSourceIndex;PlayerActivity.returningSourceIndex=-1;}if(PlayerActivity.returningPlayer!=null){inlinePlayer=PlayerActivity.returningPlayer;PlayerActivity.returningPlayer=null;}if(PlayerActivity.returningWebView!=null){inlineWebView=PlayerActivity.returningWebView;PlayerActivity.returningWebView=null;}if(inlineFrame!=null){inlineFrame.removeAllViews();if(inlinePlayer!=null&&inlinePlayerView!=null){inlinePlayerView.setPlayer(inlinePlayer);inlinePlayerView.setVisibility(View.VISIBLE);inlineFrame.addView(inlinePlayerView,new FrameLayout.LayoutParams(-1,-1));}else if(inlineWebView!=null&&inlineWebView.getVisibility()==View.VISIBLE){if(inlineWebView.getParent() instanceof ViewGroup)((ViewGroup)inlineWebView.getParent()).removeView(inlineWebView);inlineFrame.addView(inlineWebView,new FrameLayout.LayoutParams(-1,-1));}}if(inlinePlayer!=null)inlinePlayer.play();if(inlineWebView!=null)inlineWebView.onResume();}
- @Override protected void onPause(){if(inlinePlayer!=null)inlinePlayer.pause();if(inlineWebView!=null)inlineWebView.onPause();super.onPause();}
+ @Override protected void onPause(){boolean inPip=Build.VERSION.SDK_INT>=24&&isInPictureInPictureMode();if(!inPip&&inlinePlayer!=null)inlinePlayer.pause();if(!inPip&&inlineWebView!=null)inlineWebView.onPause();super.onPause();}
  @Override protected void onDestroy(){stopInlinePlayback();inlineNetworkHandler.removeCallbacksAndMessages(null);if(connectivityManager!=null&&networkCallback!=null){try{connectivityManager.unregisterNetworkCallback(networkCallback);}catch(RuntimeException ignored){}networkCallback=null;}apiIo.shutdownNow();imageIo.shutdownNow();shareIo.shutdownNow();super.onDestroy();}
 
  private static class NativeIcon extends View {
