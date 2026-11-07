@@ -11,7 +11,7 @@ Native Android football app.
 
 Default API origin: `https://repo-seed-transplanter.lovable.app`.
 
-Zekify 3.0.2 routes main football fixtures, match details, stream source resolution, LiveScore fixtures and match centre requests through this backend. Relative playback URLs are resolved against the same API origin.
+Zekify 3.0.3 routes main football fixtures, match details, stream source resolution, LiveScore fixtures and match centre requests through this backend. Relative playback URLs are resolved against the same API origin.
 
 - Matches: `/api/public/football-streams?mode=matches&sport=football`
 - Match details: `/api/public/football-streams?mode=detail&sport=football&id=<match-id>`
