@@ -845,7 +845,13 @@ public class PlayerActivity extends Activity {
 
     private void playDirectMedia(JSONObject source, String url) {
         webView.setVisibility(View.GONE);
+        playerView.setResizeMode(stretchEnabled
+            ? AspectRatioFrameLayout.RESIZE_MODE_FILL
+            : AspectRatioFrameLayout.RESIZE_MODE_FIT);
+        playerView.setLayoutParams(new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         playerView.setVisibility(View.VISIBLE);
+        playerView.requestLayout();
 
         Map<String, String> headers = new HashMap<>();
         JSONObject rawHeaders = source.optJSONObject("headers");
