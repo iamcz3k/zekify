@@ -1,4 +1,4 @@
-# v3.1.1 release build [release v3.1.1]
+# v3.1.2 release build [release v3.1.2]
 # Authorized release build for the verified player patch; publish only on release-marked commits or manual dispatch.
 name: Build and release Zekify APK
 on:
@@ -52,8 +52,8 @@ jobs:
           python3 -c "import xml.etree.ElementTree as ET; ET.parse('android/app/src/main/AndroidManifest.xml'); print('AndroidManifest.xml is valid XML')"
       - name: Set Android version
         run: |
-          sed -i 's/versionCode 1/versionCode 29/' android/app/build.gradle
-          sed -i 's/versionName "1.0"/versionName "3.1.1"/' android/app/build.gradle
+          sed -i 's/versionCode 1/versionCode 30/' android/app/build.gradle
+          sed -i 's/versionName "1.0"/versionName "3.1.2"/' android/app/build.gradle
           grep -E 'versionCode|versionName' android/app/build.gradle
       - name: Configure release signing
         env:
@@ -94,33 +94,33 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew assembleRelease
-          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.1.1.apk
+          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.1.2.apk
           cd ..
           rm -f android/zekify-release.jks
-          test -s Zekify-v3.1.1.apk
+          test -s Zekify-v3.1.2.apk
       - name: Generate update checksum
-        run: sha256sum Zekify-v3.1.1.apk > Zekify-v3.1.1.apk.sha256
+        run: sha256sum Zekify-v3.1.2.apk > Zekify-v3.1.2.apk.sha256
       - name: Verify APK signature
         run: |
           set -o pipefail
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.1.1.apk | tee signing-certificate.txt
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.1.2.apk | tee signing-certificate.txt
           CERT="$(awk '/Signer #1 certificate SHA-256 digest:/ {print $NF; exit}' signing-certificate.txt)"
           echo "Release signing certificate: $CERT"
           test "$CERT" = "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119" || (echo "Unexpected signing key. Refusing to publish an incompatible update." && exit 1)
       - uses: actions/upload-artifact@v4
         with:
-          name: zekify-v3.1.1-signed-apk
+          name: zekify-v3.1.2-signed-apk
           path: |
-            Zekify-v3.1.1.apk
-            Zekify-v3.1.1.apk.sha256
+            Zekify-v3.1.2.apk
+            Zekify-v3.1.2.apk.sha256
           if-no-files-found: error
       - name: Publish signed APK release
-        if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[release v3.1.1]')
+        if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[release v3.1.2]')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view v3.1.1 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload v3.1.1 Zekify-v3.1.1.apk Zekify-v3.1.1.apk.sha256 --clobber --repo "$GITHUB_REPOSITORY"
+          if gh release view v3.1.2 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload v3.1.2 Zekify-v3.1.2.apk Zekify-v3.1.2.apk.sha256 --clobber --repo "$GITHUB_REPOSITORY"
           else
-            gh release create v3.1.1 Zekify-v3.1.1.apk Zekify-v3.1.1.apk.sha256 --title "Zekify v3.1.1" --notes "Zekify 3.1.1 preserves fullscreen when switching from native playback to embedded providers, keeps the replacement WebView edge-to-edge, and suppresses stale loading overlays while fullscreen." --target "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY"
+            gh release create v3.1.2 Zekify-v3.1.2.apk Zekify-v3.1.2.apk.sha256 --title "Zekify v3.1.2" --notes "Zekify 3.1.2 reuses the mini-player video surface in edge-to-edge fullscreen, preserves that surface across return navigation, adds a vector stretch control, and sizes provider fullscreen video surfaces." --target "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY"
           fi
