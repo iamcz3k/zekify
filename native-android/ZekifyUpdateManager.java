@@ -362,11 +362,12 @@ public final class ZekifyUpdateManager {
                     actionButton.setEnabled(true);
                     actionButton.setOnClickListener(v -> download(activity, update));
                 } else {
-                    status.setText("Download complete. Checksum and package ID verified. Ready for Android installer.");
+                    status.setText("Download complete. Checks passed. Opening Android installer…");
                     progress.setProgress(100);
-                    actionButton.setText("Install update");
-                    actionButton.setEnabled(true);
-                    actionButton.setOnClickListener(v -> install(activity, downloaded));
+                    actionButton.setText("Opening installer…");
+                    actionButton.setEnabled(false);
+                    page.dismiss();
+                    install(activity, downloaded);
                 }
             });
         });
@@ -436,6 +437,14 @@ public final class ZekifyUpdateManager {
         File apk = new File(path);
         if (!apk.isFile()) return;
         String version = activity.getSharedPreferences(PREFS, Activity.MODE_PRIVATE).getString("pending_version", "");
+        try {
+            String installed = activity.getPackageManager().getPackageInfo(activity.getPackageName(), 0).versionName;
+            if (version != null && !version.isEmpty() && compareVersions(installed, version) >= 0) {
+                activity.getSharedPreferences(PREFS, Activity.MODE_PRIVATE).edit().remove("pending_apk").remove("pending_version").apply();
+                apk.delete();
+                return;
+            }
+        } catch (Exception ignored) { }
         requiredPage(activity, "Update ready", "Zekify " + version + " has been downloaded. Android will verify it when you install.", "Install update", () -> install(activity, apk));
     }
 
