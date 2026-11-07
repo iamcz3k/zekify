@@ -13,7 +13,6 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[release v2.2.9]')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -114,6 +113,7 @@ jobs:
             Zekify-v2.2.9.apk.sha256
           if-no-files-found: error
       - name: Publish signed APK release
+        if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[release v2.2.9]')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
