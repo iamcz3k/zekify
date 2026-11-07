@@ -1,4 +1,4 @@
-# v3.0.5 release build [release v3.0.5]
+# v3.0.6 release build [release v3.0.6]
 # Build is intentionally gated to release-marked commits or manual dispatch.
 name: Build and release Zekify APK
 on:
@@ -51,7 +51,7 @@ jobs:
       - name: Set Android version
         run: |
           sed -i 's/versionCode 1/versionCode 25/' android/app/build.gradle
-          sed -i 's/versionName "1.0"/versionName "3.0.5"/' android/app/build.gradle
+          sed -i 's/versionName "1.0"/versionName "3.0.6"/' android/app/build.gradle
           grep -E 'versionCode|versionName' android/app/build.gradle
       - name: Configure release signing
         env:
@@ -92,33 +92,33 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew assembleRelease
-          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.0.5.apk
+          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.0.6.apk
           cd ..
           rm -f android/zekify-release.jks
-          test -s Zekify-v3.0.5.apk
+          test -s Zekify-v3.0.6.apk
       - name: Generate update checksum
-        run: sha256sum Zekify-v3.0.5.apk > Zekify-v3.0.5.apk.sha256
+        run: sha256sum Zekify-v3.0.6.apk > Zekify-v3.0.6.apk.sha256
       - name: Verify APK signature
         run: |
           set -o pipefail
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.0.5.apk | tee signing-certificate.txt
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.0.6.apk | tee signing-certificate.txt
           CERT="$(awk '/Signer #1 certificate SHA-256 digest:/ {print $NF; exit}' signing-certificate.txt)"
           echo "Release signing certificate: $CERT"
           test "$CERT" = "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119" || (echo "Unexpected signing key. Refusing to publish an incompatible update." && exit 1)
       - uses: actions/upload-artifact@v4
         with:
-          name: zekify-v3.0.5-signed-apk
+          name: zekify-v3.0.6-signed-apk
           path: |
-            Zekify-v3.0.5.apk
-            Zekify-v3.0.5.apk.sha256
+            Zekify-v3.0.6.apk
+            Zekify-v3.0.6.apk.sha256
           if-no-files-found: error
       - name: Publish signed APK release
-        if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[release v3.0.5]')
+        if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[release v3.0.6]')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view v3.0.5 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload v3.0.5 Zekify-v3.0.5.apk Zekify-v3.0.5.apk.sha256 --clobber --repo "$GITHUB_REPOSITORY"
+          if gh release view v3.0.6 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload v3.0.6 Zekify-v3.0.6.apk Zekify-v3.0.6.apk.sha256 --clobber --repo "$GITHUB_REPOSITORY"
           else
-            gh release create v3.0.5 Zekify-v3.0.5.apk Zekify-v3.0.5.apk.sha256 --title "Zekify v3.0.5" --notes "Zekify 3.0.5 fixes a fullscreen player crash by initializing and layering the playback status overlay correctly." --target "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY"
+            gh release create v3.0.6 Zekify-v3.0.6.apk Zekify-v3.0.6.apk.sha256 --title "Zekify v3.0.6" --notes "Zekify 3.0.6 cleans the fullscreen player by removing the match-title and lock overlays, and labels speed-test metrics with names and units." --target "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY"
           fi
