@@ -604,7 +604,7 @@ public class PlayerActivity extends Activity {
         }
 
         String url = firstNonEmpty(source, "streamUrl", "mediaUrl", "url", "embedUrl");
-        if (url.startsWith("/")) url = "https://laczekstream.qzz.io" + url;
+        if (url.startsWith("/")) url = "https://repo-seed-transplanter.lovable.app" + url;
         if (url.isEmpty()) {
             showError("This source does not include a playback link.");
             return;
