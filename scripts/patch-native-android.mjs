@@ -18,6 +18,53 @@ playerActivity = playerActivity.replace(
  'if (customVideoView != null) visible = false; controlsVisible = visible;'
 );
 if (!playerActivity.includes('if (customVideoView != null) { setControlsVisible(false); return; }')) throw new Error("Fullscreen controls guard did not apply");
+
+const customViewAdd = 'root.addView(view, new FrameLayout.LayoutParams(-1, -1));';
+if ((playerActivity.match(/root\\.addView\\(view, new FrameLayout\\.LayoutParams\\(-1, -1\\)\\);/g) || []).length !== 2) throw new Error("Expected both Chrome fullscreen callbacks before patching");
+playerActivity = playerActivity.replaceAll(customViewAdd, 'configureCustomFullscreenView(view); root.addView(view, new FrameLayout.LayoutParams(-1, -1)); hideBars();');
+const hideMethod = '    private void hideCustomVideoView() {';
+const fullscreenHelper = `    private void configureCustomFullscreenView(View view) {
+        if (view == null) return;
+        view.setBackgroundColor(Color.BLACK);
+        view.setLayoutParams(new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER));
+        view.setClipToOutline(false);
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            group.setClipChildren(false);
+            group.setClipToPadding(false);
+            for (int i = 0; i < group.getChildCount(); i++) {
+                View child = group.getChildAt(i);
+                ViewGroup.LayoutParams params = child.getLayoutParams();
+                if (params != null) {
+                    params.width = ViewGroup.LayoutParams.MATCH_PARENT;
+                    params.height = ViewGroup.LayoutParams.MATCH_PARENT;
+                    child.setLayoutParams(params);
+                }
+                child.setBackgroundColor(Color.BLACK);
+                if (child instanceof ViewGroup) {
+                    ViewGroup nested = (ViewGroup) child;
+                    nested.setClipChildren(false);
+                    nested.setClipToPadding(false);
+                }
+            }
+        }
+        view.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+            if (v.getLayoutParams() != null) {
+                v.getLayoutParams().width = ViewGroup.LayoutParams.MATCH_PARENT;
+                v.getLayoutParams().height = ViewGroup.LayoutParams.MATCH_PARENT;
+            }
+            hideBars();
+        });
+        view.requestLayout();
+        view.post(this::hideBars);
+    }
+
+`;
+if (!playerActivity.includes(hideMethod)) throw new Error("Fullscreen teardown anchor missing");
+playerActivity = playerActivity.replace(hideMethod, fullscreenHelper + hideMethod);
+if (!playerActivity.includes("configureCustomFullscreenView(view); root.addView(view")) throw new Error("Fullscreen surface sizing patch did not apply");
+
 await writeFile(playerActivityPath, playerActivity);
 
 await copyFile("native-android/MatchReminderReceiver.java",root+"/MatchReminderReceiver.java");
