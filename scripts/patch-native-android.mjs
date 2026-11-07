@@ -5,6 +5,7 @@ await mkdir(root,{recursive:true});
 await copyFile("native-android/MainActivity.java",root+"/MainActivity.java");
 await copyFile("native-android/PlayerActivity.java",root+"/PlayerActivity.java");
 await copyFile("native-android/FloatingPlayerService.java",root+"/FloatingPlayerService.java");
+await copyFile("native-android/LiveScoreActivity.java",root+"/LiveScoreActivity.java");
 
 const playerActivityPath = root + "/PlayerActivity.java";
 let playerActivity = await readFile(playerActivityPath, "utf8");
@@ -48,6 +49,7 @@ if(!manifest.includes("android.permission.SYSTEM_ALERT_WINDOW")) manifest=manife
 if(!manifest.includes("android.permission.FOREGROUND_SERVICE")) manifest=manifest.replace("<application",'<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <application');
 if(!manifest.includes("android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK")) manifest=manifest.replace("<application",'<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />\n    <application');
 if(!manifest.includes('android:name=".FloatingPlayerService"')) manifest=manifest.replace("</application>",'    <service android:name=".FloatingPlayerService" android:enabled="true" android:exported="false" android:foregroundServiceType="mediaPlayback" />\n    </application>');
+if(!manifest.includes('android:name=".LiveScoreActivity"')) manifest=manifest.replace("</application>",'    <activity android:name=".LiveScoreActivity" android:exported="false" android:screenOrientation="unspecified" />\n    </application>');
 if(manifest.includes('android:name="androidx.core.content.FileProvider"')){
  const providerAt=manifest.indexOf('android:name="androidx.core.content.FileProvider"');
  const resourceAt=manifest.indexOf('android:resource="@xml/',providerAt);
