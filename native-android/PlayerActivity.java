@@ -925,7 +925,12 @@ public class PlayerActivity extends Activity {
         } finally {
             customViewTransition = false;
         }
-        if (callback != null) {
+        // When replacing a source, do not tell the old provider that the user
+        // exited fullscreen. That callback collapses the WebChrome custom view
+        // and makes the replacement source fall back to its embedded layout.
+        // The old page is immediately unloaded by playSource(), so discard the
+        // callback and keep the activity's fullscreen session alive.
+        if (callback != null && !preserveFullscreen) {
             try { callback.onCustomViewHidden(); } catch (RuntimeException ignored) {}
         }
         if (preserveFullscreen) {
