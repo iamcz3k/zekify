@@ -386,7 +386,7 @@ public class MainActivity extends Activity {
      finally{dc.disconnect();}
      long elapsed=System.nanoTime()-dt;if(received<=0)throw new IOException("Download returned no data");downloadTotal+=received;downloadNanos+=elapsed;downloadRates.add(received*8.0/Math.max(.001,elapsed/1e9)/1000000.0);
      dl=downloadTotal*8.0/Math.max(.001,downloadNanos/1e9)/1000000.0;
-     final double current=dl;final int samples=downloadRates.size();runOnUiThread(()->{if(d.isShowing())status.setText("Measuring download… "+samples+" samples · "+String.format(Locale.US,"%.1f Mbps",current));});
+     final double current=dl;final int downloadSampleCount=downloadRates.size();runOnUiThread(()->{if(d.isShowing())status.setText("Measuring download… "+downloadSampleCount+" samples · "+String.format(Locale.US,"%.1f Mbps",current));});
     } while(downloadNanos<10_000_000_000L || !speedSamplesStable(downloadRates));
     final double finalDownload=dl;runOnUiThread(()->{if(d.isShowing())down.setText(String.format(Locale.US,"%.1f",finalDownload));status.setText("Download measured. Testing upload…");});
     runOnUiThread(()->status.setText("Testing upload…"));
@@ -398,7 +398,7 @@ public class MainActivity extends Activity {
      if(response<200||response>=400)throw new IOException("Upload endpoint returned "+response);
      long elapsed=System.nanoTime()-ut;uploadTotal+=payload.length;uploadNanos+=elapsed;uploadRates.add(payload.length*8.0/Math.max(.001,elapsed/1e9)/1000000.0);
      ul=uploadTotal*8.0/Math.max(.001,uploadNanos/1e9)/1000000.0;
-     final double current=ul;final int samples=uploadRates.size();runOnUiThread(()->{if(d.isShowing())status.setText("Measuring upload… "+samples+" samples · "+String.format(Locale.US,"%.1f Mbps",current));});
+     final double current=ul;final int uploadSampleCount=uploadRates.size();runOnUiThread(()->{if(d.isShowing())status.setText("Measuring upload… "+uploadSampleCount+" samples · "+String.format(Locale.US,"%.1f Mbps",current));});
     } while(uploadNanos<10_000_000_000L || !speedSamplesStable(uploadRates));
    }catch(Exception e){error=e.getMessage()==null?"Speed test failed.":e.getMessage();}
    final String failure=error;final double fp=p,fj=j,fd=dl,fu=ul;runOnUiThread(()->{if(!d.isShowing())return;start.setEnabled(true);start.setText("Run again");if(failure!=null){status.setText("Test incomplete: "+failure);ping.setText("—");jitter.setText("—");down.setText("—");up.setText("—");}else{ping.setText(String.format(Locale.US,"%.0f",fp));jitter.setText(String.format(Locale.US,"%.0f",fj));down.setText(String.format(Locale.US,"%.1f",fd));up.setText(String.format(Locale.US,"%.1f",fu));status.setText("Test complete · Results are estimates and vary with network conditions.");}});
