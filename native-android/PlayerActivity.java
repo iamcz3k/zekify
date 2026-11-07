@@ -220,6 +220,7 @@ public class PlayerActivity extends Activity {
         }
         playerView.setUseController(false);
         playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FILL);
+        playerView.setShutterBackgroundColor(Color.BLACK);
         playerView.setOnTouchListener(new GestureSurface(true));
         root.addView(playerView, playerParams);
 
@@ -718,6 +719,8 @@ public class PlayerActivity extends Activity {
             playerView.setResizeMode(stretchEnabled
                 ? AspectRatioFrameLayout.RESIZE_MODE_FILL
                 : AspectRatioFrameLayout.RESIZE_MODE_FIT);
+            playerView.setLayoutParams(new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
             playerView.requestLayout();
             playerView.invalidate();
         }
@@ -881,18 +884,12 @@ public class PlayerActivity extends Activity {
                     status.setVisibility(View.GONE);
                     recoveryHandler.removeCallbacksAndMessages(null);
                     recoveryHandler.postDelayed(() -> {
-                        if (player != null && !isFinishing() && player.getPlaybackState() == Player.STATE_BUFFERING) {
-                            if (retryCount < 2) {
-                                retryCount++;
-                                status.setText("Stream stalled. Reconnecting (" + retryCount + "/2)…");
-                                player.seekToDefaultPosition();
-                                player.prepare();
-                                player.play();
-                            } else {
-                                status.setText("Stream is still buffering. Tap Retry or choose another source.");
-                            }
+                        if (player != null && !isFinishing()
+                            && player.getPlaybackState() == Player.STATE_BUFFERING) {
+                            status.setText("Stream is still buffering. Retry or switch source if it does not recover.");
+                            status.setVisibility(View.VISIBLE);
                         }
-                    }, 18000L);
+                    }, 15000L);
                 } else if (playbackState == Player.STATE_READY) {
                     recoveryHandler.removeCallbacksAndMessages(null);
                     retryCount = 0;
@@ -1020,7 +1017,9 @@ public class PlayerActivity extends Activity {
                 ((ViewGroup) playerView.getParent()).removeView(playerView);
             }
             playerView.setOnTouchListener(null);
-            playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT);
+            playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FILL);
+            playerView.setLayoutParams(new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
             playerView.requestLayout();
             returningPlayerView = playerView;
             playerView = null;
