@@ -255,7 +255,12 @@ public class PlayerActivity extends Activity {
                 status.setText("Tap the provider's play button to start");
                 status.setVisibility(fullscreenRequested ? View.GONE : View.VISIBLE);
                 applyWebVideoSizing();
-                hideBars();
+                if (fullscreenRequested) {
+                    status.setVisibility(View.GONE);
+                    webView.postDelayed(() -> { if (webView != null && fullscreenRequested && !isFinishing()) applyWebVideoSizing(); }, 350L);
+                    webView.postDelayed(() -> { if (webView != null && fullscreenRequested && !isFinishing()) applyWebVideoSizing(); }, 1200L);
+                    hideBars();
+                }
                 if (toolbar != null && controlsVisible) toolbar.bringToFront();
                 scheduleControlsHide();
             }
@@ -609,7 +614,7 @@ public class PlayerActivity extends Activity {
             return;
         }
 
-        boolean keepFullscreen = fullscreenRequested || customVideoView != null;
+        boolean keepFullscreen = fullscreenRequested || customVideoView != null || (playerView != null && playerView.getVisibility() == View.VISIBLE && player != null);
         switchingSource = keepFullscreen;
         fullscreenRequested = keepFullscreen;
         if (customVideoView != null) hideCustomVideoView(true);
@@ -748,9 +753,14 @@ public class PlayerActivity extends Activity {
         webLoadHandler.removeCallbacks(webLoadWatchdog);
         webLoadFailed = false;
         webView.stopLoading();
-        webView.setVisibility(View.VISIBLE);
-        webView.setLayoutParams(new FrameLayout.LayoutParams(-1, -1));
-        hideBars();
+        webView.setLayoutParams(new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        if (fullscreenRequested) {
+            status.setVisibility(View.GONE);
+            setControlsVisible(false);
+            webView.bringToFront();
+            hideBars();
+        }
         webView.loadUrl(url);
     }
 
