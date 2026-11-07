@@ -949,8 +949,9 @@ public class PlayerActivity extends Activity {
 
     @Override
     protected void onPause() {
-        if (webView != null && !isInPictureInPictureMode()) webView.onPause();
-        if (player != null && !isInPictureInPictureMode()) player.pause();
+        boolean inPictureInPicture = Build.VERSION.SDK_INT >= 24 && isInPictureInPictureMode();
+        if (webView != null && !inPictureInPicture) webView.onPause();
+        if (player != null && !inPictureInPicture) player.pause();
         if (isFinishing()) returnPlaybackToMain();
         super.onPause();
     }
