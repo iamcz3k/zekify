@@ -73,6 +73,8 @@ public class PlayerActivity extends Activity {
     };
     private int resizeMode = 1; // 0=Fit, 1=Fill, 2=Zoom; default Fill
     private View resizeButton;
+    private View lockToggle;
+    private boolean controlsLocked = false;
     private JSONArray sources;
     private int sourceIndex = 0;
     private String matchTitle = "";
@@ -368,62 +370,56 @@ public class PlayerActivity extends Activity {
         }
 
         toolbar = new LinearLayout(this);
-        toolbar.setOrientation(LinearLayout.VERTICAL);
-        toolbar.setPadding(dp(8), dp(5), dp(8), dp(4));
+        toolbar.setOrientation(LinearLayout.HORIZONTAL);
+        toolbar.setGravity(Gravity.CENTER_VERTICAL);
+        toolbar.setPadding(dp(8), dp(5), dp(56), dp(5));
         toolbar.setBackgroundColor(0xaa090909);
-
-        LinearLayout controls = new LinearLayout(this);
-        controls.setGravity(Gravity.CENTER_VERTICAL);
         View back = iconButton("back");
         back.setContentDescription("Back to match");
         back.setOnClickListener(v -> finish());
-        controls.addView(back);
-
-        View reload = iconButton("refresh");
-        reload.setContentDescription("Refresh stream");
-        reload.setOnClickListener(v -> retrySource());
-        controls.addView(reload);
-
-        View leftSpace = new View(this);
-        controls.addView(leftSpace, new LinearLayout.LayoutParams(0, 1, 1));
-
-        View sourceButton = iconButton("sources");
-        sourceButton.setContentDescription("Available sources");
-        sourceButton.setOnClickListener(v -> chooseSource());
-        controls.addView(sourceButton);
-
-        resizeButton = textControl("Zoom");
-        resizeButton.setContentDescription("Switch video to Zoom");
-        resizeButton.setOnClickListener(v -> toggleResizeMode());
-        controls.addView(resizeButton);
-
-        View qualityButton = textControl("Quality");
-        qualityButton.setContentDescription("Choose stream quality");
-        qualityButton.setOnClickListener(v -> chooseQuality());
-        controls.addView(qualityButton);
-
-        View rightSpace = new View(this);
-        controls.addView(rightSpace, new LinearLayout.LayoutParams(0, 1, 1));
-
-        View volumeDown = iconButton("volume-down");
-        volumeDown.setContentDescription("Volume down");
-        volumeDown.setOnClickListener(v -> adjustVolume(-1));
-        controls.addView(volumeDown);
-
-        View volumeUp = iconButton("volume-up");
-        volumeUp.setContentDescription("Volume up");
-        volumeUp.setOnClickListener(v -> adjustVolume(1));
-        controls.addView(volumeUp);
-        toolbar.addView(controls, new LinearLayout.LayoutParams(-1, dp(46)));
-
-        status = new TextView(this);
-        status.setTextColor(0xffeeeeee);
-        status.setTextSize(10);
-        status.setMaxLines(1);
-        status.setGravity(Gravity.CENTER);
-        status.setPadding(dp(6), dp(1), dp(6), dp(2));
-        status.setText(matchTitle);
-        toolbar.addView(status, new LinearLayout.LayoutParams(-1, dp(19)));
+        toolbar.addView(back);
+        HorizontalScrollView sourceScroll = new HorizontalScrollView(this);
+        sourceScroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout sourceStrip = new LinearLayout(this);
+        sourceStrip.setOrientation(LinearLayout.HORIZONTAL);
+        sourceStrip.setGravity(Gravity.CENTER_VERTICAL);
+        sourceStrip.setPadding(dp(4), 0, dp(4), 0);
+        if (sources != null) for (int i = 0; i < sources.length(); i++) {
+            final int sourceNumber = i;
+            JSONObject item = sources.optJSONObject(i);
+            String name = currentSourceNameFor(item, i);
+            if (item != null && item.optBoolean("hd")) name += " · HD";
+            TextView chip = new TextView(this);
+            chip.setText(name); chip.setTextColor(i == sourceIndex ? 0xffff8a3d : Color.WHITE);
+            chip.setTextSize(11); chip.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+            chip.setGravity(Gravity.CENTER); chip.setSingleLine(true);
+            chip.setPadding(dp(13), dp(8), dp(13), dp(8));
+            chip.setBackground(panel(i == sourceIndex ? 0xff332015 : 0x66202020, 22));
+            LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(-2, dp(38));
+            cp.setMargins(dp(3), 0, dp(3), 0); sourceStrip.addView(chip, cp);
+            chip.setOnClickListener(v -> {
+                if (sourceNumber != sourceIndex) {
+                    sourceIndex = sourceNumber; playSource();
+                    for (int k=0;k<sourceStrip.getChildCount();k++) {
+                        View child=sourceStrip.getChildAt(k);
+                        if(child instanceof TextView){((TextView)child).setTextColor(k==sourceIndex?0xffff8a3d:Color.WHITE);child.setBackground(panel(k==sourceIndex?0xff332015:0x66202020,22));}
+                    }
+                }
+                scheduleControlsHide();
+            });
+        }
+        sourceScroll.addView(sourceStrip);
+        toolbar.addView(sourceScroll, new LinearLayout.LayoutParams(0, dp(42), 1));
+        lockToggle = textControl("🔓");
+        lockToggle.setContentDescription("Lock player controls");
+        lockToggle.setOnClickListener(v -> {
+            controlsLocked=!controlsLocked;
+            ((TextView)lockToggle).setText(controlsLocked?"🔒":"🔓");
+            lockToggle.setContentDescription(controlsLocked?"Unlock player controls":"Lock player controls");
+            setControlsVisible(!controlsLocked);
+        });
+        FrameLayout.LayoutParams lockParams=new FrameLayout.LayoutParams(dp(44),dp(42),Gravity.TOP|Gravity.RIGHT);
+        lockParams.setMargins(0,dp(5),dp(8),0); root.addView(lockToggle,lockParams);
 
         FrameLayout.LayoutParams barParams =
             new FrameLayout.LayoutParams(-1, -2, Gravity.TOP);
@@ -694,8 +690,10 @@ public class PlayerActivity extends Activity {
     }
 
     private void setControlsVisible(boolean visible) {
+        if (controlsLocked) visible = false;
         controlsVisible = visible;
         if (toolbar != null) toolbar.setVisibility(visible ? View.VISIBLE : View.GONE);
+        if (lockToggle != null) lockToggle.setVisibility(View.VISIBLE);
         if (visible) scheduleControlsHide();
         else controlsHandler.removeCallbacks(hideControlsTask);
     }
