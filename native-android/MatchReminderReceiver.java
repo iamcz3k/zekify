@@ -13,7 +13,7 @@ import android.os.Build;
 import java.util.Set;
 
 public class MatchReminderReceiver extends BroadcastReceiver {
-    private static final String CHANNEL = "zekify_match_reminders";
+    private static final String CHANNEL = "zekify_match_reminders_v2";
 
     @Override public void onReceive(Context context, Intent intent) {
         String id = intent.getStringExtra("matchId");
@@ -36,7 +36,11 @@ public class MatchReminderReceiver extends BroadcastReceiver {
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager == null) return;
         if (Build.VERSION.SDK_INT >= 26 && manager.getNotificationChannel(CHANNEL) == null) {
-            manager.createNotificationChannel(new NotificationChannel(CHANNEL, "Match reminders", NotificationManager.IMPORTANCE_HIGH));
+            NotificationChannel channel = new NotificationChannel(CHANNEL, "Match reminders", NotificationManager.IMPORTANCE_HIGH);
+            channel.setDescription("Kickoff reminders for matches selected in Zekify");
+            channel.setSound(android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION), new android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION).setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION).build());
+            channel.enableVibration(true);
+            manager.createNotificationChannel(channel);
         }
         Intent open = new Intent(context, MainActivity.class);
         open.putExtra("matchId", id);
@@ -52,7 +56,8 @@ public class MatchReminderReceiver extends BroadcastReceiver {
             .setContentIntent(content)
             .setAutoCancel(true)
             .setCategory(Notification.CATEGORY_EVENT)
-            .setPriority(Notification.PRIORITY_HIGH);
+            .setPriority(Notification.PRIORITY_HIGH)
+            .setDefaults(Notification.DEFAULT_SOUND | Notification.DEFAULT_VIBRATE);
         manager.notify(id.hashCode() * 3 + type, builder.build());
     }
 }
