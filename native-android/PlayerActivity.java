@@ -196,6 +196,15 @@ public class PlayerActivity extends Activity {
     private void build() {
         root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
+        // The status overlay is used by every playback path, including transferred WebViews.
+        // It must exist before any WebView callback or onCreate branch calls setText().
+        status = new TextView(this);
+        status.setTextColor(Color.WHITE);
+        status.setTextSize(13);
+        status.setGravity(Gravity.CENTER);
+        status.setPadding(dp(16), dp(9), dp(16), dp(9));
+        status.setBackground(panel(0xaa090909, 12));
+        status.setVisibility(View.GONE);
 
         FrameLayout.LayoutParams playerParams =
             new FrameLayout.LayoutParams(-1, -1);
@@ -326,6 +335,9 @@ public class PlayerActivity extends Activity {
             }
         });
 
+        FrameLayout.LayoutParams statusParams = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        statusParams.setMargins(dp(16), 0, dp(16), dp(24));
+        root.addView(status, statusParams);
         root.addView(webView, playerParams);
         webView.setVisibility(View.GONE);
         if (transferredWebView != null) {
