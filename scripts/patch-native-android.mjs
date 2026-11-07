@@ -29,7 +29,7 @@ if(!manifest.includes('android:name=".MatchReminderBootReceiver"')) manifest=man
 if(!manifest.includes('android:name=".PlayerActivity"')){
  manifest=manifest.replace("</application>",'    <activity android:name=".PlayerActivity" android:exported="false" android:screenOrientation="sensorLandscape" android:supportsPictureInPicture="true" android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden" />\n    </application>');
 }
-const mainActivityTag = manifest.match(/<activity\\b(?=[^>]*android:name=".MainActivity")[^>]*>/);
+const mainActivityTag = manifest.match(/<activity\b(?=[^>]*android:name=".MainActivity")[^>]*>/);
 if (mainActivityTag) {
  let tag = mainActivityTag[0];
  if (!tag.includes("android:supportsPictureInPicture=")) tag = tag.replace(/>$/, ' android:supportsPictureInPicture="true">');
