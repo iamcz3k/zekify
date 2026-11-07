@@ -27,11 +27,12 @@ if(manifest.includes('android:name=".MainActivity"')&&!manifest.match(/<activity
 if(!manifest.includes('android:name=".MatchReminderReceiver"')) manifest=manifest.replace("</application>",'    <receiver android:name=".MatchReminderReceiver" android:enabled="true" android:exported="false" />\n    </application>');
 if(!manifest.includes('android:name=".MatchReminderBootReceiver"')) manifest=manifest.replace("</application>",'    <receiver android:name=".MatchReminderBootReceiver" android:enabled="true" android:exported="false"><intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /><action android:name="android.intent.action.MY_PACKAGE_REPLACED" /></intent-filter></receiver>\n    </application>');
 if(!manifest.includes('android:name=".PlayerActivity"')){
- manifest=manifest.replace("</application>",'    <activity android:name=".PlayerActivity" android:exported="false" android:screenOrientation="sensorLandscape" android:supportsPictureInPicture="true" android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden" />\n    </application>');
+ manifest=manifest.replace("</application>",'    <activity android:name=".PlayerActivity" android:exported="false" android:screenOrientation="sensorLandscape" android:resizeableActivity="true" android:supportsPictureInPicture="true" android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden" />\n    </application>');
 }
 const mainActivityTag = manifest.match(/<activity\b(?=[^>]*android:name=".MainActivity")[^>]*>/);
 if (mainActivityTag) {
  let tag = mainActivityTag[0];
+ if (!tag.includes("android:resizeableActivity=")) tag = tag.replace(/>$/, ' android:resizeableActivity="true">');
  if (!tag.includes("android:supportsPictureInPicture=")) tag = tag.replace(/>$/, ' android:supportsPictureInPicture="true">');
  if (!tag.includes("android:configChanges=")) tag = tag.replace(/>$/, ' android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout">');
  else if (!/android:configChanges="[^"]*(smallestScreenSize|screenLayout)/.test(tag)) tag = tag.replace('android:configChanges="', 'android:configChanges="smallestScreenSize|screenLayout|');
