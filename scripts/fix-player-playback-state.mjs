@@ -21,7 +21,7 @@ if (!source.includes("onPageCommitVisible") || !source.includes("status.setVisib
 // Buffering is a real loading state and must be visible. READY is the point at
 // which the loading overlay must disappear.
 replaceOnce(
-  'status.setText("Connecting to " + currentSourceName(source) + "…");\n                    recoveryHandler.removeCallbacksAndMessages(null);',
+  'status.setText("Connecting to " + currentSourceName(currentSource()) + "…");\n                    recoveryHandler.removeCallbacksAndMessages(null);',
   'status.setText("Connecting to " + currentSourceName(source) + "…");\n                    status.setVisibility(View.VISIBLE);\n                    recoveryHandler.removeCallbacksAndMessages(null);',
   "buffering overlay visibility"
 );
