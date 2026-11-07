@@ -29,35 +29,34 @@ const fullscreenHelper = `    private void configureCustomFullscreenView(View vi
         view.setLayoutParams(new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER));
         view.setClipToOutline(false);
-        if (view instanceof ViewGroup) {
-            ViewGroup group = (ViewGroup) view;
-            group.setClipChildren(false);
-            group.setClipToPadding(false);
-            for (int i = 0; i < group.getChildCount(); i++) {
-                View child = group.getChildAt(i);
-                ViewGroup.LayoutParams params = child.getLayoutParams();
-                if (params != null) {
-                    params.width = ViewGroup.LayoutParams.MATCH_PARENT;
-                    params.height = ViewGroup.LayoutParams.MATCH_PARENT;
-                    child.setLayoutParams(params);
-                }
-                child.setBackgroundColor(Color.BLACK);
-                if (child instanceof ViewGroup) {
-                    ViewGroup nested = (ViewGroup) child;
-                    nested.setClipChildren(false);
-                    nested.setClipToPadding(false);
-                }
-            }
-        }
+        applyFullscreenSurfaceSizing(view);
         view.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
-            if (v.getLayoutParams() != null) {
-                v.getLayoutParams().width = ViewGroup.LayoutParams.MATCH_PARENT;
-                v.getLayoutParams().height = ViewGroup.LayoutParams.MATCH_PARENT;
-            }
+            applyFullscreenSurfaceSizing(v);
             hideBars();
         });
         view.requestLayout();
         view.post(this::hideBars);
+    }
+
+    private void applyFullscreenSurfaceSizing(View node) {
+        if (node == null) return;
+        if (node instanceof android.view.SurfaceView || node instanceof android.view.TextureView
+            || node instanceof android.widget.VideoView) {
+            ViewGroup.LayoutParams params = node.getLayoutParams();
+            if (params != null) {
+                params.width = ViewGroup.LayoutParams.MATCH_PARENT;
+                params.height = ViewGroup.LayoutParams.MATCH_PARENT;
+                node.setLayoutParams(params);
+            }
+        }
+        if (node instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) node;
+            group.setClipChildren(false);
+            group.setClipToPadding(false);
+            for (int i = 0; i < group.getChildCount(); i++) {
+                applyFullscreenSurfaceSizing(group.getChildAt(i));
+            }
+        }
     }
 
 `;
@@ -152,6 +151,7 @@ for (const icon of [
  "zekify_ic_refresh.xml",
  "zekify_ic_sources.xml",
  "zekify_ic_fit.xml",
+ "zekify_ic_stretch.xml",
  "zekify_ic_volume_down.xml",
  "zekify_ic_volume_up.xml"
 ]) {
