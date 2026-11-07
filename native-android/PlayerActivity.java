@@ -59,13 +59,16 @@ public class PlayerActivity extends Activity {
     private ConnectivityManager connectivityManager;
     private ConnectivityManager.NetworkCallback networkCallback;
     private boolean webLoadFailed = false;
+    // True once the provider's main document has rendered its first frame.
+    // Some live providers never fire onPageFinished because of long-running requests.
+    private boolean webPageCommitted = false;
     private PlayerView playerView;
     private WebView webView;
     private FrameLayout root;
     private LinearLayout toolbar;
     private TextView status;
     private final Runnable webLoadWatchdog = () -> {
-        if (webView != null && webView.getVisibility() == View.VISIBLE && !isFinishing()) {
+        if (webView != null && webView.getVisibility() == View.VISIBLE && !webPageCommitted && !isFinishing()) {
             webLoadFailed = true;
             status.setText("Stream source timed out. Tap Retry or choose another source.");
             status.setVisibility(View.VISIBLE);
@@ -242,6 +245,7 @@ public class PlayerActivity extends Activity {
             @Override
             public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
                 webLoadFailed = false;
+                webPageCommitted = false;
                 webLoadHandler.removeCallbacks(webLoadWatchdog);
                 webLoadHandler.postDelayed(webLoadWatchdog, 25000L);
                 status.setText("Connecting to stream source…");
@@ -249,11 +253,23 @@ public class PlayerActivity extends Activity {
             }
 
             @Override
-            public void onPageFinished(WebView view, String url) {
+            public void onPageCommitVisible(WebView view, String url) {
+                // A provider may keep network requests open forever. Once its page is
+                // visibly rendered, the app's loading overlay must no longer cover video.
+                webPageCommitted = true;
                 webLoadHandler.removeCallbacks(webLoadWatchdog);
                 webLoadFailed = false;
-                status.setText("Tap the provider's play button to start");
-                status.setVisibility(fullscreenRequested ? View.GONE : View.VISIBLE);
+                status.setVisibility(View.GONE);
+                applyWebVideoSizing();
+                if (fullscreenRequested) hideBars();
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                webPageCommitted = true;
+                webLoadHandler.removeCallbacks(webLoadWatchdog);
+                webLoadFailed = false;
+                status.setVisibility(View.GONE);
                 applyWebVideoSizing();
                 if (fullscreenRequested) {
                     status.setVisibility(View.GONE);
@@ -732,13 +748,14 @@ public class PlayerActivity extends Activity {
             + "function size(){var s=document.getElementById('zekify-video-sizing');"
             + "if(!s){s=document.createElement('style');s.id='zekify-video-sizing';"
             + "(document.head||document.documentElement).appendChild(s);}"
-            + "s.textContent='html,body{width:100%!important;height:100%!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#000!important;}'"
-            + "+'iframe,video,#player,.player,.jwplayer,.video-js,.plyr,.container{width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;object-fit:"
+            + "s.textContent='html,body{position:fixed!important;inset:0!important;width:100%!important;height:100%!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#000!important;}'"
+            + "+'iframe,video,#player,.player,.jwplayer,.video-js,.plyr{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;aspect-ratio:auto!important;object-fit:"
             + fit + "!important;margin:0!important;}';"
-            + "document.querySelectorAll('iframe,video,#player,.player,.jwplayer,.video-js,.plyr,.container').forEach(function(v){"
+            + "document.querySelectorAll('iframe,video,#player,.player,.jwplayer,.video-js,.plyr').forEach(function(v){"
+            + "v.style.setProperty('position','fixed','important');v.style.setProperty('inset','0','important');"
             + "v.style.setProperty('width','100vw','important');v.style.setProperty('height','100vh','important');"
             + "v.style.setProperty('max-width','none','important');v.style.setProperty('max-height','none','important');"
-            + "v.style.setProperty('object-fit','" + fit + "','important');});}"
+            + "v.style.setProperty('aspect-ratio','auto','important');v.style.setProperty('object-fit','" + fit + "','important');});}"
             + "size();if(!window.zekifySizingObserver){window.zekifySizingObserver=new MutationObserver(size);"
             + "window.zekifySizingObserver.observe(document.documentElement,{childList:true,subtree:true});}"
             + "})();";
@@ -752,6 +769,7 @@ public class PlayerActivity extends Activity {
         webView.onResume();
         webLoadHandler.removeCallbacks(webLoadWatchdog);
         webLoadFailed = false;
+        webPageCommitted = false;
         webView.stopLoading();
         webView.setLayoutParams(new FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
