@@ -338,7 +338,8 @@ public class PlayerActivity extends Activity {
                     customViewCallback = callback;
                     fullscreenRequested = true;
                     webView.setVisibility(View.GONE);
-                    setControlsVisible(false);
+                    setControlsVisible(true);
+                    scheduleControlsHide();
                     hideBars();
                 } catch (RuntimeException error) {
                     customVideoView = null;
@@ -391,7 +392,8 @@ public class PlayerActivity extends Activity {
                         customViewCallback = callback;
                         fullscreenRequested = true;
                         webView.setVisibility(View.GONE);
-                        setControlsVisible(false);
+                        setControlsVisible(true);
+                        scheduleControlsHide();
                         hideBars();
                     } catch (RuntimeException error) {
                         customVideoView = null;
