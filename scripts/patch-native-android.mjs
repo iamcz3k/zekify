@@ -20,7 +20,7 @@ playerActivity = playerActivity.replace(
 if (!playerActivity.includes('if (customVideoView != null) { setControlsVisible(false); return; }')) throw new Error("Fullscreen controls guard did not apply");
 
 const customViewAdd = 'root.addView(view, new FrameLayout.LayoutParams(-1, -1));';
-if ((playerActivity.match(/root\\.addView\\(view, new FrameLayout\\.LayoutParams\\(-1, -1\\)\\);/g) || []).length !== 2) throw new Error("Expected both Chrome fullscreen callbacks before patching");
+if ((playerActivity.split(customViewAdd).length - 1) !== 2) throw new Error("Expected both Chrome fullscreen callbacks before patching");
 playerActivity = playerActivity.replaceAll(customViewAdd, 'configureCustomFullscreenView(view); root.addView(view, new FrameLayout.LayoutParams(-1, -1)); hideBars();');
 const hideMethod = '    private void hideCustomVideoView() {';
 const fullscreenHelper = `    private void configureCustomFullscreenView(View view) {
