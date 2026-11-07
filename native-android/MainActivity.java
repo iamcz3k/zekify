@@ -201,7 +201,7 @@ public class MainActivity extends Activity {
   TextView leagueLabel=txt(leagueName(m).toUpperCase(Locale.ROOT),10,ORANGE,true);leagueLabel.setLetterSpacing(.08f);
   meta.addView(leagueLabel,new LinearLayout.LayoutParams(0,-2,1));
   if(featured){TextView popular=txt("POPULAR",9,ORANGE,true);popular.setBackground(shape(0xff352316,30));pad(popular,9,5,9,5);meta.addView(popular);}
-  boolean live=m.optString("status","").trim().equalsIgnoreCase("live")||m.optString("status","").trim().equalsIgnoreCase("in play");
+  String matchStatus=m.optString("status","").trim().toLowerCase(Locale.ROOT);boolean live=matchStatus.equals("live")||matchStatus.equals("in play")||matchStatus.equals("live now")||matchStatus.equals("1h")||matchStatus.equals("2h")||matchStatus.equals("ht");
   if(live){View dot=new View(this);GradientDrawable dotBg=new GradientDrawable();dotBg.setColor(0xffff625f);dotBg.setCornerRadius(dp(8));dot.setBackground(dotBg);LinearLayout.LayoutParams dotP=new LinearLayout.LayoutParams(dp(7),dp(7));dotP.rightMargin=dp(6);meta.addView(dot,dotP);}
   TextView timer=txt("",10,live?0xffff7168:ORANGE,true);meta.addView(timer);bindMatchTimer(timer,m.optLong("date",0),live);
   if(!live){NativeIcon bell=new NativeIcon(this,isMatchScheduled(m)?"bell-on":"bell",isMatchScheduled(m)?ORANGE:MUTED);bell.setContentDescription(isMatchScheduled(m)?"Remove match reminder":"Notify me about this match");LinearLayout.LayoutParams bellP=new LinearLayout.LayoutParams(dp(30),dp(30));bellP.leftMargin=dp(7);meta.addView(bell,bellP);bell.setOnClickListener(v->{toggleMatchReminder(m);bell.setIconColor(isMatchScheduled(m)?ORANGE:MUTED);bell.setContentDescription(isMatchScheduled(m)?"Remove match reminder":"Notify me about this match");});}
