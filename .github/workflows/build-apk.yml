@@ -1,5 +1,5 @@
 # v3.1.1 release build [release v3.1.1]
-# Build is intentionally gated to release-marked commits or manual dispatch.
+# Authorized release build for the verified player patch; publish only on release-marked commits or manual dispatch.
 name: Build and release Zekify APK
 on:
   push:
