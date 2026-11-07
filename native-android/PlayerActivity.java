@@ -3,6 +3,8 @@ package com.v3x.zekify;
 import android.app.*;
 import android.content.*;
 import android.content.pm.ActivityInfo;
+import android.content.res.Configuration;
+import android.util.Rational;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -914,10 +916,40 @@ public class PlayerActivity extends Activity {
         handedBackToMain = true;
     }
 
+
+    @Override
+    public void onUserLeaveHint() {
+        super.onUserLeaveHint();
+        if (Build.VERSION.SDK_INT < 26
+            || !getSharedPreferences("zekify_cache", MODE_PRIVATE).getBoolean("setting_floating_player", false)) return;
+        boolean playing = player != null && player.isPlaying();
+        boolean webPlaying = webView != null && webView.getVisibility() == View.VISIBLE && !webLoadFailed;
+        if (!playing && !webPlaying) return;
+        try {
+            PictureInPictureParams params = new PictureInPictureParams.Builder()
+                .setAspectRatio(new Rational(16, 9))
+                .build();
+            enterPictureInPictureMode(params);
+        } catch (RuntimeException ignored) { }
+    }
+
+    @Override
+    public void onPictureInPictureModeChanged(boolean inPictureInPictureMode, Configuration newConfig) {
+        super.onPictureInPictureModeChanged(inPictureInPictureMode, newConfig);
+        if (inPictureInPictureMode) {
+            setControlsVisible(false);
+            if (toolbar != null) toolbar.setVisibility(View.GONE);
+        } else if (!isFinishing()) {
+            if (toolbar != null) toolbar.setVisibility(View.VISIBLE);
+            setControlsVisible(true);
+            scheduleControlsHide();
+        }
+    }
+
     @Override
     protected void onPause() {
-        if (webView != null) webView.onPause();
-        if (player != null) player.pause();
+        if (webView != null && !isInPictureInPictureMode()) webView.onPause();
+        if (player != null && !isInPictureInPictureMode()) player.pause();
         if (isFinishing()) returnPlaybackToMain();
         super.onPause();
     }
