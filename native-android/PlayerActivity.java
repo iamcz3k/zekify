@@ -117,6 +117,7 @@ public class PlayerActivity extends Activity {
         matchTitle = getIntent().getStringExtra("match");
         if (matchTitle == null) matchTitle = "";
         handedOffFromMain = returnToMainActivity;
+        fullscreenRequested = handedOffFromMain;
         returnToMainActivity = false;
         player = transferredPlayer;
         transferredPlayer = null;
@@ -1016,6 +1017,9 @@ public class PlayerActivity extends Activity {
             if (playerView.getParent() instanceof ViewGroup) {
                 ((ViewGroup) playerView.getParent()).removeView(playerView);
             }
+            playerView.setOnTouchListener(null);
+            playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT);
+            playerView.requestLayout();
             returningPlayerView = playerView;
             playerView = null;
         }
