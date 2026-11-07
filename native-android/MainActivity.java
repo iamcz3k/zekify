@@ -59,7 +59,7 @@ public class MainActivity extends Activity {
   startupDialog.setContentView(splash);startupDialog.setCancelable(false);startupDialog.show();Window w=startupDialog.getWindow();if(w!=null){w.setBackgroundDrawableResource(android.R.color.transparent);w.setLayout(-1,-1);w.setStatusBarColor(Color.BLACK);w.setNavigationBarColor(Color.BLACK);}
  }
  private void hideStartupSplash(){if(startupDialog!=null&&startupDialog.isShowing()){startupDialog.dismiss();startupDialog=null;}}
- private GradientDrawable shape(int c,int r){GradientDrawable d=new GradientDrawable();d.setColor(c);d.setCornerRadius(r);d.setStroke(1,0x22ffffff);return d;}
+ private GradientDrawable shape(int c,int r){int top=Color.rgb(Math.min(255,Color.red(c)+13),Math.min(255,Color.green(c)+13),Math.min(255,Color.blue(c)+13));GradientDrawable d=new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,new int[]{top,c});d.setCornerRadius(dp(r));d.setStroke(dp(1),0x35ffffff);return d;}
  private TextView txt(String s,int z,int c,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextSize(z);t.setTextColor(c);t.setTypeface(Typeface.create("sans-serif",bold?Typeface.BOLD:Typeface.NORMAL));t.setIncludeFontPadding(true);t.setTextIsSelectable(false);return t;}
  private LinearLayout row(){LinearLayout x=new LinearLayout(this);x.setGravity(Gravity.CENTER_VERTICAL);return x;}
  private LinearLayout col(){LinearLayout x=new LinearLayout(this);x.setOrientation(1);return x;}
@@ -75,7 +75,7 @@ public class MainActivity extends Activity {
   TextView category=txt("FOOTBALL",10,ORANGE,true);category.setLetterSpacing(.16f);header.addView(category);
   NativeIcon menu=new NativeIcon(this,"menu",Color.WHITE);menu.setContentDescription("Menu");menu.setOnClickListener(v->menu());LinearLayout.LayoutParams mp=new LinearLayout.LayoutParams(dp(44),dp(44));mp.leftMargin=dp(10);header.addView(menu,mp);root.addView(header);
   View line=new View(this);line.setBackgroundColor(0x22ffffff);root.addView(line,new LinearLayout.LayoutParams(-1,dp(1)));
-  LinearLayout heading=col();pad(heading,18,22,18,14);heading.addView(txt("THE ACTION",10,ORANGE,true));TextView title=txt("Matches",29,Color.WHITE,true);heading.addView(title);root.addView(heading);
+  LinearLayout heading=col();pad(heading,18,22,18,14);TextView eyebrow=txt("THE ACTION",10,ORANGE,true);eyebrow.setLetterSpacing(.16f);heading.addView(eyebrow);TextView title=txt("Your matchday",28,Color.WHITE,true);LinearLayout.LayoutParams titleP=new LinearLayout.LayoutParams(-1,-2);titleP.topMargin=dp(3);heading.addView(title,titleP);TextView sub=txt("Live games and upcoming fixtures, all in one place.",11,MUTED,false);LinearLayout.LayoutParams subP=new LinearLayout.LayoutParams(-1,-2);subP.topMargin=dp(5);heading.addView(sub,subP);root.addView(heading);
   LinearLayout tabs=row();pad(tabs,18,0,18,14);
   Button live=btn("Live",tab.equals("live")),up=btn("Upcoming",tab.equals("upcoming"));
   live.setOnClickListener(v->{tab="live";home();render();});up.setOnClickListener(v->{tab="upcoming";home();render();});
@@ -190,10 +190,33 @@ public class MainActivity extends Activity {
    root=screen;setContentView(screen);if(!setting("reduce_motion",false)){screen.setAlpha(0f);screen.animate().alpha(1f).setDuration(180L).start();}
   }
  private View matchCard(JSONObject m){return matchCard(m,false);}
- private View matchCard(JSONObject m,boolean featured){LinearLayout card=col();card.setBackground(shape(featured?0xff21170f:PANEL,16));pad(card,featured?17:15,featured?16:13,featured?17:15,featured?15:12);LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2);cp.bottomMargin=dp(11);card.setLayoutParams(cp);
-  LinearLayout meta=row();meta.addView(txt(leagueName(m).toUpperCase(Locale.ROOT),10,ORANGE,true),new LinearLayout.LayoutParams(0,-2,1));if(featured)meta.addView(txt("POPULAR",9,ORANGE,true));boolean live=m.optString("status","").trim().equalsIgnoreCase("live")||m.optString("status","").trim().equalsIgnoreCase("in play");TextView timer=txt("",10,live?0xffff7168:ORANGE,true);meta.addView(timer);bindMatchTimer(timer,m.optLong("date",0),live);if(!live){NativeIcon bell=new NativeIcon(this,isMatchScheduled(m)?"bell-on":"bell",isMatchScheduled(m)?ORANGE:MUTED);bell.setContentDescription(isMatchScheduled(m)?"Remove match reminder":"Notify me about this match");LinearLayout.LayoutParams bellP=new LinearLayout.LayoutParams(dp(30),dp(30));bellP.leftMargin=dp(7);meta.addView(bell,bellP);bell.setOnClickListener(v->{toggleMatchReminder(m);bell.setIconColor(isMatchScheduled(m)?ORANGE:MUTED);bell.setContentDescription(isMatchScheduled(m)?"Remove match reminder":"Notify me about this match");});}card.addView(meta);
-  LinearLayout teams=row();pad(teams,0,22,0,20);teams.addView(teamBadge(m,"home"));TextView home=txt(team(m,"home"),14,Color.WHITE,true);LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(0,-2,1);hp.leftMargin=dp(9);teams.addView(home,hp);TextView vs=txt("VS",10,ORANGE,true);teams.addView(vs);TextView away=txt(team(m,"away"),14,Color.WHITE,true);away.setGravity(Gravity.RIGHT);LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(0,-2,1);ap.rightMargin=dp(9);teams.addView(away,ap);teams.addView(teamBadge(m,"away"));card.addView(teams);
-  View sep=new View(this);sep.setBackgroundColor(0x22ffffff);card.addView(sep,new LinearLayout.LayoutParams(-1,dp(1)));LinearLayout foot=row();pad(foot,0,10,0,0);foot.addView(txt("Match details",11,MUTED,false),new LinearLayout.LayoutParams(0,-2,1));foot.addView(new NativeIcon(this,"next",ORANGE),new LinearLayout.LayoutParams(dp(18),dp(18)));card.addView(foot);card.setOnClickListener(v->{if(setting("haptics",true))v.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP);selectMatch(m);});if(setting("compact_cards",false)){card.setPadding(dp(11),dp(9),dp(11),dp(8));cp.bottomMargin=dp(6);}if(!setting("show_badges",true)){teams.removeViewAt(teams.getChildCount()-1);teams.removeViewAt(0);}return card;}
+ private View matchCard(JSONObject m,boolean featured){
+  LinearLayout card=col();
+  card.setBackground(shape(featured?0xff21170f:0xff151515,18));
+  card.setElevation(dp(featured?3:1));
+  pad(card,featured?17:15,featured?16:14,featured?17:15,featured?15:13);
+  LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2);cp.bottomMargin=dp(11);card.setLayoutParams(cp);
+  LinearLayout meta=row();
+  TextView leagueLabel=txt(leagueName(m).toUpperCase(Locale.ROOT),10,ORANGE,true);leagueLabel.setLetterSpacing(.08f);
+  meta.addView(leagueLabel,new LinearLayout.LayoutParams(0,-2,1));
+  if(featured){TextView popular=txt("POPULAR",9,ORANGE,true);popular.setBackground(shape(0xff352316,30));pad(popular,9,5,9,5);meta.addView(popular);}
+  boolean live=m.optString("status","").trim().equalsIgnoreCase("live")||m.optString("status","").trim().equalsIgnoreCase("in play");
+  if(live){View dot=new View(this);GradientDrawable dotBg=new GradientDrawable();dotBg.setColor(0xffff625f);dotBg.setCornerRadius(dp(8));dot.setBackground(dotBg);LinearLayout.LayoutParams dotP=new LinearLayout.LayoutParams(dp(7),dp(7));dotP.rightMargin=dp(6);meta.addView(dot,dotP);}
+  TextView timer=txt("",10,live?0xffff7168:ORANGE,true);meta.addView(timer);bindMatchTimer(timer,m.optLong("date",0),live);
+  if(!live){NativeIcon bell=new NativeIcon(this,isMatchScheduled(m)?"bell-on":"bell",isMatchScheduled(m)?ORANGE:MUTED);bell.setContentDescription(isMatchScheduled(m)?"Remove match reminder":"Notify me about this match");LinearLayout.LayoutParams bellP=new LinearLayout.LayoutParams(dp(30),dp(30));bellP.leftMargin=dp(7);meta.addView(bell,bellP);bell.setOnClickListener(v->{toggleMatchReminder(m);bell.setIconColor(isMatchScheduled(m)?ORANGE:MUTED);bell.setContentDescription(isMatchScheduled(m)?"Remove match reminder":"Notify me about this match");});}
+  card.addView(meta);
+  LinearLayout teams=row();pad(teams,0,22,0,20);teams.addView(teamBadge(m,"home"));
+  TextView home=txt(team(m,"home"),14,Color.WHITE,true);LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(0,-2,1);hp.leftMargin=dp(9);teams.addView(home,hp);
+  TextView vs=txt("VS",10,ORANGE,true);vs.setLetterSpacing(.1f);teams.addView(vs);
+  TextView away=txt(team(m,"away"),14,Color.WHITE,true);away.setGravity(Gravity.RIGHT);LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(0,-2,1);ap.rightMargin=dp(9);teams.addView(away,ap);teams.addView(teamBadge(m,"away"));card.addView(teams);
+  View sep=new View(this);sep.setBackgroundColor(0x25ffffff);card.addView(sep,new LinearLayout.LayoutParams(-1,dp(1)));
+  LinearLayout foot=row();pad(foot,0,11,0,0);foot.addView(txt("Match details",11,0xffb7b7b7,false),new LinearLayout.LayoutParams(0,-2,1));foot.addView(new NativeIcon(this,"next",ORANGE),new LinearLayout.LayoutParams(dp(18),dp(18)));card.addView(foot);
+  card.setOnClickListener(v->{if(setting("haptics",true))v.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP);selectMatch(m);});
+  if(setting("compact_cards",false)){card.setPadding(dp(11),dp(9),dp(11),dp(8));cp.bottomMargin=dp(6);}
+  if(!setting("show_badges",true)){teams.removeViewAt(teams.getChildCount()-1);teams.removeViewAt(0);}
+  if(!setting("reduce_motion",false)){card.setAlpha(0f);card.setScaleY(.985f);card.animate().alpha(1f).scaleY(1f).setDuration(170L).start();}
+  return card;
+ }
  private View teamBadge(JSONObject m,String side){
   FrameLayout frame=new FrameLayout(this);frame.setBackground(shape(0xff252525,50));frame.setElevation(dp(1));
   TextView fallback=txt(team(m,side).substring(0,1).toUpperCase(Locale.ROOT),14,ORANGE,true);fallback.setGravity(Gravity.CENTER);frame.addView(fallback,new FrameLayout.LayoutParams(dp(34),dp(34)));
