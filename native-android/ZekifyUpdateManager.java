@@ -440,16 +440,22 @@ public final class ZekifyUpdateManager {
         try {
             String installed = activity.getPackageManager().getPackageInfo(activity.getPackageName(), 0).versionName;
             if (version != null && !version.isEmpty() && compareVersions(installed, version) >= 0) {
-                activity.getSharedPreferences(PREFS, Activity.MODE_PRIVATE).edit().remove("pending_apk").remove("pending_version").apply();
+                activity.getSharedPreferences(PREFS, Activity.MODE_PRIVATE).edit().remove("pending_apk").remove("pending_version").remove("awaiting_install_permission").apply();
                 apk.delete();
                 return;
             }
         } catch (Exception ignored) { }
+        if (activity.getSharedPreferences(PREFS, Activity.MODE_PRIVATE).getBoolean("awaiting_install_permission", false)) {
+            activity.getSharedPreferences(PREFS, Activity.MODE_PRIVATE).edit().remove("awaiting_install_permission").apply();
+            install(activity, apk);
+            return;
+        }
         requiredPage(activity, "Update ready", "Zekify " + version + " has been downloaded. Android will verify it when you install.", "Install update", () -> install(activity, apk));
     }
 
     private static void install(Activity activity, File apk) {
         if (Build.VERSION.SDK_INT >= 26 && !activity.getPackageManager().canRequestPackageInstalls()) {
+            activity.getSharedPreferences(PREFS, Activity.MODE_PRIVATE).edit().putBoolean("awaiting_install_permission", true).apply();
             requiredPage(activity, "Allow update installation", "Android requires permission for Zekify to install its verified updates. Open Android settings, allow installs from Zekify, then return here.", "Open Android settings", () -> {
                 Intent settings = new Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
                     Uri.parse("package:" + activity.getPackageName()));
@@ -458,6 +464,7 @@ public final class ZekifyUpdateManager {
             return;
         }
         try {
+            activity.getSharedPreferences(PREFS, Activity.MODE_PRIVATE).edit().remove("awaiting_install_permission").apply();
             Uri uri = FileProvider.getUriForFile(activity, activity.getPackageName() + ".fileprovider", apk);
             Intent intent = new Intent(Intent.ACTION_VIEW);
             intent.setDataAndType(uri, "application/vnd.android.package-archive");
