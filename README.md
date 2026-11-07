@@ -1,23 +1,20 @@
 # Zekify
 
-Android-first football app built with React, Vite and Capacitor.
+Native Android football app.
 
-- Live and upcoming match views backed by the LACZEK STREAM public football API.
-- Kickoff times formatted in each viewer's device timezone.
-- HLS playback support through hls.js.
+- Live and upcoming matches are loaded directly from the dedicated `repo-seed-transplanter` API deployment.
+- Match details and stream sources use the same backend, independent of the LaCzek Stream website deployment.
+- Kickoff times use the device timezone.
 - Android package ID: `com.v3x.zekify`.
-- GitHub Actions workflow builds a debug APK artifact.
 
-## Build
-```sh
-npm install
-npm run build
-npx cap add android
-npx cap sync android
-```
+## API
 
-Default API origin: `https://laczekstream.qzz.io`. Override with `VITE_STREAM_API_BASE` if needed.
+Default API origin: `https://repo-seed-transplanter.lovable.app`.
 
-Run **Actions → Build Zekify APK → Run workflow**, then download the `zekify-debug-apk` artifact after success.
+- Matches: `/api/public/football-streams?mode=matches&sport=football`
+- Match details: `/api/public/football-streams?mode=detail&sport=football&id=<match-id>`
+- Stream relay: `/api/public/fctv-hls` (stream URLs are returned by match details)
 
-A successful APK build does not by itself verify live stream availability; playback still depends on the upstream provider and LACZEK STREAM relay.
+## Build and release
+
+The `native-android-v2` branch runs the signed Android release workflow. It checks the configured signing certificate before publishing, so updates remain compatible with existing installations. The signing keystore is supplied through repository Actions secrets and is not committed to the repository.

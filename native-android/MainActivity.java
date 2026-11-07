@@ -28,7 +28,7 @@ import java.util.*;
 import java.util.concurrent.*;
 
 public class MainActivity extends Activity {
- private static final String API="https://laczekstream.qzz.io";
+ private static final String API="https://repo-seed-transplanter.lovable.app";
  private final ExecutorService apiIo=Executors.newFixedThreadPool(2);
  private final Handler inlineNetworkHandler=new Handler(Looper.getMainLooper());
  private ConnectivityManager connectivityManager;
