@@ -73,8 +73,6 @@ public class PlayerActivity extends Activity {
     };
     private int resizeMode = 1; // 0=Fit, 1=Fill, 2=Zoom; default Fill
     private View resizeButton;
-    private View lockToggle;
-    private boolean controlsLocked = false;
     private JSONArray sources;
     private int sourceIndex = 0;
     private String matchTitle = "";
@@ -119,13 +117,9 @@ public class PlayerActivity extends Activity {
         if (activeUrl == null) activeUrl = "";
         if (player != null) {
             playerView.setPlayer(player);
-            status.setText(matchTitle);
-            status.setVisibility(View.VISIBLE);
             setControlsVisible(!handedOffFromMain);
         } else if (webView != null && webView.getVisibility() == View.VISIBLE) {
             webView.onResume();
-            status.setText(matchTitle);
-            status.setVisibility(View.VISIBLE);
             setControlsVisible(!handedOffFromMain);
         } else if (sources.length() > 0) playSource();
         else showError("No stream sources are available.");
@@ -423,17 +417,6 @@ public class PlayerActivity extends Activity {
         }
         sourceScroll.addView(sourceStrip);
         toolbar.addView(sourceScroll, new LinearLayout.LayoutParams(0, dp(42), 1));
-        lockToggle = textControl("🔓");
-        lockToggle.setContentDescription("Lock player controls");
-        lockToggle.setOnClickListener(v -> {
-            controlsLocked=!controlsLocked;
-            ((TextView)lockToggle).setText(controlsLocked?"🔒":"🔓");
-            lockToggle.setContentDescription(controlsLocked?"Unlock player controls":"Lock player controls");
-            setControlsVisible(!controlsLocked);
-        });
-        FrameLayout.LayoutParams lockParams=new FrameLayout.LayoutParams(dp(44),dp(42),Gravity.TOP|Gravity.RIGHT);
-        lockParams.setMargins(0,dp(5),dp(8),0); root.addView(lockToggle,lockParams);
-
         FrameLayout.LayoutParams barParams =
             new FrameLayout.LayoutParams(-1, -2, Gravity.TOP);
         root.addView(toolbar, barParams);
@@ -703,10 +686,8 @@ public class PlayerActivity extends Activity {
     }
 
     private void setControlsVisible(boolean visible) {
-        if (controlsLocked) visible = false;
         controlsVisible = visible;
         if (toolbar != null) toolbar.setVisibility(visible ? View.VISIBLE : View.GONE);
-        if (lockToggle != null) lockToggle.setVisibility(View.VISIBLE);
         if (visible) scheduleControlsHide();
         else controlsHandler.removeCallbacks(hideControlsTask);
     }
@@ -811,7 +792,6 @@ public class PlayerActivity extends Activity {
                 } else if (playbackState == Player.STATE_READY) {
                     recoveryHandler.removeCallbacksAndMessages(null);
                     retryCount = 0;
-                    status.setText(matchTitle);
                 }
             }
 
