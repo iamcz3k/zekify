@@ -9,16 +9,6 @@ await copyFile("native-android/LiveScoreActivity.java",root+"/LiveScoreActivity.
 
 const playerActivityPath = root + "/PlayerActivity.java";
 let playerActivity = await readFile(playerActivityPath, "utf8");
-playerActivity = playerActivity.replace(
- 'if (!controlsVisible) setControlsVisible(true);',
- 'if (customVideoView != null) { setControlsVisible(false); return; } if (!controlsVisible) setControlsVisible(true);'
-);
-playerActivity = playerActivity.replace(
- 'controlsVisible = visible;',
- 'if (customVideoView != null) visible = false; controlsVisible = visible;'
-);
-if (!playerActivity.includes('if (customVideoView != null) { setControlsVisible(false); return; }')) throw new Error("Fullscreen controls guard did not apply");
-
 const customViewAdd = 'root.addView(view, new FrameLayout.LayoutParams(-1, -1));';
 if ((playerActivity.split(customViewAdd).length - 1) !== 2) throw new Error("Expected both Chrome fullscreen callbacks before patching");
 playerActivity = playerActivity.replaceAll(customViewAdd, 'configureCustomFullscreenView(view); root.addView(view, new FrameLayout.LayoutParams(-1, -1)); hideBars();');
