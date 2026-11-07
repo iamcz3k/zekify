@@ -643,6 +643,7 @@ public class PlayerActivity extends Activity {
         if (customVideoView != null) hideCustomVideoView(true);
         hideBars();
         status.setVisibility(View.GONE);
+        recoveryHandler.removeCallbacksAndMessages(null);
         activeUrl = url;
         retryCount = 0;
 
@@ -856,7 +857,7 @@ public class PlayerActivity extends Activity {
             @Override
             public void onPlaybackStateChanged(int playbackState) {
                 if (playbackState == Player.STATE_BUFFERING) {
-                    status.setText("Connecting to " + currentSourceName(source) + "…");
+                    status.setText("Connecting to " + currentSourceName(currentSource()) + "…");
                     recoveryHandler.removeCallbacksAndMessages(null);
                     recoveryHandler.postDelayed(() -> {
                         if (player != null && !isFinishing() && player.getPlaybackState() == Player.STATE_BUFFERING) {
