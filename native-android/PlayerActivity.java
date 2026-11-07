@@ -307,6 +307,7 @@ public class PlayerActivity extends Activity {
                     root.addView(view, new FrameLayout.LayoutParams(-1, -1));
                     customVideoView = view;
                     customViewCallback = callback;
+                    fullscreenRequested = true;
                     webView.setVisibility(View.GONE);
                     setControlsVisible(false);
                     hideBars();
@@ -359,6 +360,7 @@ public class PlayerActivity extends Activity {
                         root.addView(view, new FrameLayout.LayoutParams(-1, -1));
                         customVideoView = view;
                         customViewCallback = callback;
+                        fullscreenRequested = true;
                         webView.setVisibility(View.GONE);
                         setControlsVisible(false);
                         hideBars();
