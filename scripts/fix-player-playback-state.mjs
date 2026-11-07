@@ -64,3 +64,5 @@ await writeFile(path, source);
 console.log("Applied verified player-state and source-fill fixes.");
 
 // v3.1.2 release: source-name loading overlay is suppressed.
+
+// [release v3.1.2] Reuse the mini-player's real video surface in fullscreen.
