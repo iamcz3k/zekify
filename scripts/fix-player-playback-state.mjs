@@ -56,7 +56,7 @@ replaceOnce(
 // instead of inheriting a previous provider's aspect/resize state.
 replaceOnce(
   '        playerView.setVisibility(View.VISIBLE);\n\n        Map<String, String> headers',
-  '        playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FILL);\n        playerView.setVisibility(View.VISIBLE);\n\n        Map<String, String> headers',
+  '        playerView.setResizeMode(stretchEnabled ? AspectRatioFrameLayout.RESIZE_MODE_FILL : AspectRatioFrameLayout.RESIZE_MODE_FIT);\n        playerView.setVisibility(View.VISIBLE);\n\n        Map<String, String> headers',
   "native source fill mode"
 );
 
