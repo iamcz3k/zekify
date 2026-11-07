@@ -1,4 +1,4 @@
-# v3.1.3 release build [release v3.1.3]
+# v3.1.3 release build [release v3.1.3] (rebuild after correcting the native player patch anchor)
 # Authorized release build for the verified player patch; publish only on release-marked commits or manual dispatch.
 name: Build and release Zekify APK
 on:
