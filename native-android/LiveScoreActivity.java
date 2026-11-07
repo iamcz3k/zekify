@@ -15,7 +15,7 @@ import java.util.*;
 import java.util.concurrent.*;
 
 public class LiveScoreActivity extends Activity {
- private static final String API="https://laczekstream.qzz.io";
+ private static final String API="https://repo-seed-transplanter.lovable.app";
  private final ExecutorService net=Executors.newSingleThreadExecutor();
  private final ExecutorService images=Executors.newFixedThreadPool(2);
  private final Handler handler=new Handler(Looper.getMainLooper());
