@@ -250,8 +250,7 @@ public class PlayerActivity extends Activity {
                 webPageCommitted = false;
                 webLoadHandler.removeCallbacks(webLoadWatchdog);
                 webLoadHandler.postDelayed(webLoadWatchdog, 25000L);
-                status.setText("Connecting to stream source…");
-                status.setVisibility(fullscreenRequested ? View.GONE : View.VISIBLE);
+                status.setVisibility(View.GONE);
             }
 
             @Override
@@ -864,7 +863,7 @@ public class PlayerActivity extends Activity {
             @Override
             public void onPlaybackStateChanged(int playbackState) {
                 if (playbackState == Player.STATE_BUFFERING) {
-                    status.setText("Connecting to " + currentSourceName(currentSource()) + "…");
+                    status.setVisibility(View.GONE);
                     recoveryHandler.removeCallbacksAndMessages(null);
                     recoveryHandler.postDelayed(() -> {
                         if (player != null && !isFinishing() && player.getPlaybackState() == Player.STATE_BUFFERING) {
