@@ -636,10 +636,13 @@ public class PlayerActivity extends Activity {
             return;
         }
 
-        // PlayerActivity is the fullscreen playback surface, just like the mini-player's
-        // fullscreen action. Keep that surface and its sizing mode across every source switch.
-        switchingSource = true;
-        fullscreenRequested = true;
+        // Keep the current fullscreen state when switching; an already-visible WebView
+        // counts too, not only a native PlayerView or provider custom view.
+        boolean keepFullscreen = fullscreenRequested || customVideoView != null
+            || (playerView != null && playerView.getVisibility() == View.VISIBLE && player != null)
+            || (webView != null && webView.getVisibility() == View.VISIBLE);
+        switchingSource = keepFullscreen;
+        fullscreenRequested = keepFullscreen;
         if (customVideoView != null) hideCustomVideoView(true);
         hideBars();
         status.setVisibility(View.GONE);
@@ -760,7 +763,10 @@ public class PlayerActivity extends Activity {
 
     private void setControlsVisible(boolean visible) {
         controlsVisible = visible;
-        if (toolbar != null) toolbar.setVisibility(visible ? View.VISIBLE : View.GONE);
+        if (toolbar != null) {
+            toolbar.setVisibility(visible ? View.VISIBLE : View.GONE);
+            if (visible) toolbar.bringToFront();
+        }
         if (visible) scheduleControlsHide();
         else controlsHandler.removeCallbacks(hideControlsTask);
     }
@@ -812,9 +818,10 @@ public class PlayerActivity extends Activity {
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         if (fullscreenRequested) {
             status.setVisibility(View.GONE);
-            setControlsVisible(false);
             webView.bringToFront();
+            if (controlsVisible && toolbar != null) toolbar.bringToFront();
             hideBars();
+            scheduleControlsHide();
         }
         webView.loadUrl(url);
     }
