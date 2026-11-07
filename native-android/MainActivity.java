@@ -120,15 +120,36 @@ public class MainActivity extends Activity {
   private boolean setting(String key,boolean fallback){return appPrefs.getBoolean("setting_"+key,fallback);}
   private void applySettings(){if(setting("keep_awake",true))getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);if(root!=null)root.setHapticFeedbackEnabled(setting("haptics",true));}
   private void shareInstalledApk(){
+  Toast.makeText(this,"Preparing the latest Zekify APK…",Toast.LENGTH_SHORT).show();
   shareIo.execute(()->{
+   HttpURLConnection connection=null;
    try{
     File dir=new File(getCacheDir(),"shared");if(!dir.exists()&&!dir.mkdirs())throw new IOException("Cannot create APK share folder");
-    File apk=new File(dir,"Zekify.apk");File installed=new File(getApplicationInfo().sourceDir);
-    try(InputStream in=new FileInputStream(installed);OutputStream out=new FileOutputStream(apk)){byte[] buffer=new byte[16384];int n;while((n=in.read(buffer))>0)out.write(buffer,0,n);}
+    File apk=new File(dir,"Zekify-latest.apk");File temporary=new File(dir,"Zekify-latest.apk.part");boolean downloaded=false;
+    try{
+     connection=(HttpURLConnection)new URL("https://api.github.com/repos/iamcz3k/zekify/releases/latest").openConnection();
+     connection.setConnectTimeout(10000);connection.setReadTimeout(15000);connection.setRequestProperty("Accept","application/vnd.github+json");connection.setRequestProperty("User-Agent","Zekify-Android");
+     if(connection.getResponseCode()!=200)throw new IOException("Latest release lookup failed");
+     JSONObject release;try(InputStream in=connection.getInputStream();ByteArrayOutputStream out=new ByteArrayOutputStream()){byte[] b=new byte[8192];int n;while((n=in.read(b))!=-1)out.write(b,0,n);release=new JSONObject(out.toString("UTF-8"));}
+     String version=release.optString("tag_name","latest").replaceAll("[^A-Za-z0-9._-]","");JSONArray assets=release.optJSONArray("assets");String downloadUrl="";
+     if(assets!=null)for(int i=0;i<assets.length();i++){JSONObject asset=assets.optJSONObject(i);if(asset==null)continue;if(asset.optString("name","").toLowerCase(Locale.ROOT).endsWith(".apk")){downloadUrl=asset.optString("browser_download_url","");if(!downloadUrl.isEmpty())break;}}
+     if(downloadUrl.isEmpty())throw new IOException("Latest release has no APK asset");
+     connection.disconnect();connection=null;connection=(HttpURLConnection)new URL(downloadUrl).openConnection();connection.setConnectTimeout(15000);connection.setReadTimeout(45000);connection.setInstanceFollowRedirects(true);connection.setRequestProperty("User-Agent","Zekify-Android");
+     if(connection.getResponseCode()!=200)throw new IOException("Latest APK download failed");
+     try(InputStream in=connection.getInputStream();OutputStream out=new FileOutputStream(temporary)){byte[] b=new byte[32768];int n;while((n=in.read(b))!=-1)out.write(b,0,n);}
+     if(!temporary.isFile()||temporary.length()<1024*1024)throw new IOException("Downloaded APK is incomplete");
+     if(apk.exists())apk.delete();if(!temporary.renameTo(apk))throw new IOException("Could not finalize downloaded APK");apk.setReadable(true,false);downloaded=true;appPrefs.edit().putString("last_shared_apk_version",version).apply();
+    }catch(Exception releaseError){
+     if(temporary.exists())temporary.delete();File installed=new File(getApplicationInfo().sourceDir);
+     if(!installed.isFile()||installed.length()<1024*1024)throw releaseError;
+     if(apk.exists())apk.delete();try(InputStream in=new FileInputStream(installed);OutputStream out=new FileOutputStream(apk)){byte[] b=new byte[32768];int n;while((n=in.read(b))!=-1)out.write(b,0,n);}apk.setReadable(true,false);
+    }finally{if(connection!=null)connection.disconnect();}
+    if(!apk.isFile()||apk.length()<1024*1024)throw new IOException("APK file is empty");
     Uri uri=FileProvider.getUriForFile(this,getPackageName()+".fileprovider",apk);
     Intent send=new Intent(Intent.ACTION_SEND);send.setType("application/vnd.android.package-archive");send.putExtra(Intent.EXTRA_STREAM,uri);send.setClipData(ClipData.newUri(getContentResolver(),"Zekify APK",uri));send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-    runOnUiThread(()->startActivity(Intent.createChooser(send,"Share Zekify APK")));
-   }catch(Exception e){runOnUiThread(()->Toast.makeText(this,"Could not prepare the APK for sharing.",Toast.LENGTH_LONG).show());}
+    final String label=downloaded?"Latest release APK ready to share.":"Latest release unavailable. Shared the installed APK instead.";
+    runOnUiThread(()->{Toast.makeText(this,label,Toast.LENGTH_SHORT).show();try{startActivity(Intent.createChooser(send,"Share Zekify APK"));}catch(Exception e){Toast.makeText(this,"No app can share APK files on this device.",Toast.LENGTH_LONG).show();}});
+   }catch(Exception e){runOnUiThread(()->Toast.makeText(this,"Could not prepare the APK: "+(e.getMessage()==null?"unknown error":e.getMessage()),Toast.LENGTH_LONG).show());}
   });
  }
  private View socialRow(String icon,String label,String value,String url,Dialog dialog){
