@@ -253,6 +253,9 @@ public class PlayerActivity extends Activity {
                 status.setText("Tap the provider's play button to start");
                 status.setVisibility(View.VISIBLE);
                 applyWebVideoSizing();
+                hideBars();
+                if (toolbar != null && controlsVisible) toolbar.bringToFront();
+                scheduleControlsHide();
             }
 
             @Override
@@ -602,6 +605,10 @@ public class PlayerActivity extends Activity {
             return;
         }
 
+        // If the current provider owns a separate HTML5 fullscreen surface, close that
+        // surface before replacing its page. Keep this Activity in immersive landscape mode.
+        if (customVideoView != null) hideCustomVideoView();
+        hideBars();
         stopPlayback();
         activeUrl = url;
         retryCount = 0;
@@ -733,6 +740,9 @@ public class PlayerActivity extends Activity {
         webLoadHandler.removeCallbacks(webLoadWatchdog);
         webLoadFailed = false;
         webView.stopLoading();
+        webView.setVisibility(View.VISIBLE);
+        webView.setLayoutParams(new FrameLayout.LayoutParams(-1, -1));
+        hideBars();
         webView.loadUrl(url);
     }
 
