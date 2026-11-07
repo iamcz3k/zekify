@@ -113,7 +113,7 @@ jobs:
             Zekify-v3.0.9.apk.sha256
           if-no-files-found: error
       - name: Publish signed APK release
-        if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[release v3.0.9]')
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || contains(github.event.head_commit.message, '[release v3.0.9]')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
