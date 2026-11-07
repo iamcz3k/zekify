@@ -19,7 +19,7 @@ public class LiveScoreActivity extends Activity {
  private final ExecutorService net=Executors.newSingleThreadExecutor();
  private final ExecutorService images=Executors.newFixedThreadPool(2);
  private final Handler handler=new Handler(Looper.getMainLooper());
- private final HashMap<String,Bitmap> imageCache=new HashMap<>();
+ private final java.util.concurrent.ConcurrentHashMap<String,Bitmap> imageCache=new java.util.concurrent.ConcurrentHashMap<>();
  private final HashSet<String> collapsed=new HashSet<>();
  private ArrayList<JSONObject> leagues=new ArrayList<>();
  private Calendar selectedDay=Calendar.getInstance();
@@ -53,7 +53,7 @@ public class LiveScoreActivity extends Activity {
  }
  private void updateDateLabel(){SimpleDateFormat f=new SimpleDateFormat("EEEE, d MMMM yyyy",Locale.getDefault());dateLabel.setText(f.format(selectedDay.getTime()));}
  private String apiDate(){SimpleDateFormat f=new SimpleDateFormat("yyyyMMdd",Locale.US);f.setTimeZone(TimeZone.getTimeZone("UTC"));return f.format(selectedDay.getTime());}
- private boolean isToday(){return apiDate().equals(new SimpleDateFormat("yyyyMMdd",Locale.US).format(new Date()));}
+ private boolean isToday(){SimpleDateFormat f=new SimpleDateFormat("yyyyMMdd",Locale.US);f.setTimeZone(TimeZone.getTimeZone("UTC"));return apiDate().equals(f.format(new Date()));}
  private void renderFilters(){filterRow.removeAllViews();String[] keys={"all","live","upcoming","finished","favourites"};String[] names={"All","Live","Upcoming","Finished","★ Favourites"};for(int i=0;i<keys.length;i++){final String key=keys[i];Button b=chip(names[i],filter.equals(key));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-2,-1);p.rightMargin=dp(6);filterRow.addView(b,p);b.setOnClickListener(v->{filter=key;renderFilters();render();});}}
  private JSONObject get(String url)throws Exception{HttpURLConnection c=(HttpURLConnection)new URL(url).openConnection();c.setConnectTimeout(12000);c.setReadTimeout(18000);c.setRequestProperty("Accept","application/json");c.setRequestProperty("User-Agent","Zekify-Android");try{int code=c.getResponseCode();if(code<200||code>=300)throw new IOException("HTTP "+code);try(InputStream in=c.getInputStream();ByteArrayOutputStream out=new ByteArrayOutputStream()){byte[] b=new byte[8192];int n;while((n=in.read(b))!=-1)out.write(b,0,n);return new JSONObject(out.toString("UTF-8"));}}finally{c.disconnect();}}
  private void load(boolean showLoading){updateDateLabel();if(showLoading)status.setText("Loading fixtures…");net.execute(()->{ArrayList<JSONObject> fresh=new ArrayList<>();String error=null;try{JSONObject response=get(API+"/api/public/fotmob?mode=matches&date="+apiDate());if(!response.optBoolean("ok"))throw new IOException(response.optString("error","FotMob feed unavailable"));JSONObject data=response.optJSONObject("data");JSONArray arr=data==null?null:data.optJSONArray("leagues");if(arr!=null)for(int i=0;i<arr.length();i++){JSONObject lg=arr.optJSONObject(i);if(lg!=null)fresh.add(lg);}}catch(Exception e){error=e.getMessage()==null?"Unable to load scores":e.getMessage();}final String failure=error;runOnUiThread(()->{if(isFinishing())return;if(failure!=null){status.setText("Scores unavailable · "+failure);if(leagues.isEmpty())leagueList.removeAllViews();return;}leagues=fresh;status.setText(fresh.isEmpty()?"No fixtures for this date.":"Updated just now · refreshes every 30 seconds");render();});});}
