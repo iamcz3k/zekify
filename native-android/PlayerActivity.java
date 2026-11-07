@@ -79,6 +79,8 @@ public class PlayerActivity extends Activity {
     private View customVideoView;
     private WebChromeClient.CustomViewCallback customViewCallback;
     private boolean customViewTransition = false;
+    private boolean fullscreenRequested = false;
+    private boolean switchingSource = false;
     private final Handler controlsHandler = new Handler(Looper.getMainLooper());
     private boolean controlsVisible = true;
     private final Runnable hideControlsTask = () -> setControlsVisible(false);
@@ -605,16 +607,20 @@ public class PlayerActivity extends Activity {
             return;
         }
 
-        // If the current provider owns a separate HTML5 fullscreen surface, close that
-        // surface before replacing its page. Keep this Activity in immersive landscape mode.
-        if (customVideoView != null) hideCustomVideoView();
+        boolean keepFullscreen = fullscreenRequested || customVideoView != null;
+        switchingSource = keepFullscreen;
+        fullscreenRequested = keepFullscreen;
+        if (customVideoView != null) hideCustomVideoView(true);
         hideBars();
+        status.setVisibility(View.GONE);
         stopPlayback();
         activeUrl = url;
         retryCount = 0;
-        String label = currentSourceName(source);
-        status.setText("Loading " + label + "…");
-        status.setVisibility(View.VISIBLE);
+        if (!keepFullscreen) {
+            String label = currentSourceName(source);
+            status.setText("Loading " + label + "…");
+            status.setVisibility(View.VISIBLE);
+        }
 
         // CDN Live TV supplies an HTML5 player page intended for iframe embedding.
         // It is not a media file and must never be sent to ExoPlayer as HLS.
@@ -861,7 +867,9 @@ public class PlayerActivity extends Activity {
         }
     }
 
-    private void hideCustomVideoView() {
+    private void hideCustomVideoView() { hideCustomVideoView(false); }
+
+    private void hideCustomVideoView(boolean preserveFullscreen) {
         if (customVideoView == null || customViewTransition) return;
         customViewTransition = true;
         View videoView = customVideoView;
@@ -874,9 +882,15 @@ public class PlayerActivity extends Activity {
                 ((ViewGroup) parent).removeView(videoView);
             }
             if (webView != null) webView.setVisibility(View.VISIBLE);
-            if (toolbar != null) toolbar.bringToFront();
-            setControlsVisible(true);
-            scheduleControlsHide();
+            if (preserveFullscreen || fullscreenRequested) {
+                fullscreenRequested = true;
+                status.setVisibility(View.GONE);
+                setControlsVisible(false);
+            } else {
+                if (toolbar != null) toolbar.bringToFront();
+                setControlsVisible(true);
+                scheduleControlsHide();
+            }
             hideBars();
         } finally {
             customViewTransition = false;
@@ -884,6 +898,10 @@ public class PlayerActivity extends Activity {
         if (callback != null) {
             try { callback.onCustomViewHidden(); } catch (RuntimeException ignored) {}
         }
+        if (preserveFullscreen) {
+            switchingSource = false;
+            if (webView != null) webView.postDelayed(() -> { if (webView != null && !isFinishing()) { status.setVisibility(View.GONE); hideBars(); } }, 300L);
+        } else if (!switchingSource) fullscreenRequested = false;
     }
 
     private void showError(String message) {
