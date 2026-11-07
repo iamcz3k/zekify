@@ -76,6 +76,8 @@ public class PlayerActivity extends Activity {
     };
     private int resizeMode = 1; // 0=Fit, 1=Fill, 2=Zoom; default Fill
     private View resizeButton;
+    private TextView stretchButton;
+    private boolean stretchEnabled = true;
     private JSONArray sources;
     private int sourceIndex = 0;
     private String matchTitle = "";
@@ -445,6 +447,10 @@ public class PlayerActivity extends Activity {
         }
         sourceScroll.addView(sourceStrip);
         toolbar.addView(sourceScroll, new LinearLayout.LayoutParams(0, dp(42), 1));
+        stretchButton = (TextView) textControl("⤢");
+        stretchButton.setContentDescription("Disable edge-to-edge stretch");
+        stretchButton.setOnClickListener(v -> toggleStretch());
+        toolbar.addView(stretchButton, new LinearLayout.LayoutParams(dp(42), dp(42)));
         FrameLayout.LayoutParams barParams =
             new FrameLayout.LayoutParams(-1, -2, Gravity.TOP);
         root.addView(toolbar, barParams);
@@ -630,28 +636,41 @@ public class PlayerActivity extends Activity {
             return;
         }
 
-        boolean keepFullscreen = fullscreenRequested || customVideoView != null || (playerView != null && playerView.getVisibility() == View.VISIBLE && player != null);
-        switchingSource = keepFullscreen;
-        fullscreenRequested = keepFullscreen;
+        // PlayerActivity is the fullscreen playback surface, just like the mini-player's
+        // fullscreen action. Keep that surface and its sizing mode across every source switch.
+        switchingSource = true;
+        fullscreenRequested = true;
         if (customVideoView != null) hideCustomVideoView(true);
         hideBars();
         status.setVisibility(View.GONE);
-        stopPlayback();
         activeUrl = url;
         retryCount = 0;
-        if (!keepFullscreen) {
-            String label = currentSourceName(source);
-            status.setText("Loading " + label + "…");
-            status.setVisibility(View.VISIBLE);
+
+        // Keep the WebView alive for embed-to-embed switches and the ExoPlayer/PlayerView
+        // alive for direct-to-direct switches. Only change engines when source types differ.
+        boolean direct = !isProviderEmbed(url) && isDirectMedia(source, url);
+        if (direct) {
+            if (webView != null) {
+                webView.stopLoading();
+                webView.setVisibility(View.GONE);
+            }
+            if (playerView != null) playerView.setVisibility(View.VISIBLE);
+        } else {
+            recoveryHandler.removeCallbacksAndMessages(null);
+            if (player != null) {
+                player.stop();
+                player.release();
+                player = null;
+                trackSelector = null;
+            }
+            if (playerView != null) {
+                playerView.setPlayer(null);
+                playerView.setVisibility(View.GONE);
+            }
         }
 
-        // CDN Live TV supplies an HTML5 player page intended for iframe embedding.
-        // It is not a media file and must never be sent to ExoPlayer as HLS.
-        if (isProviderEmbed(url) || !isDirectMedia(source, url)) {
-            playEmbeddedPage(url);
-            return;
-        }
-        playDirectMedia(source, url);
+        if (direct) playDirectMedia(source, url);
+        else playEmbeddedPage(url);
     }
 
     private void toggleResizeMode() {
@@ -666,6 +685,23 @@ public class PlayerActivity extends Activity {
                 : (resizeMode == 1 ? AspectRatioFrameLayout.RESIZE_MODE_FILL
                 : AspectRatioFrameLayout.RESIZE_MODE_ZOOM);
             playerView.setResizeMode(mode);
+        }
+        applyWebVideoSizing();
+        scheduleControlsHide();
+    }
+
+    private void toggleStretch() {
+        stretchEnabled = !stretchEnabled;
+        resizeMode = stretchEnabled ? 1 : 0;
+        if (stretchButton != null) {
+            stretchButton.setText(stretchEnabled ? "⤢" : "□");
+            stretchButton.setContentDescription(stretchEnabled
+                ? "Disable edge-to-edge stretch" : "Stretch video to all screen edges");
+        }
+        if (playerView != null) {
+            playerView.setResizeMode(stretchEnabled
+                ? AspectRatioFrameLayout.RESIZE_MODE_FILL
+                : AspectRatioFrameLayout.RESIZE_MODE_FIT);
         }
         applyWebVideoSizing();
         scheduleControlsHide();
@@ -743,7 +779,7 @@ public class PlayerActivity extends Activity {
 
     private void applyWebVideoSizing() {
         if (webView == null) return;
-        String fit = fullscreenRequested ? "fill" : (resizeMode == 0 ? "contain" : (resizeMode == 1 ? "fill" : "cover"));
+        String fit = stretchEnabled ? "fill" : "contain";
         String js = "(function(){"
             + "function size(){var s=document.getElementById('zekify-video-sizing');"
             + "if(!s){s=document.createElement('style');s.id='zekify-video-sizing';"
@@ -813,10 +849,10 @@ public class PlayerActivity extends Activity {
             .setDefaultRequestProperties(headers);
         DefaultDataSource.Factory data = new DefaultDataSource.Factory(this, http);
 
-        trackSelector = new DefaultTrackSelector(this);
-        player = new ExoPlayer.Builder(this).setTrackSelector(trackSelector).build();
-        playerView.setPlayer(player);
-        player.addListener(new Player.Listener() {
+        if (trackSelector == null) trackSelector = new DefaultTrackSelector(this);
+        if (player == null) {
+            player = new ExoPlayer.Builder(this).setTrackSelector(trackSelector).build();
+            player.addListener(new Player.Listener() {
             @Override
             public void onPlaybackStateChanged(int playbackState) {
                 if (playbackState == Player.STATE_BUFFERING) {
@@ -859,7 +895,9 @@ public class PlayerActivity extends Activity {
                         Toast.LENGTH_LONG).show();
                 }
             }
-        });
+            });
+        }
+        playerView.setPlayer(player);
 
         MediaItem item = new MediaItem.Builder()
             .setUri(Uri.parse(url))
