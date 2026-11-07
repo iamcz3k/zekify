@@ -9,13 +9,14 @@ function replaceOnce(before, after, label) {
   source = source.replace(before, after);
 }
 
-// A document finishing is not a request for the user to tap Play. Remove the
-// stale provider prompt; real navigation/media errors remain visible.
-replaceOnce(
-  'status.setText("Tap the provider\'s play button to start");\n                status.setVisibility(fullscreenRequested ? View.GONE : View.VISIBLE);',
-  'status.setVisibility(View.GONE);',
-  "embedded page completion overlay"
-);
+// The native template now hides the overlay at first visible page commit and
+// again at page finish. Fail the build if the stale prompt ever returns.
+if (source.includes("Tap the provider's play button to start")) {
+  throw new Error("Stale embedded-page prompt is still present");
+}
+if (!source.includes("onPageCommitVisible") || !source.includes("status.setVisibility(View.GONE);")) {
+  throw new Error("Embedded page commit overlay handling is missing");
+}
 
 // Buffering is a real loading state and must be visible. READY is the point at
 // which the loading overlay must disappear.
