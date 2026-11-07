@@ -245,7 +245,7 @@ public class PlayerActivity extends Activity {
                 webLoadHandler.removeCallbacks(webLoadWatchdog);
                 webLoadHandler.postDelayed(webLoadWatchdog, 25000L);
                 status.setText("Connecting to stream source…");
-                status.setVisibility(View.VISIBLE);
+                status.setVisibility(fullscreenRequested ? View.GONE : View.VISIBLE);
             }
 
             @Override
@@ -253,7 +253,7 @@ public class PlayerActivity extends Activity {
                 webLoadHandler.removeCallbacks(webLoadWatchdog);
                 webLoadFailed = false;
                 status.setText("Tap the provider's play button to start");
-                status.setVisibility(View.VISIBLE);
+                status.setVisibility(fullscreenRequested ? View.GONE : View.VISIBLE);
                 applyWebVideoSizing();
                 hideBars();
                 if (toolbar != null && controlsVisible) toolbar.bringToFront();
@@ -720,7 +720,7 @@ public class PlayerActivity extends Activity {
 
     private void applyWebVideoSizing() {
         if (webView == null) return;
-        String fit = resizeMode == 0 ? "contain" : (resizeMode == 1 ? "fill" : "cover");
+        String fit = fullscreenRequested ? "fill" : (resizeMode == 0 ? "contain" : (resizeMode == 1 ? "fill" : "cover"));
         String js = "(function(){"
             + "function size(){var s=document.getElementById('zekify-video-sizing');"
             + "if(!s){s=document.createElement('style');s.id='zekify-video-sizing';"
