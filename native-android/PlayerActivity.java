@@ -335,9 +335,6 @@ public class PlayerActivity extends Activity {
             }
         });
 
-        FrameLayout.LayoutParams statusParams = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
-        statusParams.setMargins(dp(16), 0, dp(16), dp(24));
-        root.addView(status, statusParams);
         root.addView(webView, playerParams);
         webView.setVisibility(View.GONE);
         if (transferredWebView != null) {
@@ -380,6 +377,10 @@ public class PlayerActivity extends Activity {
                 webView.postDelayed(this::applyWebVideoSizing, 500L);
             }
         }
+
+        FrameLayout.LayoutParams statusParams = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        statusParams.setMargins(dp(16), 0, dp(16), dp(24));
+        root.addView(status, statusParams);
 
         toolbar = new LinearLayout(this);
         toolbar.setOrientation(LinearLayout.HORIZONTAL);
