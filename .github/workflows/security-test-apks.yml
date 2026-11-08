@@ -1,0 +1,143 @@
+name: Build Zekify security test APKs (no release)
+on:
+  push:
+    branches:
+      - security-test
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: zekify-security-test-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build-two-test-apks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install Android SDK packages
+        run: |
+          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses
+          "$SDKMANAGER" --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+      - name: Install Node dependencies
+        env:
+          SHARP_IGNORE_GLOBAL_LIBVIPS: "1"
+          npm_config_fetch_retries: "3"
+          npm_config_fetch_timeout: "120000"
+        run: npm install --include=optional --no-audit --no-fund
+      - run: npm run build
+      - run: npx cap add android
+      - run: npm run assets:generate
+      - run: npx cap sync android
+      - name: Apply native Android screens and security gate
+        run: node scripts/patch-native-android.mjs
+      - name: Apply native playback fixes
+        run: node scripts/fix-player-playback-state.mjs
+      - name: Set next app version
+        run: |
+          sed -i 's/versionCode 1/versionCode 34/' android/app/build.gradle
+          sed -i 's/versionName "1.0"/versionName "3.4.0"/' android/app/build.gradle
+      - name: Configure official signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE_BASE64"
+          test -n "$KEYSTORE_PASSWORD"
+          test -n "$KEY_ALIAS"
+          test -n "$KEY_PASSWORD"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > android/zekify-release.jks
+          test -s android/zekify-release.jks
+          cat >> android/app/build.gradle <<'GRADLE'
+          android {
+              signingConfigs {
+                  release {
+                      storeFile file("../zekify-release.jks")
+                      storePassword System.getenv("KEYSTORE_PASSWORD")
+                      keyAlias System.getenv("KEY_ALIAS")
+                      keyPassword System.getenv("KEY_PASSWORD")
+                  }
+              }
+              buildTypes {
+                  release { signingConfig signingConfigs.release }
+              }
+          }
+          GRADLE
+      - name: Build official release candidate
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew clean assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.4.0-OFFICIAL-TEST.apk
+          cd ..
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.4.0-OFFICIAL-TEST.apk | tee official-signature.txt
+          CERT="$(awk '/Signer #1 certificate SHA-256 digest:/ {print $NF; exit}' official-signature.txt)"
+          test "$CERT" = "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119"
+          sha256sum Zekify-v3.4.0-OFFICIAL-TEST.apk > Zekify-v3.4.0-OFFICIAL-TEST.apk.sha256
+      - name: Prepare deliberately modified side-by-side test copy
+        run: |
+          TAMPER_PASSWORD="$(openssl rand -hex 24)"
+          echo "TAMPER_STORE_PASSWORD=$TAMPER_PASSWORD" >> "$GITHUB_ENV"
+          echo "TAMPER_KEY_PASSWORD=$TAMPER_PASSWORD" >> "$GITHUB_ENV"
+          cat >> android/app/build.gradle <<'GRADLE'
+          android {
+              signingConfigs {
+                  tamperTest {
+                      storeFile file("../tamper-test.jks")
+                      storePassword System.getenv("TAMPER_STORE_PASSWORD")
+                      keyAlias "zekify-tamper-test"
+                      keyPassword System.getenv("TAMPER_KEY_PASSWORD")
+                  }
+              }
+              defaultConfig { applicationIdSuffix ".tampertest" }
+              buildTypes { release { signingConfig signingConfigs.tamperTest } }
+          }
+          GRADLE
+          mkdir -p android/app/src/main/assets/security-test
+          printf 'This asset was deliberately changed for the Zekify tamper-detection test.\n' > android/app/src/main/assets/security-test/TAMPER_MARKER.txt
+          keytool -genkeypair -v -keystore android/tamper-test.jks -storepass "$TAMPER_STORE_PASSWORD" -keypass "$TAMPER_KEY_PASSWORD" -alias zekify-tamper-test -keyalg RSA -keysize 2048 -validity 3650 -dname "CN=Zekify Tamper Test, OU=QA, O=LaCzek, L=Kampala, ST=Central, C=UG"
+      - name: Build modified test APK
+        env:
+          TAMPER_STORE_PASSWORD: ${{ env.TAMPER_STORE_PASSWORD }}
+          TAMPER_KEY_PASSWORD: ${{ env.TAMPER_KEY_PASSWORD }}
+        run: |
+          cd android
+          ./gradlew clean assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.4.0-TAMPER-TEST.apk
+          cd ..
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.4.0-TAMPER-TEST.apk | tee tamper-signature.txt
+          if grep -q "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119" tamper-signature.txt; then
+            echo "Tamper test unexpectedly used the official signing certificate"
+            exit 1
+          fi
+          sha256sum Zekify-v3.4.0-TAMPER-TEST.apk > Zekify-v3.4.0-TAMPER-TEST.apk.sha256
+      - name: Upload both APKs as workflow artifacts only
+        uses: actions/upload-artifact@v4
+        with:
+          name: zekify-v3.4.0-security-test-apks
+          path: |
+            Zekify-v3.4.0-OFFICIAL-TEST.apk
+            Zekify-v3.4.0-OFFICIAL-TEST.apk.sha256
+            Zekify-v3.4.0-TAMPER-TEST.apk
+            Zekify-v3.4.0-TAMPER-TEST.apk.sha256
+            official-signature.txt
+            tamper-signature.txt
+          if-no-files-found: error
+          retention-days: 14
