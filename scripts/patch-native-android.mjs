@@ -3,6 +3,7 @@ const pkg="com.v3x.zekify";
 const root="android/app/src/main/java/"+pkg.replaceAll(".","/");
 await mkdir(root,{recursive:true});
 await copyFile("native-android/MainActivity.java",root+"/MainActivity.java");
+await copyFile("native-android/SecurityGuard.java",root+"/SecurityGuard.java");
 await copyFile("native-android/PlayerActivity.java",root+"/PlayerActivity.java");
 await copyFile("native-android/FloatingPlayerService.java",root+"/FloatingPlayerService.java");
 await copyFile("native-android/LiveScoreActivity.java",root+"/LiveScoreActivity.java");
@@ -163,6 +164,8 @@ for (const icon of [
 
 const mainActivityPath = root + "/MainActivity.java";
 let mainActivity = await readFile(mainActivityPath, "utf8");
+mainActivity = mainActivity.replace("@Override public void onCreate(Bundle b){super.onCreate(b);appPrefs=", "@Override public void onCreate(Bundle b){super.onCreate(b);if(!SecurityGuard.verify(this)){SecurityGuard.showBlocked(this);return;}appPrefs=");
+mainActivity = mainActivity.replace("@Override protected void onResume(){super.onResume();FloatingPlayerService.hideForReturn();", "@Override protected void onResume(){super.onResume();if(!SecurityGuard.verify(this)){SecurityGuard.showBlocked(this);return;}FloatingPlayerService.hideForReturn();");
 mainActivity = mainActivity.replace(
  'private String team(JSONObject m,String side){JSONObject teams=m.optJSONObject("teams"),t=teams==null?null:teams.optJSONObject(side);return t==null?"Team":t.optString("name","Team");}',
  'private String team(JSONObject m,String side){if(m==null)return "Team";JSONObject teams=m.optJSONObject("teams"),t=teams==null?null:teams.optJSONObject(side);String name=t==null?"":t.optString("name","").trim();return name.isEmpty()||"null".equalsIgnoreCase(name)?"Team":name;}'
