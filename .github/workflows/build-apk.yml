@@ -127,4 +127,6 @@ jobs:
 
 # v3.3.0 multi-sport release build.
 
+# Multi-sport assets and event rendering included in v3.3.0.
+
 # Release trigger: v3.3.0 authorized by repository owner.
