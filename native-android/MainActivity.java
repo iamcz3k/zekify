@@ -214,15 +214,16 @@ public class MainActivity extends Activity {
   case "cycling":return "cycling";case "handball":return "handball";case "basketball":return "basketball";
   case "tennis":return "tennis";default:return "football";
  }}
+ private void applySportIcon(ImageView target,Bitmap bitmap,String key){if(target==null||bitmap==null||!key.equals(target.getTag()))return;target.setImageBitmap(bitmap);if(target.getParent() instanceof ViewGroup){ViewGroup parent=(ViewGroup)target.getParent();if(parent.getChildCount()>1)parent.getChildAt(0).setVisibility(View.GONE);}}
  private void loadSportIcon(ImageView target,String key){
   if(target==null)return;target.setTag(key);Bitmap cached;synchronized(sportIconCache){cached=sportIconCache.get(key);}
-  if(cached!=null){target.setImageBitmap(cached);return;}
+  if(cached!=null){applySportIcon(target,cached,key);return;}
   imageIo.execute(()->{Bitmap bitmap=null;try(InputStream input=getAssets().open("sports/"+sportAsset(key)+".svg")){
     SVG svg=SVG.getFromInputStream(input);svg.setDocumentWidth(96f);svg.setDocumentHeight(96f);
     bitmap=Bitmap.createBitmap(96,96,Bitmap.Config.ARGB_8888);Canvas canvas=new Canvas(bitmap);svg.renderToCanvas(canvas);
     synchronized(sportIconCache){sportIconCache.put(key,bitmap);}
   }catch(Exception error){android.util.Log.w("Zekify","Sport icon unavailable: "+key,error);}
-  final Bitmap result=bitmap;if(result!=null&&!isFinishing())runOnUiThread(()->{if(key.equals(target.getTag()))target.setImageBitmap(result);});
+  final Bitmap result=bitmap;if(result!=null&&!isFinishing())runOnUiThread(()->{if(key.equals(target.getTag()))applySportIcon(target,result,key);});
   });
  }
  private String sportGlyph(String key){switch(key){
