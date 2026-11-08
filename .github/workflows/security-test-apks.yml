@@ -94,6 +94,8 @@ jobs:
       - name: Prepare deliberately modified side-by-side test copy
         run: |
           TAMPER_PASSWORD="$(openssl rand -hex 24)"
+          TAMPER_STORE_PASSWORD="$TAMPER_PASSWORD"
+          TAMPER_KEY_PASSWORD="$TAMPER_PASSWORD"
           echo "TAMPER_STORE_PASSWORD=$TAMPER_PASSWORD" >> "$GITHUB_ENV"
           echo "TAMPER_KEY_PASSWORD=$TAMPER_PASSWORD" >> "$GITHUB_ENV"
           cat >> android/app/build.gradle <<'GRADLE'
