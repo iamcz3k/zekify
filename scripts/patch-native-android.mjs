@@ -117,7 +117,7 @@ if(!gradle.includes("androidx.media3:media3-exoplayer-hls")) {
  gradle=gradle.replace(/dependencies\s*\{/, 'dependencies {\n    implementation "androidx.media3:media3-exoplayer-hls:1.5.1"');
 }
 if(!gradle.includes("com.caverock:androidsvg-aar")) {
- gradle=gradle.replace(/dependencies\\s*\\{/, 'dependencies {\\n    implementation "com.caverock:androidsvg-aar:1.4"');
+ gradle=gradle.replace(/dependencies\s*\{/, 'dependencies {\n    implementation "com.caverock:androidsvg-aar:1.4"');
 }
 await writeFile(gradlePath,gradle);
 const wrapperPath="android/gradle/wrapper/gradle-wrapper.properties";
