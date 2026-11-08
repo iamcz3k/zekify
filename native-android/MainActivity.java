@@ -183,6 +183,8 @@ public class MainActivity extends Activity {
   final int generation=++matchesGeneration;final String sport=selectedSport;matchesLoading.set(true);
   apiIo.execute(()->{
    try{
+    String cached=appPrefs.getString("matches_json_"+sport,"");
+    if(!cached.isEmpty()){try{JSONArray cachedArray=new JSONArray(cached);ArrayList<JSONObject> cachedMatches=new ArrayList<>();for(int i=0;i<cachedArray.length();i++)cachedMatches.add(cachedArray.getJSONObject(i));runOnUiThread(()->{if(generation==matchesGeneration&&matches.isEmpty()){matches.clear();matches.addAll(cachedMatches);renderLeagues();render();}});}catch(Exception ignored){}}
     JSONObject p=request("/api/public/football-streams?mode=matches&sport="+URLEncoder.encode(sport,"UTF-8"));
     JSONArray a=p.optJSONArray("data");if(!p.optBoolean("success")||a==null)throw new Exception("Unexpected match response");
     ArrayList<JSONObject> fresh=new ArrayList<>();for(int i=0;i<a.length();i++)fresh.add(a.getJSONObject(i));
@@ -202,17 +204,35 @@ public class MainActivity extends Activity {
   {"handball","Handball"},{"basketball","Basketball"},{"tennis","Tennis"}
  };
  private String sportLabel(){for(String[] sport:SPORTS)if(sport[0].equals(selectedSport))return sport[1].toUpperCase(Locale.ROOT);return "SPORTS";}
+ private String sportGlyph(String key){switch(key){
+  case "football":return "⚽";case "basketball":return "🏀";case "tennis":return "🎾";case "baseball":return "⚾";
+  case "cricket":return "🏏";case "motor-sports":return "🏎";case "rugby":return "🏉";case "american-football":return "🏈";
+  case "australian-football":return "🏉";case "hockey":return "🏒";case "badminton":return "🏸";case "volleyball":return "🏐";
+  case "fight":return "🥊";case "cycling":return "🚴";case "handball":return "🤾";default:return "🏆";
+ }}
  private void renderSports(){
   if(sportRow==null)return;sportRow.removeAllViews();
-  for(String[] sport:SPORTS){String key=sport[0],label=sport[1];Button chip=btn(label,key.equals(selectedSport));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-2,dp(36));p.rightMargin=dp(7);sportRow.addView(chip,p);chip.setOnClickListener(v->selectSport(key));}
+  for(String[] sport:SPORTS){final String key=sport[0],label=sport[1];boolean active=key.equals(selectedSport);
+   LinearLayout chip=row();chip.setGravity(Gravity.CENTER);chip.setBackground(shape(active?0xff332014:0xff121212,18));pad(chip,12,0,14,0);
+   LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-2,dp(40));p.rightMargin=dp(8);sportRow.addView(chip,p);
+   TextView glyph=txt(sportGlyph(key),18,active?ORANGE:Color.WHITE,true);glyph.setGravity(Gravity.CENTER);chip.addView(glyph,new LinearLayout.LayoutParams(dp(26),dp(26)));
+   TextView title=txt(label,11,active?Color.WHITE:0xffb9b9b9,true);LinearLayout.LayoutParams tp=new LinearLayout.LayoutParams(-2,-2);tp.leftMargin=dp(7);chip.addView(title,tp);
+   chip.setContentDescription(label);chip.setOnClickListener(v->{v.animate().scaleX(.94f).scaleY(.94f).setDuration(65).withEndAction(()->v.animate().scaleX(1f).scaleY(1f).setDuration(130).setInterpolator(new android.view.animation.OvershootInterpolator(1.2f)).start()).start();selectSport(key);});
+  }
  }
  private void selectSport(String sport){
   if(sport==null||sport.equals(selectedSport))return;
-  selectedSport=sport;matchesGeneration++;matchesLoading.set(false);league="All";selected=null;detail=null;selectedSources=null;stopInlinePlayback();
-  if(sportTitle!=null)sportTitle.setText(sportLabel());matches.clear();renderSports();renderLeagues();render();load();
+  selectedSport=sport;matchesGeneration++;matchesLoading.set(false);league="All";selected=null;detail=null;selectedSources=null;
+  if(sportTitle!=null)sportTitle.setText(sportLabel());matches.clear();renderSports();renderLeagues();render();
+  if(!setting("reduce_motion",false)&&content!=null){content.setAlpha(.65f);content.animate().alpha(1f).setDuration(150).start();}
+  load();
  }
  private String firstNonEmpty(JSONObject source,String... keys){if(source==null)return "";for(String key:keys){String value=source.optString(key,"").trim();if(!value.isEmpty()&&!"null".equalsIgnoreCase(value))return value;}return "";}
- private String team(JSONObject m,String side){if(m==null)return "Team";JSONObject teams=m.optJSONObject("teams"),t=teams==null?null:teams.optJSONObject(side);String name=t==null?"":t.optString("name","").trim();return name.isEmpty()||"null".equalsIgnoreCase(name)?"Team":name;}
+ private String team(JSONObject m,String side){if(m==null)return "";JSONObject teams=m.optJSONObject("teams"),t=teams==null?null:teams.optJSONObject(side);String name=t==null?"":t.optString("name","").trim();return name.equalsIgnoreCase("null")?"":name;}
+ private boolean hasTeamPair(JSONObject m){return !team(m,"home").isEmpty()&&!team(m,"away").isEmpty();}
+ private boolean eventStyle(JSONObject m){String category=m==null?"":m.optString("category","");return category.equals("cycling")||category.equals("motor-sports")||category.equals("golf")||category.equals("darts")||!hasTeamPair(m);}
+ private String matchTitle(JSONObject m){String title=firstNonEmpty(m,"eventName","title","name");if(!title.isEmpty())return title;String h=team(m,"home"),a=team(m,"away");return !h.isEmpty()&&!a.isEmpty()?h+" vs "+a:leagueName(m);}
+ private String eventBadgeUrl(JSONObject m){String u=firstNonEmpty(m,"eventBadge","leagueBadge","poster");if(u.startsWith("/"))u=API+u;return u;}
  private String leagueName(JSONObject m){String s=m.optString("league","");return s.trim().isEmpty()?"Other competitions":s.trim();}
  private void renderLeagues(){if(leagueRow==null)return;leagueRow.removeAllViews();LinkedHashSet<String> ls=new LinkedHashSet<>();ls.add("All");for(JSONObject m:matches)ls.add(leagueName(m));for(String s:ls){Button b=btn(s,s.equals(league));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-2,dp(36));p.rightMargin=dp(7);leagueRow.addView(b,p);b.setOnClickListener(v->{league=s;renderLeagues();render();});}}
   private void render(){
@@ -227,7 +247,7 @@ public class MainActivity extends Activity {
    if(selected!=null){renderMatchScreen();return;}
    pruneStartedScheduledMatches();
    if(content==null)return;content.removeAllViews();int count=0;
-   for(JSONObject match:matches){if(match==null)continue;try{String status=match.optString("status","upcoming").trim().toLowerCase(Locale.ROOT);if(status.equals("not started")||status.equals("scheduled")||status.equals("ns")||status.equals("tbd"))status="upcoming";if(status.equals("in play")||status.equals("1h")||status.equals("2h")||status.equals("live now"))status="live";if(!status.equals(tab)||(!league.equals("All")&&!league.equals(leagueName(match))))continue;String hay=(match.optString("title")+" "+leagueName(match)+" "+team(match,"home")+" "+team(match,"away")).toLowerCase(Locale.ROOT);if(!hay.contains(query))continue;content.addView(matchCard(match));count++;}catch(RuntimeException cardError){android.util.Log.w("Zekify","Skipped malformed match card",cardError);}}
+   for(JSONObject match:matches){if(match==null)continue;try{String status=match.optString("status","upcoming").trim().toLowerCase(Locale.ROOT);if(status.equals("not started")||status.equals("scheduled")||status.equals("ns")||status.equals("tbd"))status="upcoming";if(status.equals("in play")||status.equals("1h")||status.equals("2h")||status.equals("live now"))status="live";if(!status.equals(tab)||(!league.equals("All")&&!league.equals(leagueName(match))))continue;String hay=(match.optString("title")+" "+matchTitle(match)+" "+leagueName(match)+" "+team(match,"home")+" "+team(match,"away")).toLowerCase(Locale.ROOT);if(!hay.contains(query))continue;if(count>=80)continue;content.addView(matchCard(match));count++;}catch(RuntimeException cardError){android.util.Log.w("Zekify","Skipped malformed match card",cardError);}}
    if(count==0){TextView empty=txt("No "+tab+" matches match your filters.",14,MUTED,false);pad(empty,12,36,12,36);content.addView(empty);}if(matchesScroll!=null)matchesScroll.postDelayed(this::loadVisibleBadges,80L);
   }
   private void renderMatchScreen(){
@@ -263,10 +283,19 @@ public class MainActivity extends Activity {
   if(!live){NativeIcon bell=new NativeIcon(this,isMatchScheduled(m)?"bell-on":"bell",isMatchScheduled(m)?ORANGE:MUTED);bell.setContentDescription(isMatchScheduled(m)?"Remove match reminder":"Notify me about this match");LinearLayout.LayoutParams bellP=new LinearLayout.LayoutParams(dp(30),dp(30));bellP.leftMargin=dp(7);meta.addView(bell,bellP);bell.setOnClickListener(v->{toggleMatchReminder(m);bell.setIconColor(isMatchScheduled(m)?ORANGE:MUTED);bell.setContentDescription(isMatchScheduled(m)?"Remove match reminder":"Notify me about this match");});}
   card.addView(meta);
   TextView kickoffDate=txt(date(m.optLong("date",0)),10,MUTED,false);LinearLayout.LayoutParams kickoffDateP=new LinearLayout.LayoutParams(-1,-2);kickoffDateP.topMargin=dp(5);card.addView(kickoffDate,kickoffDateP);
-  LinearLayout teams=row();pad(teams,0,22,0,20);teams.addView(teamBadge(m,"home"));
-  TextView home=txt(team(m,"home"),14,Color.WHITE,true);LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(0,-2,1);hp.leftMargin=dp(9);teams.addView(home,hp);
-  TextView vs=txt("VS",10,ORANGE,true);vs.setLetterSpacing(.1f);teams.addView(vs);
-  TextView away=txt(team(m,"away"),14,Color.WHITE,true);away.setGravity(Gravity.RIGHT);LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(0,-2,1);ap.rightMargin=dp(9);teams.addView(away,ap);teams.addView(teamBadge(m,"away"));card.addView(teams);
+  if(!eventStyle(m)){
+   LinearLayout teams=row();pad(teams,0,22,0,20);teams.addView(teamBadge(m,"home"));
+   TextView home=txt(team(m,"home"),14,Color.WHITE,true);LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(0,-2,1);hp.leftMargin=dp(9);teams.addView(home,hp);
+   TextView vs=txt("VS",10,ORANGE,true);vs.setLetterSpacing(.1f);teams.addView(vs);
+   TextView away=txt(team(m,"away"),14,Color.WHITE,true);away.setGravity(Gravity.RIGHT);LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(0,-2,1);ap.rightMargin=dp(9);teams.addView(away,ap);teams.addView(teamBadge(m,"away"));card.addView(teams);
+  }else{
+   LinearLayout event=row();pad(event,0,18,0,18);
+   FrameLayout badge=eventBadge(m);event.addView(badge,new LinearLayout.LayoutParams(dp(46),dp(46)));
+   LinearLayout eventText=col();LinearLayout.LayoutParams ep=new LinearLayout.LayoutParams(0,-2,1);ep.leftMargin=dp(12);event.addView(eventText,ep);
+   eventText.addView(txt(matchTitle(m),15,Color.WHITE,true));
+   String sub=firstNonEmpty(m,"eventSubtitle","league","category");if(!sub.isEmpty()){TextView subtitle=txt(sub,10,MUTED,false);LinearLayout.LayoutParams subp=new LinearLayout.LayoutParams(-1,-2);subp.topMargin=dp(4);eventText.addView(subtitle,subp);}
+   card.addView(event);
+  }
   View sep=new View(this);sep.setBackgroundColor(0x25ffffff);card.addView(sep,new LinearLayout.LayoutParams(-1,dp(1)));
   LinearLayout foot=row();pad(foot,0,11,0,0);if(live){TextView watch=txt("Watch Live",12,Color.WHITE,true);watch.setGravity(Gravity.CENTER);watch.setBackground(shape(0xffe53935,11));pad(watch,15,9,15,9);foot.addView(watch,new LinearLayout.LayoutParams(-2,dp(38)));watch.setOnClickListener(v->{if(setting("haptics",true))v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);selectMatch(m);});}else{foot.addView(txt("Match details",11,0xffb7b7b7,false),new LinearLayout.LayoutParams(0,-2,1));foot.addView(new NativeIcon(this,"next",ORANGE),new LinearLayout.LayoutParams(dp(18),dp(18)));}card.addView(foot);
   card.setOnClickListener(v->{if(setting("haptics",true))v.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP);selectMatch(m);});
@@ -275,15 +304,20 @@ public class MainActivity extends Activity {
   if(!setting("reduce_motion",false)){card.setAlpha(0f);card.setScaleY(.985f);card.animate().alpha(1f).scaleY(1f).setDuration(170L).start();}
   return card;
  }
+ private FrameLayout eventBadge(JSONObject m){
+  FrameLayout frame=new FrameLayout(this);frame.setBackground(shape(0xff252525,14));
+  TextView fallback=txt(sportGlyph(m.optString("category",selectedSport)),22,ORANGE,true);fallback.setGravity(Gravity.CENTER);frame.addView(fallback,new FrameLayout.LayoutParams(-1,-1));
+  String url=eventBadgeUrl(m);if(url.isEmpty()||!setting("show_badges",true))return frame;
+  frame.setTag(url);Bitmap cached;synchronized(badgeCache){cached=badgeCache.get(url);}if(cached!=null)showBadge(frame,cached,url);return frame;
+ }
  private View teamBadge(JSONObject m,String side){
   FrameLayout frame=new FrameLayout(this);frame.setBackground(shape(0xff252525,50));frame.setElevation(dp(1));
-  TextView fallback=txt(team(m,side).substring(0,1).toUpperCase(Locale.ROOT),14,ORANGE,true);fallback.setGravity(Gravity.CENTER);frame.addView(fallback,new FrameLayout.LayoutParams(dp(34),dp(34)));
+  String name=team(m,side);TextView fallback=txt(name.isEmpty()?"•":name.substring(0,1).toUpperCase(Locale.ROOT),14,ORANGE,true);fallback.setGravity(Gravity.CENTER);frame.addView(fallback,new FrameLayout.LayoutParams(dp(34),dp(34)));
   JSONObject teams=m.optJSONObject("teams"),teamData=teams==null?null:teams.optJSONObject(side);
   String url=teamData==null?"":teamData.optString("badge","");
   if(url.isEmpty()||!setting("show_badges",true))return frame;
   if(url.startsWith("/"))url=API+url;
   final String badgeUrl=url;frame.setTag(badgeUrl);
-  frame.setTag(badgeUrl);
   Bitmap cached;synchronized(badgeCache){cached=badgeCache.get(badgeUrl);}
   if(cached!=null)showBadge(frame,cached,badgeUrl);
   return frame;
@@ -332,7 +366,7 @@ public class MainActivity extends Activity {
   LinearLayout card=col();card.setBackground(shape(0xff111111,18));pad(card,12,12,12,12);
   LinearLayout top=row();top.addView(txt("NOW PLAYING",10,ORANGE,true),new LinearLayout.LayoutParams(0,-2,1));
   NativeIcon close=new NativeIcon(this,"close",MUTED);top.addView(close,new LinearLayout.LayoutParams(dp(32),dp(32)));close.setOnClickListener(v->homeAndRender());card.addView(top);
-  TextView title=txt(team(selected,"home")+" vs "+team(selected,"away"),15,Color.WHITE,true);LinearLayout.LayoutParams tp=new LinearLayout.LayoutParams(-1,-2);tp.topMargin=dp(4);card.addView(title,tp);
+  TextView title=txt(matchTitle(selected),15,Color.WHITE,true);LinearLayout.LayoutParams tp=new LinearLayout.LayoutParams(-1,-2);tp.topMargin=dp(4);card.addView(title,tp);
   inlineFrame=new FrameLayout(this);inlineFrame.setBackgroundColor(Color.BLACK);LinearLayout.LayoutParams fp=new LinearLayout.LayoutParams(-1,dp(205));fp.topMargin=dp(10);card.addView(inlineFrame,fp);
   if(inlinePlayerView==null){inlinePlayerView=new PlayerView(this);inlinePlayerView.setUseController(false);inlinePlayerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FILL);}
   if(inlineWebView==null){inlineWebView=new WebView(this);inlineWebView.setBackgroundColor(Color.BLACK);inlineWebView.getSettings().setJavaScriptEnabled(true);inlineWebView.getSettings().setDomStorageEnabled(true);inlineWebView.getSettings().setMediaPlaybackRequiresUserGesture(false);inlineWebView.setWebViewClient(new WebViewClient(){public void onPageStarted(WebView view,String url,Bitmap favicon){final int generation=++inlineLoadGeneration;if(inlineStatus!=null)inlineStatus.setText("Connecting to stream source…");inlineNetworkHandler.postDelayed(()->{if(generation==inlineLoadGeneration&&inlineStatus!=null&&inlineStatus.getText().toString().startsWith("Connecting"))inlineStatus.setText("Source timed out. Tap Retry or choose another source.");},25000L);}public void onPageFinished(WebView view,String url){inlineLoadGeneration++;inlineRetryCount=0;if(inlineStatus!=null)inlineStatus.setText("Stream source loaded");}public void onReceivedError(WebView view,WebResourceRequest request,WebResourceError error){if(request.isForMainFrame()){inlineLoadGeneration++;if(inlineStatus!=null)inlineStatus.setText("Source failed to load. Tap Retry or choose another source.");}}public boolean onRenderProcessGone(WebView view,android.webkit.RenderProcessGoneDetail detail){inlineLoadGeneration++;if(inlineStatus!=null)inlineStatus.setText("Stream player stopped. Return and reopen this source.");return true;}});inlineWebView.setLongClickable(false);inlineWebView.setOnLongClickListener(v->true);}
@@ -370,7 +404,7 @@ public class MainActivity extends Activity {
   if(inlineSources!=null){inlineSources.removeAllViews();for(int i=0;i<Math.min(4,selectedSources.length());i++){JSONObject src=selectedSources.optJSONObject(i);if(src==null)continue;final int ix=i;Button chip=btn(src.optString("source","Source "+(i+1)),i==selectedSourceIndex);LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-2,dp(38));cp.rightMargin=dp(7);inlineSources.addView(chip,cp);chip.setOnClickListener(v->{selectedSourceIndex=ix;startInlineSource(ix);});}}
  }
  private void stopInlinePlayback(){inlineLoadGeneration++;inlineNetworkHandler.removeCallbacksAndMessages(null);if(inlinePlayer!=null){try{inlinePlayer.stop();inlinePlayer.clearMediaItems();inlinePlayer.release();}catch(RuntimeException ignored){}inlinePlayer=null;}if(inlinePlayerView!=null){inlinePlayerView.setPlayer(null);inlinePlayerView.setVisibility(View.GONE);}if(inlineWebView!=null){inlineWebView.stopLoading();inlineWebView.loadUrl("about:blank");inlineWebView.setVisibility(View.GONE);}if(inlineFrame!=null)inlineFrame.removeAllViews();inlineFrame=null;inlineSources=null;inlineStatus=null;}
- private void launchFullscreen(){if(selectedSources==null||selectedSources.length()==0)return;JSONObject source=selectedSources.optJSONObject(selectedSourceIndex);String activeUrl=source==null?"":firstNonEmpty(source,"streamUrl","mediaUrl","url","embedUrl");if(activeUrl.startsWith("/"))activeUrl=API+activeUrl;if(inlinePlayer!=null){PlayerActivity.transferredPlayer=inlinePlayer;inlinePlayer=null;if(inlinePlayerView!=null){PlayerActivity.transferredPlayerView=inlinePlayerView;if(inlinePlayerView.getParent() instanceof ViewGroup)((ViewGroup)inlinePlayerView.getParent()).removeView(inlinePlayerView);inlinePlayerView=null;}}if(inlineWebView!=null){PlayerActivity.transferredWebView=inlineWebView;if(inlineWebView.getParent() instanceof ViewGroup)((ViewGroup)inlineWebView.getParent()).removeView(inlineWebView);inlineWebView=null;}PlayerActivity.returnToMainActivity=true;Intent i=new Intent(this,PlayerActivity.class);i.putExtra("sources",selectedSources.toString());i.putExtra("sourceIndex",selectedSourceIndex);i.putExtra("match",team(selected,"home")+" vs "+team(selected,"away"));i.putExtra("activeUrl",activeUrl);startActivity(i);overridePendingTransition(0,0);}
+ private void launchFullscreen(){if(selectedSources==null||selectedSources.length()==0)return;JSONObject source=selectedSources.optJSONObject(selectedSourceIndex);String activeUrl=source==null?"":firstNonEmpty(source,"streamUrl","mediaUrl","url","embedUrl");if(activeUrl.startsWith("/"))activeUrl=API+activeUrl;if(inlinePlayer!=null){PlayerActivity.transferredPlayer=inlinePlayer;inlinePlayer=null;if(inlinePlayerView!=null){PlayerActivity.transferredPlayerView=inlinePlayerView;if(inlinePlayerView.getParent() instanceof ViewGroup)((ViewGroup)inlinePlayerView.getParent()).removeView(inlinePlayerView);inlinePlayerView=null;}}if(inlineWebView!=null){PlayerActivity.transferredWebView=inlineWebView;if(inlineWebView.getParent() instanceof ViewGroup)((ViewGroup)inlineWebView.getParent()).removeView(inlineWebView);inlineWebView=null;}PlayerActivity.returnToMainActivity=true;Intent i=new Intent(this,PlayerActivity.class);i.putExtra("sources",selectedSources.toString());i.putExtra("sourceIndex",selectedSourceIndex);i.putExtra("match",matchTitle(selected));i.putExtra("activeUrl",activeUrl);startActivity(i);overridePendingTransition(0,0);}
  private void renderSourceChoices(JSONArray sources){
   if(sourceList==null)return;sourceList.removeAllViews();if(sources==null||sources.length()==0)return;
   TextView heading=txt("CHOOSE A STREAM SOURCE",10,MUTED,true);LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(-1,-2);hp.bottomMargin=dp(8);sourceList.addView(heading,hp);
