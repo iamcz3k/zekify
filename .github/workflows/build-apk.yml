@@ -125,4 +125,6 @@ jobs:
             gh release create v3.3.0 Zekify-v3.3.0.apk Zekify-v3.3.0.apk.sha256 --title "Zekify v3.3.0" --notes "Zekify 3.3.0 redesigns the all-sports selector, preserves cycling and motorsport event titles instead of inventing opponents, restores competition badges in the app data model, and improves sport switching with cached fixtures. The fullscreen player remains unchanged." --target "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY"
           fi
 
+# v3.3.0 multi-sport release build.
+
 # Release trigger: v3.3.0 authorized by repository owner.
