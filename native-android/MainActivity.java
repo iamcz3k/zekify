@@ -22,6 +22,7 @@ import androidx.media3.exoplayer.hls.*;
 import androidx.media3.ui.*;
 import androidx.core.content.FileProvider;
 import org.json.*;
+import com.caverock.androidsvg.SVG;
 import java.net.*;
 import java.io.*;
 import java.util.*;
@@ -39,6 +40,7 @@ public class MainActivity extends Activity {
  private final ExecutorService imageIo=Executors.newFixedThreadPool(2);
  private final ExecutorService shareIo=Executors.newSingleThreadExecutor();
  private final LruCache<String,Bitmap> badgeCache=new LruCache<>(64);
+ private final LruCache<String,Bitmap> sportIconCache=new LruCache<>(24);
  private android.content.SharedPreferences appPrefs;
  private static final String REMINDER_IDS="scheduled_match_ids";
  private String pendingMatchId="";
@@ -204,6 +206,25 @@ public class MainActivity extends Activity {
   {"handball","Handball"},{"basketball","Basketball"},{"tennis","Tennis"}
  };
  private String sportLabel(){for(String[] sport:SPORTS)if(sport[0].equals(selectedSport))return sport[1].toUpperCase(Locale.ROOT);return "SPORTS";}
+ private String sportAsset(String key){switch(key){
+  case "football":return "football";case "motor-sports":return "motor-sports";case "rugby":return "rugby";
+  case "american-football":return "american-football";case "australian-football":return "australian-football";
+  case "cricket":return "cricket";case "hockey":return "hockey";case "badminton":return "badminton";
+  case "baseball":return "baseball";case "volleyball":return "volleyball";case "fight":return "fight";
+  case "cycling":return "cycling";case "handball":return "handball";case "basketball":return "basketball";
+  case "tennis":return "tennis";default:return "football";
+ }}
+ private void loadSportIcon(ImageView target,String key){
+  if(target==null)return;target.setTag(key);Bitmap cached;synchronized(sportIconCache){cached=sportIconCache.get(key);}
+  if(cached!=null){target.setImageBitmap(cached);return;}
+  imageIo.execute(()->{Bitmap bitmap=null;try(InputStream input=getAssets().open("sports/"+sportAsset(key)+".svg")){
+    SVG svg=SVG.getFromInputStream(input);svg.setDocumentWidth(96f);svg.setDocumentHeight(96f);
+    bitmap=Bitmap.createBitmap(96,96,Bitmap.Config.ARGB_8888);Canvas canvas=new Canvas(bitmap);svg.renderToCanvas(canvas);
+    synchronized(sportIconCache){sportIconCache.put(key,bitmap);}
+  }catch(Exception error){android.util.Log.w("Zekify","Sport icon unavailable: "+key,error);}
+  final Bitmap result=bitmap;if(result!=null&&!isFinishing())runOnUiThread(()->{if(key.equals(target.getTag()))target.setImageBitmap(result);});
+  });
+ }
  private String sportGlyph(String key){switch(key){
   case "football":return "⚽";case "basketball":return "🏀";case "tennis":return "🎾";case "baseball":return "⚾";
   case "cricket":return "🏏";case "motor-sports":return "🏎";case "rugby":return "🏉";case "american-football":return "🏈";
@@ -215,7 +236,9 @@ public class MainActivity extends Activity {
   for(String[] sport:SPORTS){final String key=sport[0],label=sport[1];boolean active=key.equals(selectedSport);
    LinearLayout chip=row();chip.setGravity(Gravity.CENTER);chip.setBackground(shape(active?0xff332014:0xff121212,18));pad(chip,12,0,14,0);
    LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-2,dp(40));p.rightMargin=dp(8);sportRow.addView(chip,p);
-   TextView glyph=txt(sportGlyph(key),18,active?ORANGE:Color.WHITE,true);glyph.setGravity(Gravity.CENTER);chip.addView(glyph,new LinearLayout.LayoutParams(dp(26),dp(26)));
+   FrameLayout iconFrame=new FrameLayout(this);LinearLayout.LayoutParams iconP=new LinearLayout.LayoutParams(dp(28),dp(28));chip.addView(iconFrame,iconP);
+   TextView glyph=txt(sportGlyph(key),18,active?ORANGE:Color.WHITE,true);glyph.setGravity(Gravity.CENTER);iconFrame.addView(glyph,new FrameLayout.LayoutParams(-1,-1));
+   ImageView sportImage=new ImageView(this);sportImage.setScaleType(ImageView.ScaleType.FIT_CENTER);iconFrame.addView(sportImage,new FrameLayout.LayoutParams(-1,-1));loadSportIcon(sportImage,key);
    TextView title=txt(label,11,active?Color.WHITE:0xffb9b9b9,true);LinearLayout.LayoutParams tp=new LinearLayout.LayoutParams(-2,-2);tp.leftMargin=dp(7);chip.addView(title,tp);
    chip.setContentDescription(label);chip.setOnClickListener(v->{v.animate().scaleX(.94f).scaleY(.94f).setDuration(65).withEndAction(()->v.animate().scaleX(1f).scaleY(1f).setDuration(130).setInterpolator(new android.view.animation.OvershootInterpolator(1.2f)).start()).start();selectSport(key);});
   }
