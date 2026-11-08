@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir, copyFile } from "node:fs/promises";
+import { readFile, writeFile, mkdir, copyFile, readdir } from "node:fs/promises";
 const pkg="com.v3x.zekify";
 const root="android/app/src/main/java/"+pkg.replaceAll(".","/");
 await mkdir(root,{recursive:true});
@@ -59,6 +59,14 @@ await writeFile(playerActivityPath, playerActivity);
 await copyFile("native-android/MatchReminderReceiver.java",root+"/MatchReminderReceiver.java");
 await copyFile("native-android/MatchReminderBootReceiver.java",root+"/MatchReminderBootReceiver.java");
 await copyFile("native-android/ZekifyUpdateManager.java",root+"/ZekifyUpdateManager.java");
+
+const sportsAssetsSource = "native-android/assets/sports";
+const sportsAssetsTarget = "android/app/src/main/assets/sports";
+await mkdir(sportsAssetsTarget, {recursive:true});
+for (const asset of await readdir(sportsAssetsSource)) {
+  if (asset.endsWith(".svg")) await copyFile(sportsAssetsSource + "/" + asset, sportsAssetsTarget + "/" + asset);
+}
+
 const manifestPath="android/app/src/main/AndroidManifest.xml";
 let manifest=await readFile(manifestPath,"utf8");
 if(manifest.includes('android:name=".MainActivity"')&&!manifest.match(/<activity[^>]*android:name=".MainActivity"[^>]*android:launchMode=/)){manifest=manifest.replace(/(<activity[^>]*android:name=".MainActivity"[^>]*)(>)/,'$1 android:launchMode="singleTop"$2');}
@@ -107,6 +115,9 @@ if(!gradle.includes("androidx.media3:media3-exoplayer")) {
 }
 if(!gradle.includes("androidx.media3:media3-exoplayer-hls")) {
  gradle=gradle.replace(/dependencies\s*\{/, 'dependencies {\n    implementation "androidx.media3:media3-exoplayer-hls:1.5.1"');
+}
+if(!gradle.includes("com.caverock:androidsvg-aar")) {
+ gradle=gradle.replace(/dependencies\\s*\\{/, 'dependencies {\\n    implementation "com.caverock:androidsvg-aar:1.4"');
 }
 await writeFile(gradlePath,gradle);
 const wrapperPath="android/gradle/wrapper/gradle-wrapper.properties";
