@@ -114,6 +114,12 @@ jobs:
           printf 'This asset was deliberately changed for the Zekify tamper-detection test.\n' > android/app/src/main/assets/security-test/TAMPER_MARKER.txt
           keytool -genkeypair -v -keystore android/tamper-test.jks -storepass "$TAMPER_STORE_PASSWORD" -keypass "$TAMPER_KEY_PASSWORD" -alias zekify-tamper-test -keyalg RSA -keysize 2048 -validity 3650 -dname "CN=Zekify Tamper Test, OU=QA, O=LaCzek, L=Kampala, ST=Central, C=UG"
       - name: Build modified test APK
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          TAMPER_STORE_PASSWORD: ${{ env.TAMPER_STORE_PASSWORD }}
+          TAMPER_KEY_PASSWORD: ${{ env.TAMPER_KEY_PASSWORD }}
         run: |
           cd android
           ./gradlew clean assembleRelease
