@@ -324,7 +324,6 @@ public class MainActivity extends Activity {
   LinearLayout foot=row();pad(foot,0,11,0,0);if(live){TextView watch=txt("Watch Live",12,Color.WHITE,true);watch.setGravity(Gravity.CENTER);watch.setBackground(shape(0xffe53935,11));pad(watch,15,9,15,9);foot.addView(watch,new LinearLayout.LayoutParams(-2,dp(38)));watch.setOnClickListener(v->{if(setting("haptics",true))v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);selectMatch(m);});}else{foot.addView(txt("Match details",11,0xffb7b7b7,false),new LinearLayout.LayoutParams(0,-2,1));foot.addView(new NativeIcon(this,"next",ORANGE),new LinearLayout.LayoutParams(dp(18),dp(18)));}card.addView(foot);
   card.setOnClickListener(v->{if(setting("haptics",true))v.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP);selectMatch(m);});
   if(setting("compact_cards",false)){card.setPadding(dp(11),dp(9),dp(11),dp(8));cp.bottomMargin=dp(6);}
-  if(!setting("show_badges",true)){teams.removeViewAt(teams.getChildCount()-1);teams.removeViewAt(0);}
   if(!setting("reduce_motion",false)){card.setAlpha(0f);card.setScaleY(.985f);card.animate().alpha(1f).scaleY(1f).setDuration(170L).start();}
   return card;
  }
