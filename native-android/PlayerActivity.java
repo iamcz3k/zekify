@@ -573,9 +573,21 @@ public class PlayerActivity extends Activity {
         return "";
     }
 
+    private boolean isFctvHlsRelay(String url) {
+        try {
+            Uri uri = Uri.parse(url);
+            String path = uri.getPath();
+            return path != null && path.equals("/api/public/fctv-hls")
+                && !uri.getQueryParameter("slot").isEmpty();
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
     private boolean isDirectMedia(JSONObject source, String url) {
         String type = firstNonEmpty(source, "type", "format", "mimeType").toLowerCase(Locale.ROOT);
         String lower = url.toLowerCase(Locale.ROOT);
+        if (isFctvHlsRelay(url)) return true;
         if (type.contains("hls") || type.contains("mpegurl") || type.contains("dash")
             || type.contains("mp4") || type.contains("video/")) return true;
         return lower.matches("(?s).*\\.(m3u8|mpd|mp4|m4v|webm|mov|mp3)(?:[?#].*)?$");
@@ -583,7 +595,7 @@ public class PlayerActivity extends Activity {
 
     private boolean isHls(JSONObject source, String url) {
         String type = firstNonEmpty(source, "type", "format", "mimeType").toLowerCase(Locale.ROOT);
-        return type.contains("hls") || type.contains("mpegurl")
+        return isFctvHlsRelay(url) || type.contains("hls") || type.contains("mpegurl")
             || url.toLowerCase(Locale.ROOT).matches("(?s).*\\.m3u8(?:[?#].*)?$");
     }
 
