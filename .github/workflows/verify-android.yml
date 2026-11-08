@@ -2,7 +2,7 @@ name: Verify Zekify Android
 on:
   push:
     branches:
-      - zekify-v2.2-stabilization
+      - native-android-v2
   workflow_dispatch:
 permissions:
   contents: read
