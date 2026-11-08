@@ -48,7 +48,8 @@ public class MainActivity extends Activity {
  private LinearLayout root,content,leagueRow;
  private ScrollView matchesScroll;
  private EditText search;
- private String tab="live",league="All",query="";
+ private String tab="live",league="All",query="",selectedSport="football";
+ private TextView sportTitle; private LinearLayout sportRow; private int matchesGeneration=0;
  private JSONObject selected,detail; private LinearLayout sourceList; private WebView matchPreview; private int selectedSourceIndex=0; private JSONArray selectedSources; private FrameLayout inlineFrame; private PlayerView inlinePlayerView; private ExoPlayer inlinePlayer; private WebView inlineWebView; private TextView inlineStatus; private LinearLayout inlineSources; private boolean inlineLoading=false; private Dialog startupDialog; private boolean mainPipActive=false;
  private final int ORANGE=Color.rgb(255,138,61),BG=Color.rgb(5,5,5),PANEL=Color.rgb(17,17,17),MUTED=Color.rgb(145,145,145);
  @Override public void onCreate(Bundle b){super.onCreate(b);appPrefs=getSharedPreferences("zekify_cache",MODE_PRIVATE);installCrashRecorder();pendingMatchId=getIntent().getStringExtra("matchId")==null?"":getIntent().getStringExtra("matchId");getWindow().setStatusBarColor(BG);getWindow().setNavigationBarColor(BG);getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR^View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);createReminderChannel();home();applySettings();showStartupSplash();registerNetworkRecovery();load();}
@@ -74,10 +75,10 @@ public class MainActivity extends Activity {
   LinearLayout brand=row();brand.addView(new Ball(this),new LinearLayout.LayoutParams(dp(34),dp(34)));
   TextView name=txt("ZEKIFY",19,Color.WHITE,true);name.setLetterSpacing(.14f);LinearLayout.LayoutParams np=new LinearLayout.LayoutParams(-2,-2);np.leftMargin=dp(9);brand.addView(name,np);
   header.addView(brand,new LinearLayout.LayoutParams(0,-2,1));
-  TextView category=txt("FOOTBALL",10,ORANGE,true);category.setLetterSpacing(.16f);header.addView(category);
+  sportTitle=txt(sportLabel(),10,ORANGE,true);sportTitle.setLetterSpacing(.16f);header.addView(sportTitle);
   NativeIcon menu=new NativeIcon(this,"menu",Color.WHITE);menu.setContentDescription("Menu");menu.setOnClickListener(v->menu());LinearLayout.LayoutParams mp=new LinearLayout.LayoutParams(dp(44),dp(44));mp.leftMargin=dp(10);header.addView(menu,mp);root.addView(header);
   View line=new View(this);line.setBackgroundColor(0x22ffffff);root.addView(line,new LinearLayout.LayoutParams(-1,dp(1)));
-  LinearLayout heading=col();pad(heading,18,22,18,14);TextView eyebrow=txt("THE ACTION",10,ORANGE,true);eyebrow.setLetterSpacing(.16f);heading.addView(eyebrow);TextView title=txt("Your matchday",28,Color.WHITE,true);LinearLayout.LayoutParams titleP=new LinearLayout.LayoutParams(-1,-2);titleP.topMargin=dp(3);heading.addView(title,titleP);TextView sub=txt("Live games and upcoming fixtures, all in one place.",11,MUTED,false);LinearLayout.LayoutParams subP=new LinearLayout.LayoutParams(-1,-2);subP.topMargin=dp(5);heading.addView(sub,subP);root.addView(heading);
+  HorizontalScrollView sportsScroll=new HorizontalScrollView(this);sportsScroll.setHorizontalScrollBarEnabled(false);sportsScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);sportRow=row();pad(sportRow,18,0,18,8);sportsScroll.addView(sportRow);root.addView(sportsScroll,new LinearLayout.LayoutParams(-1,dp(48)));renderSports();
   LinearLayout tabs=row();pad(tabs,18,0,18,14);
   Button live=btn("Live",tab.equals("live")),up=btn("Upcoming",tab.equals("upcoming"));
   live.setOnClickListener(v->{tab="live";home();render();});up.setOnClickListener(v->{tab="upcoming";home();render();});
@@ -103,7 +104,7 @@ public class MainActivity extends Activity {
   panel.addView(socialRow("instagram","Instagram","@iamczek","https://www.instagram.com/iamczek",dialog));
   panel.addView(socialRow("mail","Email","laczekrsa@proton.me","mailto:laczekrsa@proton.me",dialog));
   LinearLayout share=row();share.setBackground(shape(0xff21170f,14));pad(share,14,14,14,14);LinearLayout.LayoutParams shareP=new LinearLayout.LayoutParams(-1,dp(54));shareP.topMargin=dp(12);panel.addView(share,shareP);NativeIcon shareIcon=new NativeIcon(this,"share",ORANGE);share.addView(shareIcon,new LinearLayout.LayoutParams(dp(24),dp(24)));TextView shareText=txt("Share Zekify",13,Color.WHITE,true);LinearLayout.LayoutParams shareTextP=new LinearLayout.LayoutParams(0,-2,1);shareTextP.leftMargin=dp(12);share.addView(shareText,shareTextP);share.setOnClickListener(v->shareInstalledApk());
-  View spacer=new View(this);panel.addView(spacer,new LinearLayout.LayoutParams(1,0,1));View divider=new View(this);divider.setBackgroundColor(0x22ffffff);LinearLayout.LayoutParams vlp=new LinearLayout.LayoutParams(-1,dp(1));vlp.topMargin=dp(18);vlp.bottomMargin=dp(14);panel.addView(divider,vlp);TextView foot=txt("ZEKIFY  ·  FOOTBALL EVERYWHERE",9,MUTED,true);foot.setGravity(Gravity.CENTER);panel.addView(foot);
+  View spacer=new View(this);panel.addView(spacer,new LinearLayout.LayoutParams(1,0,1));View divider=new View(this);divider.setBackgroundColor(0x22ffffff);LinearLayout.LayoutParams vlp=new LinearLayout.LayoutParams(-1,dp(1));vlp.topMargin=dp(18);vlp.bottomMargin=dp(14);panel.addView(divider,vlp);TextView foot=txt("ZEKIFY  ·  ALL SPORTS",9,MUTED,true);foot.setGravity(Gravity.CENTER);panel.addView(foot);
   dialog.setContentView(panel);dialog.setCancelable(true);dialog.setCanceledOnTouchOutside(true);dialog.show();Window w=dialog.getWindow();if(w!=null){w.setBackgroundDrawableResource(android.R.color.transparent);w.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);WindowManager.LayoutParams a=w.getAttributes();a.width=(int)(getResources().getDisplayMetrics().widthPixels*.88f);a.height=-1;a.gravity=Gravity.RIGHT;a.dimAmount=.72f;w.setAttributes(a);}
  }
  
@@ -178,7 +179,38 @@ public class MainActivity extends Activity {
   }
   throw last==null?new IOException("Request failed"):last;
  }
- private void load(){if(!matchesLoading.compareAndSet(false,true))return;apiIo.execute(()->{try{JSONObject p=request("/api/public/football-streams?mode=matches&sport=football");JSONArray a=p.optJSONArray("data");if(!p.optBoolean("success")||a==null)throw new Exception("Unexpected match response");ArrayList<JSONObject> fresh=new ArrayList<>();for(int i=0;i<a.length();i++)fresh.add(a.getJSONObject(i));appPrefs.edit().putString("matches_json",a.toString()).putLong("matches_cached_at",System.currentTimeMillis()).apply();runOnUiThread(()->{matchesLoading.set(false);matches.clear();matches.addAll(fresh);renderLeagues();render();openPendingMatchIfAvailable();hideStartupSplash();});}catch(Exception e){recordBug("MATCH_LOAD",e,null);String cached=appPrefs.getString("matches_json","");ArrayList<JSONObject> fallback=new ArrayList<>();try{JSONArray a=new JSONArray(cached);for(int i=0;i<a.length();i++)fallback.add(a.getJSONObject(i));}catch(Exception ignored){}runOnUiThread(()->{matchesLoading.set(false);hideStartupSplash();if(!fallback.isEmpty()){matches.clear();matches.addAll(fallback);renderLeagues();render();openPendingMatchIfAvailable();Toast.makeText(this,"Showing saved matches. Refresh when connected.",Toast.LENGTH_SHORT).show();}else if(content!=null){content.removeAllViews();TextView err=txt("Unable to load matches. Tap to retry.",14,Color.WHITE,false);pad(err,12,25,12,25);err.setOnClickListener(v->load());content.addView(err);}});}});}
+ private void load(){
+  final int generation=++matchesGeneration;final String sport=selectedSport;matchesLoading.set(true);
+  apiIo.execute(()->{
+   try{
+    JSONObject p=request("/api/public/football-streams?mode=matches&sport="+URLEncoder.encode(sport,"UTF-8"));
+    JSONArray a=p.optJSONArray("data");if(!p.optBoolean("success")||a==null)throw new Exception("Unexpected match response");
+    ArrayList<JSONObject> fresh=new ArrayList<>();for(int i=0;i<a.length();i++)fresh.add(a.getJSONObject(i));
+    appPrefs.edit().putString("matches_json_"+sport,a.toString()).putLong("matches_cached_at_"+sport,System.currentTimeMillis()).apply();
+    runOnUiThread(()->{if(generation!=matchesGeneration)return;matchesLoading.set(false);matches.clear();matches.addAll(fresh);renderLeagues();render();openPendingMatchIfAvailable();hideStartupSplash();});
+   }catch(Exception e){
+    recordBug("MATCH_LOAD_"+sport,e,null);String cached=appPrefs.getString("matches_json_"+sport,"");ArrayList<JSONObject> fallback=new ArrayList<>();
+    try{JSONArray a=new JSONArray(cached);for(int i=0;i<a.length();i++)fallback.add(a.getJSONObject(i));}catch(Exception ignored){}
+    runOnUiThread(()->{if(generation!=matchesGeneration)return;matchesLoading.set(false);hideStartupSplash();if(!fallback.isEmpty()){matches.clear();matches.addAll(fallback);renderLeagues();render();openPendingMatchIfAvailable();Toast.makeText(this,"Showing saved "+sport+" matches. Refresh when connected.",Toast.LENGTH_SHORT).show();}else if(content!=null){content.removeAllViews();TextView err=txt("Unable to load "+sport+" matches. Tap to retry.",14,Color.WHITE,false);pad(err,12,25,12,25);err.setOnClickListener(v->load());content.addView(err);}});
+   }
+  });
+ }
+ private static final String[][] SPORTS={
+  {"football","Football"},{"motor-sports","Motorsport"},{"rugby","Rugby"},{"american-football","Am. Football"},
+  {"australian-football","Aussie Rules"},{"cricket","Cricket"},{"hockey","Hockey"},{"badminton","Badminton"},
+  {"baseball","Baseball"},{"volleyball","Volleyball"},{"fight","Fighting"},{"cycling","Cycling"},
+  {"handball","Handball"},{"basketball","Basketball"},{"tennis","Tennis"}
+ };
+ private String sportLabel(){for(String[] sport:SPORTS)if(sport[0].equals(selectedSport))return sport[1].toUpperCase(Locale.ROOT);return "SPORTS";}
+ private void renderSports(){
+  if(sportRow==null)return;sportRow.removeAllViews();
+  for(String[] sport:SPORTS){String key=sport[0],label=sport[1];Button chip=btn(label,key.equals(selectedSport));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-2,dp(36));p.rightMargin=dp(7);sportRow.addView(chip,p);chip.setOnClickListener(v->selectSport(key));}
+ }
+ private void selectSport(String sport){
+  if(sport==null||sport.equals(selectedSport))return;
+  selectedSport=sport;matchesGeneration++;matchesLoading.set(false);league="All";selected=null;detail=null;selectedSources=null;stopInlinePlayback();
+  if(sportTitle!=null)sportTitle.setText(sportLabel());matches.clear();renderSports();renderLeagues();render();load();
+ }
  private String firstNonEmpty(JSONObject source,String... keys){if(source==null)return "";for(String key:keys){String value=source.optString(key,"").trim();if(!value.isEmpty()&&!"null".equalsIgnoreCase(value))return value;}return "";}
  private String team(JSONObject m,String side){if(m==null)return "Team";JSONObject teams=m.optJSONObject("teams"),t=teams==null?null:teams.optJSONObject(side);String name=t==null?"":t.optString("name","").trim();return name.isEmpty()||"null".equalsIgnoreCase(name)?"Team":name;}
  private String leagueName(JSONObject m){String s=m.optString("league","");return s.trim().isEmpty()?"Other competitions":s.trim();}
@@ -294,7 +326,7 @@ public class MainActivity extends Activity {
  private void selectMatch(JSONObject m){
   if(selected!=null&&selected.optString("id").equals(m.optString("id")))return;
   stopInlinePlayback();selected=m;detail=null;selectedSources=null;selectedSourceIndex=0;inlineLoading=true;render();
-  apiIo.execute(()->{try{JSONObject p=request("/api/public/football-streams?mode=detail&sport=football&id="+URLEncoder.encode(m.optString("id"),"UTF-8"));JSONObject d=p.optJSONObject("data");JSONArray src=d==null?null:d.optJSONArray("sources");runOnUiThread(()->{if(selected==null||!selected.optString("id").equals(m.optString("id")))return;detail=d;selectedSources=src;inlineLoading=false;render();if(src!=null&&src.length()>0)startInlineSource(0);});}catch(Exception e){runOnUiThread(()->{inlineLoading=false;if(inlineStatus!=null)inlineStatus.setText("Unable to load streams. Tap retry.");render();});}});
+  final String sport=selectedSport;apiIo.execute(()->{try{JSONObject p=request("/api/public/football-streams?mode=detail&sport="+URLEncoder.encode(sport,"UTF-8")+"&id="+URLEncoder.encode(m.optString("id"),"UTF-8"));JSONObject d=p.optJSONObject("data");JSONArray src=d==null?null:d.optJSONArray("sources");runOnUiThread(()->{if(selected==null||!selected.optString("id").equals(m.optString("id")))return;detail=d;selectedSources=src;inlineLoading=false;render();if(src!=null&&src.length()>0)startInlineSource(0);});}catch(Exception e){runOnUiThread(()->{inlineLoading=false;if(inlineStatus!=null)inlineStatus.setText("Unable to load streams. Tap retry.");render();});}});
  }
  private View buildInlinePlayer(){
   LinearLayout card=col();card.setBackground(shape(0xff111111,18));pad(card,12,12,12,12);
@@ -317,7 +349,8 @@ public class MainActivity extends Activity {
   Button retry=btn("Retry",false);LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(0,dp(42),1);rp.leftMargin=dp(8);actions.addView(retry,rp);retry.setOnClickListener(v->startInlineSource(selectedSourceIndex));
   return card;
  }
- private boolean directInline(JSONObject s,String url){String type=firstNonEmpty(s,"type","format","mimeType").toLowerCase(Locale.ROOT);String u=url.toLowerCase(Locale.ROOT);return type.contains("hls")||type.contains("mpegurl")||type.contains("mp4")||u.matches("(?s).*\\.(m3u8|mp4|m4v|webm)(?:[?#].*)?$");}
+ private boolean isFctvHlsRelay(String url){try{Uri uri=Uri.parse(url);String path=uri.getPath();return path!=null&&path.equals("/api/public/fctv-hls")&&!uri.getQueryParameter("slot").isEmpty();}catch(Exception ignored){return false;}}
+ private boolean directInline(JSONObject s,String url){String type=firstNonEmpty(s,"type","format","mimeType").toLowerCase(Locale.ROOT);String u=url.toLowerCase(Locale.ROOT);return isFctvHlsRelay(url)||type.contains("hls")||type.contains("mpegurl")||type.contains("mp4")||u.matches("(?s).*\\.(m3u8|mp4|m4v|webm)(?:[?#].*)?$");}
  private void startInlineSource(int index){
   if(selectedSources==null||index<0||index>=selectedSources.length())return;selectedSourceIndex=index;final int generation=++inlineLoadGeneration;JSONObject s=selectedSources.optJSONObject(index);if(s==null)return;
   String url=firstNonEmpty(s,"streamUrl","mediaUrl","url","embedUrl");if(url.startsWith("/"))url=API+url;if(url.isEmpty()){if(inlineStatus!=null)inlineStatus.setText("This source has no playback URL.");return;}
@@ -329,8 +362,8 @@ public class MainActivity extends Activity {
    Map<String,String> headers=new HashMap<>();JSONObject raw=s.optJSONObject("headers");if(raw!=null){Iterator<String> it=raw.keys();while(it.hasNext()){String k=it.next();headers.put(k,raw.optString(k));}}String ref=firstNonEmpty(s,"referer","referrer");if(!ref.isEmpty())headers.put("Referer",ref);
    DefaultHttpDataSource.Factory http=new DefaultHttpDataSource.Factory().setUserAgent(firstNonEmpty(s,"userAgent").isEmpty()?"Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36":firstNonEmpty(s,"userAgent")).setAllowCrossProtocolRedirects(true).setDefaultRequestProperties(headers);DefaultDataSource.Factory data=new DefaultDataSource.Factory(this,http);
    inlineRetryCount=0;final ExoPlayer sourcePlayer=inlinePlayer!=null?inlinePlayer:new ExoPlayer.Builder(this).build();inlinePlayer=sourcePlayer;inlinePlayerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FILL);inlinePlayerView.setPlayer(sourcePlayer);sourcePlayer.addListener(new Player.Listener(){public void onPlaybackStateChanged(int state){if(generation!=inlineLoadGeneration||inlinePlayer!=sourcePlayer)return;if(state==Player.STATE_BUFFERING){if(inlineStatus!=null)inlineStatus.setText("Buffering…");inlineNetworkHandler.removeCallbacksAndMessages(null);inlineNetworkHandler.postDelayed(()->{if(generation==inlineLoadGeneration&&inlinePlayer==sourcePlayer&&sourcePlayer.getPlaybackState()==Player.STATE_BUFFERING&&inlineStatus!=null)inlineStatus.setText("Stream is still buffering. Retry or switch source if it does not recover.");},15000L);}else if(state==Player.STATE_READY){inlineNetworkHandler.removeCallbacksAndMessages(null);inlineRetryCount=0;if(inlineStatus!=null)inlineStatus.setText("Playing · "+s.optString("source","Stream"));}}public void onPlayerError(PlaybackException e){if(generation!=inlineLoadGeneration||inlinePlayer!=sourcePlayer)return;inlineNetworkHandler.removeCallbacksAndMessages(null);if(inlineRetryCount<2){final int attempt=++inlineRetryCount;if(inlineStatus!=null)inlineStatus.setText("Stream connection lost. Retrying…");inlineNetworkHandler.postDelayed(()->{if(generation==inlineLoadGeneration&&inlinePlayer==sourcePlayer&&inlineFrame!=null){sourcePlayer.seekToDefaultPosition();sourcePlayer.prepare();sourcePlayer.play();}},attempt*1500L);}else if(inlineStatus!=null)inlineStatus.setText("Stream failed. Tap Retry or choose another source.");}});
-   MediaItem item=new MediaItem.Builder().setUri(Uri.parse(url)).setMimeType(url.toLowerCase(Locale.ROOT).contains(".m3u8")?MimeTypes.APPLICATION_M3U8:null).build();
-   if(url.toLowerCase(Locale.ROOT).contains(".m3u8"))inlinePlayer.setMediaSource(new HlsMediaSource.Factory(data).createMediaSource(item));else inlinePlayer.setMediaSource(new androidx.media3.exoplayer.source.ProgressiveMediaSource.Factory(data).createMediaSource(item));inlinePlayer.prepare();inlinePlayer.play();
+   boolean hls=isFctvHlsRelay(url)||url.toLowerCase(Locale.ROOT).matches("(?s).*\\.m3u8(?:[?#].*)?$");MediaItem item=new MediaItem.Builder().setUri(Uri.parse(url)).setMimeType(hls?MimeTypes.APPLICATION_M3U8:null).build();
+   if(hls)inlinePlayer.setMediaSource(new HlsMediaSource.Factory(data).createMediaSource(item));else inlinePlayer.setMediaSource(new androidx.media3.exoplayer.source.ProgressiveMediaSource.Factory(data).createMediaSource(item));inlinePlayer.prepare();inlinePlayer.play();
   }else{
    inlineFrame.removeAllViews();inlineWebView.setVisibility(View.VISIBLE);inlineFrame.addView(inlineWebView,new FrameLayout.LayoutParams(-1,-1));if(inlineStatus!=null)inlineStatus.setText("Loading "+s.optString("source","stream")+"…");inlineWebView.loadUrl(url);
   }
