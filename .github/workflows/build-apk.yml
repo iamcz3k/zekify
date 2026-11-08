@@ -124,3 +124,5 @@ jobs:
           else
             gh release create v3.2.0 Zekify-v3.2.0.apk Zekify-v3.2.0.apk.sha256 --title "Zekify v3.2.0" --notes "Zekify 3.2.0 keeps the same mini-player video surface and ExoPlayer across fullscreen and direct-source changes, preserves fill sizing on return, and removes repeated prepare loops that caused buffering interruptions." --target "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY"
           fi
+
+# Release trigger: v3.2.0 authorized by repository owner.
