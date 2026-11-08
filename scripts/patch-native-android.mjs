@@ -66,6 +66,8 @@ await mkdir(sportsAssetsTarget, {recursive:true});
 for (const asset of await readdir(sportsAssetsSource)) {
   if (asset.endsWith(".svg")) await copyFile(sportsAssetsSource + "/" + asset, sportsAssetsTarget + "/" + asset);
 }
+await copyFile(sportsAssetsSource + "/LICENSE", sportsAssetsTarget + "/LICENSE");
+await copyFile(sportsAssetsSource + "/README.md", sportsAssetsTarget + "/ATTRIBUTION.txt");
 
 const manifestPath="android/app/src/main/AndroidManifest.xml";
 let manifest=await readFile(manifestPath,"utf8");
