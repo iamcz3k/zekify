@@ -40,10 +40,11 @@ public class FloatingPlayerService extends Service {
  private void attachOverlay(){
   if(windowManager==null||pendingSurface==null||overlay!=null)return;
   overlay=new FrameLayout(this);overlay.setBackgroundColor(Color.BLACK);
-  LinearLayout shell=new LinearLayout(this);shell.setOrientation(LinearLayout.VERTICAL);shell.setBackgroundColor(Color.rgb(12,12,12));overlay.addView(shell,new FrameLayout.LayoutParams(-1,-1));
-  LinearLayout bar=new LinearLayout(this);bar.setGravity(Gravity.CENTER_VERTICAL);bar.setPadding(dp(10),0,dp(8),0);bar.setBackgroundColor(Color.rgb(27,27,27));shell.addView(bar,new LinearLayout.LayoutParams(-1,dp(34)));
-  TextView title=new TextView(this);title.setText("ZEKIFY  ·  PLAYING");title.setTextColor(Color.WHITE);title.setTextSize(10);title.setTypeface(null,1);bar.addView(title,new LinearLayout.LayoutParams(0,-1,1));
-  TextView close=new TextView(this);close.setText("×");close.setTextColor(Color.WHITE);close.setTextSize(23);close.setGravity(Gravity.CENTER);bar.addView(close,new LinearLayout.LayoutParams(dp(32),-1));close.setOnClickListener(v->{removeOverlay(true);stopSelf();});
+  LinearLayout shell=new LinearLayout(this);shell.setOrientation(LinearLayout.VERTICAL);shell.setBackgroundColor(Color.rgb(5,5,5));overlay.addView(shell,new FrameLayout.LayoutParams(-1,-1));
+  View accent=new View(this);accent.setBackgroundColor(Color.rgb(255,138,61));shell.addView(accent,new LinearLayout.LayoutParams(-1,dp(2)));
+  LinearLayout bar=new LinearLayout(this);bar.setGravity(Gravity.CENTER_VERTICAL);bar.setPadding(dp(11),0,dp(8),0);bar.setBackgroundColor(Color.rgb(17,17,17));shell.addView(bar,new LinearLayout.LayoutParams(-1,dp(38)));
+  TextView title=new TextView(this);title.setText("ZEKIFY  ·  PLAYING");title.setTextColor(Color.WHITE);title.setTextSize(11);title.setLetterSpacing(.08f);title.setTypeface(null,1);bar.addView(title,new LinearLayout.LayoutParams(0,-1,1));
+  TextView close=new TextView(this);close.setText("×");close.setTextColor(Color.rgb(255,138,61));close.setTextSize(23);close.setGravity(Gravity.CENTER);bar.addView(close,new LinearLayout.LayoutParams(dp(32),-1));close.setOnClickListener(v->{removeOverlay(true);stopSelf();});
   bar.setOnTouchListener((v,event)->{switch(event.getAction()){case MotionEvent.ACTION_DOWN:touchX=event.getRawX();touchY=event.getRawY();startX=params.x;startY=params.y;return true;case MotionEvent.ACTION_MOVE:params.x=startX+(int)(touchX-event.getRawX());params.y=startY+(int)(event.getRawY()-touchY);try{windowManager.updateViewLayout(overlay,params);}catch(Exception ignored){}return true;}return true;});
   View surface=pendingSurface;if(surface.getParent() instanceof ViewGroup)((ViewGroup)surface.getParent()).removeView(surface);
   shell.addView(surface,new LinearLayout.LayoutParams(-1,0,1));
