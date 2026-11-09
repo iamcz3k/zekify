@@ -444,7 +444,7 @@ public class PlayerActivity extends Activity {
             String name = currentSourceNameFor(item, i);
             if (item != null && item.optBoolean("hd")) name += " · HD";
             TextView chip = new TextView(this);
-            chip.setText(name); chip.setTextColor(i == sourceIndex ? 0xffff8a3d : Color.WHITE);
+            chip.setText(name); chip.setTextColor(i == sourceIndex ? Color.BLACK : Color.WHITE);
             chip.setTextSize(11); chip.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
             chip.setGravity(Gravity.CENTER); chip.setSingleLine(true);
             chip.setPadding(dp(13), dp(8), dp(13), dp(8));
@@ -457,7 +457,7 @@ public class PlayerActivity extends Activity {
                     sourceIndex = sourceNumber; playSource();
                     for (int k=0;k<sourceStrip.getChildCount();k++) {
                         View child=sourceStrip.getChildAt(k);
-                        if(child instanceof TextView){((TextView)child).setTextColor(k==sourceIndex?0xffff8a3d:Color.WHITE);child.setBackground(panel(k==sourceIndex?0xffff8a3d:0xff242424,20));child.setTextColor(k==sourceIndex?Color.BLACK:Color.WHITE);}
+                        if(child instanceof TextView){((TextView)child).setTextColor(k==sourceIndex?Color.BLACK:Color.WHITE);child.setBackground(panel(k==sourceIndex?0xffff8a3d:0xff242424,20));}
                     }
                 }
                 scheduleControlsHide();
