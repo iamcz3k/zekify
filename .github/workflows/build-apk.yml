@@ -122,7 +122,7 @@ jobs:
           if gh release view v3.4.1 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload v3.4.1 Zekify-v3.4.1.apk Zekify-v3.4.1.apk.sha256 --clobber --repo "$GITHUB_REPOSITORY"
           else
-            gh release create v3.4.1 Zekify-v3.4.1.apk Zekify-v3.4.1.apk.sha256 --title "Zekify v3.4.1" --notes "Zekify 3.4.1 redesigns the all-sports selector, preserves cycling and motorsport event titles instead of inventing opponents, restores competition badges in the app data model, and improves sport switching with cached fixtures. The fullscreen player remains unchanged." --target "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY"
+            gh release create v3.4.1 Zekify-v3.4.1.apk Zekify-v3.4.1.apk.sha256 --title "Zekify v3.4.1" --notes "Zekify 3.4.1 fixes mini-player stream switching and stale WebView callbacks, improves playback status reporting and recovery, removes the dark source-picker panel, and adds live brightness and volume percentage indicators during vertical gestures." --target "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY"
           fi
 
 # v3.4.1 multi-sport release build.
