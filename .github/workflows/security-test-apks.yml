@@ -133,7 +133,24 @@ jobs:
             exit 1
           fi
           sha256sum Zekify-v3.4.0-TAMPER-TEST.apk > Zekify-v3.4.0-TAMPER-TEST.apk.sha256
-      - name: Upload both APKs as workflow artifacts only
+      - name: Build same-package wrong-signature test APK
+        env:
+          TAMPER_STORE_PASSWORD: ${{ env.TAMPER_STORE_PASSWORD }}
+          TAMPER_KEY_PASSWORD: ${{ env.TAMPER_KEY_PASSWORD }}
+        run: |
+          sed -i 's/applicationIdSuffix ".tampertest"//' android/app/build.gradle
+          cd android
+          ./gradlew clean assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.4.0-SIGNATURE-TEST.apk
+          cd ..
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Zekify-v3.4.0-SIGNATURE-TEST.apk | grep -F "package: name='com.v3x.zekify'"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.4.0-SIGNATURE-TEST.apk | tee signature-test.txt
+          if grep -q "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119" signature-test.txt; then
+            echo "Signature test unexpectedly used the official signing certificate"
+            exit 1
+          fi
+          sha256sum Zekify-v3.4.0-SIGNATURE-TEST.apk > Zekify-v3.4.0-SIGNATURE-TEST.apk.sha256
+      - name: Upload all APKs as workflow artifacts only
         uses: actions/upload-artifact@v4
         with:
           name: zekify-v3.4.0-security-test-apks
@@ -142,6 +159,9 @@ jobs:
             Zekify-v3.4.0-OFFICIAL-TEST.apk.sha256
             Zekify-v3.4.0-TAMPER-TEST.apk
             Zekify-v3.4.0-TAMPER-TEST.apk.sha256
+            Zekify-v3.4.0-SIGNATURE-TEST.apk
+            Zekify-v3.4.0-SIGNATURE-TEST.apk.sha256
+            signature-test.txt
             official-signature.txt
             tamper-signature.txt
           if-no-files-found: error
