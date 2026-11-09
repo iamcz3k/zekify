@@ -1,14 +1,15 @@
-# v3.5.0 release build [release v3.5.0] (rebuild after correcting the native player patch anchor)
+# v3.5.1 release build [release v3.5.1] (rebuild after correcting the native player patch anchor)
 # Authorized release build for the verified player patch; publish only on release-marked commits or manual dispatch.
-name: Build and release Zekify APK
+name: Build Zekify v3.5.1 test APK
 on:
   push:
     branches:
       - native-android-v2
       - native-android-only
+      - pixel-ui-v3.5.1-test
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 concurrency:
   group: zekify-${{ github.ref }}
   cancel-in-progress: true
@@ -53,7 +54,7 @@ jobs:
           python3 -c "import xml.etree.ElementTree as ET; ET.parse('android/app/src/main/AndroidManifest.xml'); print('AndroidManifest.xml is valid XML')"
       - name: Set Android version
         run: |
-          sed -i 's/versionCode 1/versionCode 35/' android/app/build.gradle
+          sed -i 's/versionCode 1/versionCode 36/' android/app/build.gradle
           sed -i 's/versionName "1.0"/versionName "3.5.0"/' android/app/build.gradle
           grep -E 'versionCode|versionName' android/app/build.gradle
       - name: Configure release signing
@@ -98,41 +99,24 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew assembleRelease
-          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.5.0.apk
+          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.5.1.apk
           cd ..
           rm -f android/zekify-release.jks
-          test -s Zekify-v3.5.0.apk
+          test -s Zekify-v3.5.1.apk
       - name: Generate update checksum
-        run: sha256sum Zekify-v3.5.0.apk > Zekify-v3.5.0.apk.sha256
+        run: sha256sum Zekify-v3.5.1.apk > Zekify-v3.5.1.apk.sha256
       - name: Verify APK signature
         run: |
           set -o pipefail
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.5.0.apk | tee signing-certificate.txt
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.5.1.apk | tee signing-certificate.txt
           CERT="$(awk '/Signer #1 certificate SHA-256 digest:/ {print $NF; exit}' signing-certificate.txt)"
           echo "Release signing certificate: $CERT"
           test "$CERT" = "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119" || (echo "Unexpected signing key. Refusing to publish an incompatible update." && exit 1)
       - uses: actions/upload-artifact@v4
         with:
-          name: zekify-v3.5.0-signed-apk
+          name: zekify-v3.5.1-signed-apk
           path: |
-            Zekify-v3.5.0.apk
-            Zekify-v3.5.0.apk.sha256
+            Zekify-v3.5.1.apk
+            Zekify-v3.5.1.apk.sha256
           if-no-files-found: error
-      - name: Publish signed APK release
-        if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[release v3.5.0]')
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if gh release view v3.5.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload v3.5.0 Zekify-v3.5.0.apk Zekify-v3.5.0.apk.sha256 --clobber --repo "$GITHUB_REPOSITORY"
-          else
-            gh release create v3.5.0 Zekify-v3.5.0.apk Zekify-v3.5.0.apk.sha256 --title "Zekify v3.5.0" --notes "Zekify 3.5.0 adds official package and signing-certificate verification, an embedded integrity marker, debugger/debuggable checks, root and runtime-hook indicators, Java and native tracer/instrumentation checks, and security gates across the app, live scores, fullscreen player and floating-player service. It retains all v3.4.1 player fixes." --target "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY"
-          fi
-
-# v3.5.0 multi-sport release build.
-
-# Multi-sport assets and event rendering included in v3.5.0.
-
-# v3.5.0 compile fix release build.
-
-# Release trigger: [release v3.5.0] authorized by repository owner.
+# Deliberately no GitHub Release or production asset publishing in this test workflow.
