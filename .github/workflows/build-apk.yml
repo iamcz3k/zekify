@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - native-android-v2
+      - native-android-only
   workflow_dispatch:
 permissions:
   contents: write
