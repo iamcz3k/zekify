@@ -35,7 +35,7 @@ public class MainActivity extends Activity {
  private ConnectivityManager connectivityManager;
  private ConnectivityManager.NetworkCallback networkCallback;
  private final java.util.concurrent.atomic.AtomicBoolean matchesLoading=new java.util.concurrent.atomic.AtomicBoolean(false);
- private int inlineLoadGeneration=0;
+ private int inlineLoadGeneration=0; private int inlineWebGeneration=0; private Runnable inlineWebTimeout;
  private int inlineRetryCount=0;
  private final ExecutorService imageIo=Executors.newFixedThreadPool(2);
  private final ExecutorService shareIo=Executors.newSingleThreadExecutor();
@@ -392,7 +392,7 @@ public class MainActivity extends Activity {
   TextView title=txt(matchTitle(selected),15,Color.WHITE,true);LinearLayout.LayoutParams tp=new LinearLayout.LayoutParams(-1,-2);tp.topMargin=dp(4);card.addView(title,tp);
   inlineFrame=new FrameLayout(this);inlineFrame.setBackgroundColor(Color.BLACK);LinearLayout.LayoutParams fp=new LinearLayout.LayoutParams(-1,dp(205));fp.topMargin=dp(10);card.addView(inlineFrame,fp);
   if(inlinePlayerView==null){inlinePlayerView=new PlayerView(this);inlinePlayerView.setUseController(false);inlinePlayerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FILL);}
-  if(inlineWebView==null){inlineWebView=new WebView(this);inlineWebView.setBackgroundColor(Color.BLACK);inlineWebView.getSettings().setJavaScriptEnabled(true);inlineWebView.getSettings().setDomStorageEnabled(true);inlineWebView.getSettings().setMediaPlaybackRequiresUserGesture(false);inlineWebView.setWebViewClient(new WebViewClient(){public void onPageStarted(WebView view,String url,Bitmap favicon){final int generation=++inlineLoadGeneration;if(inlineStatus!=null)inlineStatus.setText("Connecting to stream source…");inlineNetworkHandler.postDelayed(()->{if(generation==inlineLoadGeneration&&inlineStatus!=null&&inlineStatus.getText().toString().startsWith("Connecting"))inlineStatus.setText("Source timed out. Tap Retry or choose another source.");},25000L);}public void onPageFinished(WebView view,String url){inlineLoadGeneration++;inlineRetryCount=0;if(inlineStatus!=null)inlineStatus.setText("Stream source loaded");}public void onReceivedError(WebView view,WebResourceRequest request,WebResourceError error){if(request.isForMainFrame()){inlineLoadGeneration++;if(inlineStatus!=null)inlineStatus.setText("Source failed to load. Tap Retry or choose another source.");}}public boolean onRenderProcessGone(WebView view,android.webkit.RenderProcessGoneDetail detail){inlineLoadGeneration++;if(inlineStatus!=null)inlineStatus.setText("Stream player stopped. Return and reopen this source.");return true;}});inlineWebView.setLongClickable(false);inlineWebView.setOnLongClickListener(v->true);}
+  ensureInlineWebView();
   if(inlinePlayerView.getParent()!=null)((android.view.ViewGroup)inlinePlayerView.getParent()).removeView(inlinePlayerView);
   if(inlineWebView.getParent()!=null)((android.view.ViewGroup)inlineWebView.getParent()).removeView(inlineWebView);
   if(inlinePlayer!=null){inlinePlayerView.setPlayer(inlinePlayer);inlineFrame.addView(inlinePlayerView,new FrameLayout.LayoutParams(-1,-1));}
@@ -406,19 +406,54 @@ public class MainActivity extends Activity {
   Button retry=btn("Retry",false);LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(0,dp(42),1);rp.leftMargin=dp(8);actions.addView(retry,rp);retry.setOnClickListener(v->startInlineSource(selectedSourceIndex));
   return card;
  }
+ private void ensureInlineWebView(){
+  if(inlineWebView!=null)return;
+  inlineWebView=new WebView(this);inlineWebView.setBackgroundColor(Color.BLACK);
+  inlineWebView.getSettings().setJavaScriptEnabled(true);inlineWebView.getSettings().setDomStorageEnabled(true);
+  inlineWebView.getSettings().setMediaPlaybackRequiresUserGesture(false);inlineWebView.setLongClickable(false);
+  inlineWebView.setOnLongClickListener(v->true);
+  inlineWebView.setWebViewClient(new WebViewClient(){
+   @Override public void onPageStarted(WebView view,String url,Bitmap favicon){
+    if(url==null||"about:blank".equals(url))return;
+    final int generation=inlineLoadGeneration;inlineWebGeneration=generation;
+    if(inlineStatus!=null)inlineStatus.setText("Connecting to stream source…");
+    if(inlineWebTimeout!=null)inlineNetworkHandler.removeCallbacks(inlineWebTimeout);
+    inlineWebTimeout=()->{if(generation==inlineLoadGeneration&&inlineWebGeneration==generation&&inlineStatus!=null)inlineStatus.setText("Source timed out. Tap Retry or choose another source.");};
+    inlineNetworkHandler.postDelayed(inlineWebTimeout,25000L);
+   }
+   @Override public void onPageFinished(WebView view,String url){
+    if(url==null||"about:blank".equals(url)||inlineWebGeneration!=inlineLoadGeneration)return;
+    if(inlineWebTimeout!=null)inlineNetworkHandler.removeCallbacks(inlineWebTimeout);
+    if(inlineStatus!=null)inlineStatus.setText("Source page opened · waiting for video…");
+   }
+   @Override public void onReceivedError(WebView view,WebResourceRequest request,WebResourceError error){
+    if(request.isForMainFrame()&&inlineWebGeneration==inlineLoadGeneration){
+     if(inlineWebTimeout!=null)inlineNetworkHandler.removeCallbacks(inlineWebTimeout);
+     if(inlineStatus!=null)inlineStatus.setText("Source failed to load. Tap Retry or choose another source.");
+    }
+   }
+   @Override public boolean onRenderProcessGone(WebView view,android.webkit.RenderProcessGoneDetail detail){
+    if(view.getParent() instanceof android.view.ViewGroup)((android.view.ViewGroup)view.getParent()).removeView(view);
+    view.destroy();if(inlineWebView==view)inlineWebView=null;
+    inlineLoadGeneration++;inlineWebGeneration=inlineLoadGeneration;
+    if(inlineWebTimeout!=null)inlineNetworkHandler.removeCallbacks(inlineWebTimeout);
+    if(inlineStatus!=null)inlineStatus.setText("Stream player stopped. Tap Retry to restart this source.");
+    return true;
+   }
+  });
+ }
  private boolean isFctvHlsRelay(String url){try{Uri uri=Uri.parse(url);String path=uri.getPath();return path!=null&&path.equals("/api/public/fctv-hls")&&!uri.getQueryParameter("slot").isEmpty();}catch(Exception ignored){return false;}}
  private boolean directInline(JSONObject s,String url){String type=firstNonEmpty(s,"type","format","mimeType").toLowerCase(Locale.ROOT);String u=url.toLowerCase(Locale.ROOT);return isFctvHlsRelay(url)||type.contains("hls")||type.contains("mpegurl")||type.contains("mp4")||u.matches("(?s).*\\.(m3u8|mp4|m4v|webm)(?:[?#].*)?$");}
  private void startInlineSource(int index){
   if(selectedSources==null||index<0||index>=selectedSources.length())return;selectedSourceIndex=index;final int generation=++inlineLoadGeneration;JSONObject s=selectedSources.optJSONObject(index);if(s==null)return;
   String url=firstNonEmpty(s,"streamUrl","mediaUrl","url","embedUrl");if(url.startsWith("/"))url=API+url;if(url.isEmpty()){if(inlineStatus!=null)inlineStatus.setText("This source has no playback URL.");return;}
-  boolean directSource=directInline(s,url);if(!directSource&&inlinePlayer!=null){try{inlinePlayer.stop();inlinePlayer.clearMediaItems();inlinePlayer.release();}catch(RuntimeException ignored){}inlinePlayer=null;}if(inlinePlayerView!=null&&!directSource)inlinePlayerView.setPlayer(null);
-  if(inlineWebView!=null){inlineWebView.stopLoading();inlineWebView.loadUrl("about:blank");inlineWebView.setVisibility(View.GONE);}
+  boolean directSource=directInline(s,url);if(inlineWebTimeout!=null)inlineNetworkHandler.removeCallbacks(inlineWebTimeout);if(inlinePlayer!=null){try{inlinePlayer.stop();inlinePlayer.clearMediaItems();inlinePlayer.release();}catch(RuntimeException ignored){}inlinePlayer=null;}if(inlinePlayerView!=null){inlinePlayerView.setPlayer(null);inlinePlayerView.setVisibility(View.GONE);}ensureInlineWebView();if(inlineWebView!=null){inlineWebView.stopLoading();inlineWebView.setVisibility(View.GONE);}
   if(inlineFrame==null)return;
   if(directInline(s,url)){
    inlinePlayerView.setVisibility(View.VISIBLE);if(inlinePlayerView.getParent()!=null)((android.view.ViewGroup)inlinePlayerView.getParent()).removeView(inlinePlayerView);inlineFrame.removeAllViews();inlineFrame.addView(inlinePlayerView,new FrameLayout.LayoutParams(-1,-1));
    Map<String,String> headers=new HashMap<>();JSONObject raw=s.optJSONObject("headers");if(raw!=null){Iterator<String> it=raw.keys();while(it.hasNext()){String k=it.next();headers.put(k,raw.optString(k));}}String ref=firstNonEmpty(s,"referer","referrer");if(!ref.isEmpty())headers.put("Referer",ref);
    DefaultHttpDataSource.Factory http=new DefaultHttpDataSource.Factory().setUserAgent(firstNonEmpty(s,"userAgent").isEmpty()?"Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36":firstNonEmpty(s,"userAgent")).setAllowCrossProtocolRedirects(true).setDefaultRequestProperties(headers);DefaultDataSource.Factory data=new DefaultDataSource.Factory(this,http);
-   inlineRetryCount=0;final ExoPlayer sourcePlayer=inlinePlayer!=null?inlinePlayer:new ExoPlayer.Builder(this).build();inlinePlayer=sourcePlayer;inlinePlayerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FILL);inlinePlayerView.setPlayer(sourcePlayer);sourcePlayer.addListener(new Player.Listener(){public void onPlaybackStateChanged(int state){if(generation!=inlineLoadGeneration||inlinePlayer!=sourcePlayer)return;if(state==Player.STATE_BUFFERING){if(inlineStatus!=null)inlineStatus.setText("Buffering…");inlineNetworkHandler.removeCallbacksAndMessages(null);inlineNetworkHandler.postDelayed(()->{if(generation==inlineLoadGeneration&&inlinePlayer==sourcePlayer&&sourcePlayer.getPlaybackState()==Player.STATE_BUFFERING&&inlineStatus!=null)inlineStatus.setText("Stream is still buffering. Retry or switch source if it does not recover.");},15000L);}else if(state==Player.STATE_READY){inlineNetworkHandler.removeCallbacksAndMessages(null);inlineRetryCount=0;if(inlineStatus!=null)inlineStatus.setText("Playing · "+s.optString("source","Stream"));}}public void onPlayerError(PlaybackException e){if(generation!=inlineLoadGeneration||inlinePlayer!=sourcePlayer)return;inlineNetworkHandler.removeCallbacksAndMessages(null);if(inlineRetryCount<2){final int attempt=++inlineRetryCount;if(inlineStatus!=null)inlineStatus.setText("Stream connection lost. Retrying…");inlineNetworkHandler.postDelayed(()->{if(generation==inlineLoadGeneration&&inlinePlayer==sourcePlayer&&inlineFrame!=null){sourcePlayer.seekToDefaultPosition();sourcePlayer.prepare();sourcePlayer.play();}},attempt*1500L);}else if(inlineStatus!=null)inlineStatus.setText("Stream failed. Tap Retry or choose another source.");}});
+   inlineRetryCount=0;final ExoPlayer sourcePlayer=new ExoPlayer.Builder(this).build();inlinePlayer=sourcePlayer;inlinePlayerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FILL);inlinePlayerView.setPlayer(sourcePlayer);sourcePlayer.addListener(new Player.Listener(){public void onPlaybackStateChanged(int state){if(generation!=inlineLoadGeneration||inlinePlayer!=sourcePlayer)return;if(state==Player.STATE_BUFFERING){if(inlineStatus!=null)inlineStatus.setText("Buffering…");inlineNetworkHandler.removeCallbacksAndMessages(null);inlineNetworkHandler.postDelayed(()->{if(generation==inlineLoadGeneration&&inlinePlayer==sourcePlayer&&sourcePlayer.getPlaybackState()==Player.STATE_BUFFERING&&inlineStatus!=null)inlineStatus.setText("Stream is still buffering. Retry or switch source if it does not recover.");},15000L);}else if(state==Player.STATE_READY){inlineNetworkHandler.removeCallbacksAndMessages(null);inlineRetryCount=0;if(inlineStatus!=null)inlineStatus.setText("Stream ready · starting…");}}public void onIsPlayingChanged(boolean isPlaying){if(generation==inlineLoadGeneration&&inlinePlayer==sourcePlayer&&inlineStatus!=null)inlineStatus.setText(isPlaying?"Playing · "+s.optString("source","Stream"):"Waiting for playback…");}public void onPlayerError(PlaybackException e){if(generation!=inlineLoadGeneration||inlinePlayer!=sourcePlayer)return;inlineNetworkHandler.removeCallbacksAndMessages(null);if(inlineRetryCount<2){final int attempt=++inlineRetryCount;if(inlineStatus!=null)inlineStatus.setText("Stream connection lost. Retrying…");inlineNetworkHandler.postDelayed(()->{if(generation==inlineLoadGeneration&&inlinePlayer==sourcePlayer&&inlineFrame!=null){sourcePlayer.seekToDefaultPosition();sourcePlayer.prepare();sourcePlayer.play();}},attempt*1500L);}else if(inlineStatus!=null)inlineStatus.setText("Stream failed. Tap Retry or choose another source.");}});
    boolean hls=isFctvHlsRelay(url)||url.toLowerCase(Locale.ROOT).matches("(?s).*\\.m3u8(?:[?#].*)?$");MediaItem item=new MediaItem.Builder().setUri(Uri.parse(url)).setMimeType(hls?MimeTypes.APPLICATION_M3U8:null).build();
    if(hls)inlinePlayer.setMediaSource(new HlsMediaSource.Factory(data).createMediaSource(item));else inlinePlayer.setMediaSource(new androidx.media3.exoplayer.source.ProgressiveMediaSource.Factory(data).createMediaSource(item));inlinePlayer.prepare();inlinePlayer.play();
   }else{
@@ -426,7 +461,7 @@ public class MainActivity extends Activity {
   }
   if(inlineSources!=null){inlineSources.removeAllViews();for(int i=0;i<Math.min(4,selectedSources.length());i++){JSONObject src=selectedSources.optJSONObject(i);if(src==null)continue;final int ix=i;Button chip=btn(src.optString("source","Source "+(i+1)),i==selectedSourceIndex);LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-2,dp(38));cp.rightMargin=dp(7);inlineSources.addView(chip,cp);chip.setOnClickListener(v->{selectedSourceIndex=ix;startInlineSource(ix);});}}
  }
- private void stopInlinePlayback(){inlineLoadGeneration++;inlineNetworkHandler.removeCallbacksAndMessages(null);if(inlinePlayer!=null){try{inlinePlayer.stop();inlinePlayer.clearMediaItems();inlinePlayer.release();}catch(RuntimeException ignored){}inlinePlayer=null;}if(inlinePlayerView!=null){inlinePlayerView.setPlayer(null);inlinePlayerView.setVisibility(View.GONE);}if(inlineWebView!=null){inlineWebView.stopLoading();inlineWebView.loadUrl("about:blank");inlineWebView.setVisibility(View.GONE);}if(inlineFrame!=null)inlineFrame.removeAllViews();inlineFrame=null;inlineSources=null;inlineStatus=null;}
+ private void stopInlinePlayback(){inlineLoadGeneration++;inlineNetworkHandler.removeCallbacksAndMessages(null);if(inlinePlayer!=null){try{inlinePlayer.stop();inlinePlayer.clearMediaItems();inlinePlayer.release();}catch(RuntimeException ignored){}inlinePlayer=null;}if(inlinePlayerView!=null){inlinePlayerView.setPlayer(null);inlinePlayerView.setVisibility(View.GONE);}if(inlineWebTimeout!=null)inlineNetworkHandler.removeCallbacks(inlineWebTimeout);if(inlineWebView!=null){inlineWebView.stopLoading();inlineWebView.setVisibility(View.GONE);}if(inlineFrame!=null)inlineFrame.removeAllViews();inlineFrame=null;inlineSources=null;inlineStatus=null;}
  private void launchFullscreen(){if(selectedSources==null||selectedSources.length()==0)return;JSONObject source=selectedSources.optJSONObject(selectedSourceIndex);String activeUrl=source==null?"":firstNonEmpty(source,"streamUrl","mediaUrl","url","embedUrl");if(activeUrl.startsWith("/"))activeUrl=API+activeUrl;if(inlinePlayer!=null){PlayerActivity.transferredPlayer=inlinePlayer;inlinePlayer=null;if(inlinePlayerView!=null){PlayerActivity.transferredPlayerView=inlinePlayerView;if(inlinePlayerView.getParent() instanceof ViewGroup)((ViewGroup)inlinePlayerView.getParent()).removeView(inlinePlayerView);inlinePlayerView=null;}}if(inlineWebView!=null){PlayerActivity.transferredWebView=inlineWebView;if(inlineWebView.getParent() instanceof ViewGroup)((ViewGroup)inlineWebView.getParent()).removeView(inlineWebView);inlineWebView=null;}PlayerActivity.returnToMainActivity=true;Intent i=new Intent(this,PlayerActivity.class);i.putExtra("sources",selectedSources.toString());i.putExtra("sourceIndex",selectedSourceIndex);i.putExtra("match",matchTitle(selected));i.putExtra("activeUrl",activeUrl);startActivity(i);overridePendingTransition(0,0);}
  private void renderSourceChoices(JSONArray sources){
   if(sourceList==null)return;sourceList.removeAllViews();if(sources==null||sources.length()==0)return;
