@@ -270,7 +270,7 @@ extern "C" JNIEXPORT jint JNICALL Java_com_v3x_zekify_SecurityGuard_nativeEnviro
 let hg=await readFile(gradlePath,"utf8");
 if(!hg.includes("externalNativeBuild")) hg=hg.replace("android {","android {\n    externalNativeBuild { cmake { path file(\"src/main/cpp/CMakeLists.txt\"); version \"3.22.1\" } }");
 if(!hg.includes("ndkVersion")) hg=hg.replace("android {","android {\n    ndkVersion \"27.0.12077973\"");
-if(!hg.includes("minifyEnabled true")) hg=hg.replace("release {","release {\n            minifyEnabled true\n            shrinkResources true\n            proguardFiles getDefaultProguardFile(\"proguard-android-optimize.txt\"), \"proguard-rules.pro\"");
+if(!hg.includes("minifyEnabled true")) hg=hg.replace("release {","release {\n            minifyEnabled true\n            shrinkResources false\n            proguardFiles getDefaultProguardFile(\"proguard-android-optimize.txt\"), \"proguard-rules.pro\"");
 await writeFile(gradlePath,hg);
 await writeFile("android/app/proguard-rules.pro","-keep class com.v3x.zekify.SecurityGuard { *; }\n-keepclasseswithmembernames class * { native <methods>; }\n-keep class com.v3x.zekify.** extends android.app.Activity\n-keep class com.v3x.zekify.** extends android.app.Service\n-dontwarn org.apache.**\n");
 console.log("Configured native Android screens, player vector icons, black system splash and Media3 playback.");
