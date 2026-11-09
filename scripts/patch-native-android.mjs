@@ -2,7 +2,11 @@ import { readFile, writeFile, mkdir, copyFile, readdir } from "node:fs/promises"
 const pkg="com.v3x.zekify";
 const root="android/app/src/main/java/"+pkg.replaceAll(".","/");
 await mkdir(root,{recursive:true});
+const appAssets="android/app/src/main/assets";
+await mkdir(appAssets,{recursive:true});
+await writeFile(appAssets+"/zekify-integrity.bin","ZEKIFY-INTEGRITY-V1:official-native-build");
 await copyFile("native-android/MainActivity.java",root+"/MainActivity.java");
+await copyFile("native-android/SecurityGuard.java",root+"/SecurityGuard.java");
 await copyFile("native-android/PlayerActivity.java",root+"/PlayerActivity.java");
 await copyFile("native-android/FloatingPlayerService.java",root+"/FloatingPlayerService.java");
 await copyFile("native-android/LiveScoreActivity.java",root+"/LiveScoreActivity.java");
