@@ -131,4 +131,4 @@ jobs:
 
 # v3.5.0 compile fix release build.
 
-# Release trigger: v3.5.0 authorized by repository owner.
+# Release trigger: [release v3.5.0] authorized by repository owner.
