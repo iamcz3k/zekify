@@ -251,4 +251,28 @@ mainActivity = mainActivity.replace(
 if (!mainActivity.includes("badgeWaiters")) throw new Error("Badge cache navigation patch did not apply");
 await writeFile(mainActivityPath, mainActivity);
 
+// Apply the same security gate to every native entry point, including secondary screens and the floating player service.
+if (!mainActivity.includes("if(!SecurityGuard.verify(this))")) throw new Error("MainActivity security gate did not apply");
+const liveScorePath = root + "/LiveScoreActivity.java";
+let liveScore = await readFile(liveScorePath, "utf8");
+liveScore = liveScore.replace(
+  "@Override public void onCreate(Bundle state){super.onCreate(state);",
+  "@Override public void onCreate(Bundle state){super.onCreate(state);if(!SecurityGuard.verify(this)){SecurityGuard.showBlocked(this);return;}"
+);
+if (!liveScore.includes("if(!SecurityGuard.verify(this))")) throw new Error("LiveScoreActivity security gate did not apply");
+await writeFile(liveScorePath, liveScore);
+
+const floatingServicePath = root + "/FloatingPlayerService.java";
+let floatingService = await readFile(floatingServicePath, "utf8");
+floatingService = floatingService.replace(
+  "super.onCreate();instance=this;",
+  "super.onCreate();if(!SecurityGuard.verify(this)){stopSelf();return;}instance=this;"
+);
+floatingService = floatingService.replace(
+  "@Override public int onStartCommand(Intent intent,int flags,int startId){attachOverlay();return START_NOT_STICKY;}",
+  "@Override public int onStartCommand(Intent intent,int flags,int startId){if(!SecurityGuard.verify(this)){stopSelf(startId);return START_NOT_STICKY;}attachOverlay();return START_NOT_STICKY;}"
+);
+if (!floatingService.includes("if(!SecurityGuard.verify(this))")) throw new Error("FloatingPlayerService security gate did not apply");
+await writeFile(floatingServicePath, floatingService);
+
 console.log("Configured native Android screens, player vector icons, black system splash and Media3 playback.");
