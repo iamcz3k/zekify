@@ -8,12 +8,12 @@ await copyFile("native-android/PlayerActivity.java",root+"/PlayerActivity.java")
 const playerPath = root + "/PlayerActivity.java";
 let playerSource = await readFile(playerPath, "utf8");
 playerSource = playerSource.replace(
-    "public void onCreate(Bundle state) {\\n        super.onCreate(state);",
-    "public void onCreate(Bundle state) {\\n        super.onCreate(state);\\n        if (!SecurityGuard.verify(this)) { SecurityGuard.showBlocked(this); return; }"
+    "public void onCreate(Bundle state) {\n        super.onCreate(state);",
+    "public void onCreate(Bundle state) {\n        super.onCreate(state);\n        if (!SecurityGuard.verify(this)) { SecurityGuard.showBlocked(this); return; }"
 );
 playerSource = playerSource.replace(
-    "protected void onResume() {\\n        super.onResume();",
-    "protected void onResume() {\\n        super.onResume();\\n        if (!SecurityGuard.verify(this)) { SecurityGuard.showBlocked(this); return; }"
+    "protected void onResume() {\n        super.onResume();",
+    "protected void onResume() {\n        super.onResume();\n        if (!SecurityGuard.verify(this)) { SecurityGuard.showBlocked(this); return; }"
 );
 if (!playerSource.includes("SecurityGuard.verify(this)")) throw new Error("PlayerActivity security checks did not apply");
 await writeFile(playerPath, playerSource);
