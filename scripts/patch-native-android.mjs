@@ -315,7 +315,19 @@ await writeFile(cppRoot + "/zekifyguard.cpp", [
 let hardenedGradle = await readFile(gradlePath, "utf8");
 if (!hardenedGradle.includes("externalNativeBuild")) hardenedGradle = hardenedGradle.replace(/android\s*\{/, 'android {\n    externalNativeBuild { cmake { path file("src/main/cpp/CMakeLists.txt"); version "3.22.1" } }');
 if (!hardenedGradle.includes("ndkVersion")) hardenedGradle = hardenedGradle.replace(/android\s*\{/, 'android {\n    ndkVersion "27.0.12077973"');
-if (!hardenedGradle.includes("minifyEnabled true")) hardenedGradle = hardenedGradle.replace(/release\s*\{/, 'release {\n            minifyEnabled true\n            shrinkResources true\n            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"');
+// Enable code shrinking before resource shrinking. Gradle rejects shrinkResources=true when minifyEnabled=false.
+const releaseBlock = hardenedGradle.match(/release\s*\{[\s\S]*?\n\s*\}/);
+if (!releaseBlock) throw new Error("Release buildType block not found; refusing to guess Gradle configuration");
+let releaseConfig = releaseBlock[0];
+releaseConfig = /minifyEnabled\s+\w+/.test(releaseConfig)
+  ? releaseConfig.replace(/minifyEnabled\s+\w+/, "minifyEnabled true")
+  : releaseConfig.replace(/^release\s*\{/, 'release {\n            minifyEnabled true');
+releaseConfig = /shrinkResources\s+\w+/.test(releaseConfig)
+  ? releaseConfig.replace(/shrinkResources\s+\w+/, "shrinkResources true")
+  : releaseConfig.replace(/^release\s*\{/, 'release {\n            shrinkResources true');
+if (!releaseConfig.includes("proguardFiles")) releaseConfig = releaseConfig.replace(/^release\s*\{/, 'release {\n            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"');
+hardenedGradle = hardenedGradle.replace(releaseBlock[0], releaseConfig);
+if (!/minifyEnabled\s+true/.test(releaseConfig) || !/shrinkResources\s+true/.test(releaseConfig)) throw new Error("R8/resource shrinking configuration verification failed");
 await writeFile(gradlePath, hardenedGradle);
 await writeFile("android/app/proguard-rules.pro", [
   "-keep class com.v3x.zekify.SecurityGuard { *; }",
