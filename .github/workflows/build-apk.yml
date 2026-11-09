@@ -1,5 +1,4 @@
-# v3.5.1 release build [release v3.5.1] (rebuild after correcting the native player patch anchor)
-# Authorized release build for the verified player patch; publish only on release-marked commits or manual dispatch.
+# v3.5.1 isolated test build. No GitHub Release or production publishing.
 name: Build Zekify v3.5.1 test APK
 on:
   push:
@@ -55,7 +54,7 @@ jobs:
       - name: Set Android version
         run: |
           sed -i 's/versionCode 1/versionCode 36/' android/app/build.gradle
-          sed -i 's/versionName "1.0"/versionName "3.5.0"/' android/app/build.gradle
+          sed -i 's/versionName "1.0"/versionName "3.5.1"/' android/app/build.gradle
           grep -E 'versionCode|versionName' android/app/build.gradle
       - name: Configure release signing
         env:
