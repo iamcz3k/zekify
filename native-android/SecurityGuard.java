@@ -107,7 +107,13 @@ public final class SecurityGuard {
         AlertDialog dialog = new AlertDialog.Builder(activity)
             .setView(panel)
             .setCancelable(false)
-            .setPositiveButton("Install the real application", (d, which) -> {\n                try {\n                    activity.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://zekify.vercel.app")));\n                } finally {\n                    activity.finishAffinity();\n                }\n            })
+            .setPositiveButton("Install the real application", (d, which) -> {
+                try {
+                    activity.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://zekify.vercel.app")));
+                } finally {
+                    activity.finishAffinity();
+                }
+            })
             .create();
         dialog.setCanceledOnTouchOutside(false);
         dialog.setOnDismissListener(d -> activity.finishAffinity());
