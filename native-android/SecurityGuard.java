@@ -19,6 +19,8 @@ import android.widget.TextView;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.io.InputStream;
+import java.io.ByteArrayOutputStream;
 import java.security.MessageDigest;
 import java.util.Locale;
 
@@ -26,6 +28,8 @@ public final class SecurityGuard {
     private static final String OFFICIAL_PACKAGE = "com.v3x.zekify";
     private static final String OFFICIAL_CERT_SHA256 =
         "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119";
+    private static final String EXPECTED_INTEGRITY_ASSET =
+        "ZEKIFY-INTEGRITY-V1:official-native-build";
     private static volatile boolean blockedDialogShown = false;
     private static volatile String failureReason = "Application integrity check failed";
     private static final int P = 28;
@@ -61,6 +65,9 @@ public final class SecurityGuard {
                 }
             }
             if (!trustedSigner) return fail("The signing certificate is not Zekify's official certificate");
+            if (!verifyIntegrityAsset(context)) {
+                return fail("The application integrity asset has been modified or is missing");
+            }
 
             ApplicationInfo appInfo = context.getApplicationInfo();
             if ((appInfo.flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
@@ -82,6 +89,19 @@ public final class SecurityGuard {
     private static boolean fail(String reason) {
         failureReason = reason;
         return false;
+    }
+
+    private static boolean verifyIntegrityAsset(Context context) {
+        try (InputStream input = context.getAssets().open("zekify-integrity.bin");
+             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[256];
+            int count;
+            while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
+            String actual = new String(output.toByteArray(), "UTF-8");
+            return EXPECTED_INTEGRITY_ASSET.equals(actual);
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     private static String sha256(byte[] bytes) throws Exception {
