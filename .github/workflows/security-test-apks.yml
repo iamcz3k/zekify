@@ -96,6 +96,27 @@ jobs:
             exit 1
           fi
           sha256sum Zekify-v3.4.0-ORIGINAL.apk > Zekify-v3.4.0-ORIGINAL.apk.sha256
+      - name: Verify production R8 obfuscation and native library
+        run: |
+          python3 - <<'PY'
+          import re, zipfile
+          from pathlib import Path
+          with zipfile.ZipFile("Zekify-v3.4.0-ORIGINAL.apk") as z:
+              names = z.namelist()
+              native = [n for n in names if n.startswith("lib/") and n.endswith("/libzekifyguard.so")]
+              dex_names = [n for n in names if re.fullmatch(r"classes(\d+)?\.dex", n)]
+              assert native, "Native security library missing from production APK"
+              assert dex_names, "DEX bytecode missing from production APK"
+              dex = b"".join(z.read(n) for n in dex_names)
+              assert b"TEST SIMULATION" not in dex, "Test-only forced detection leaked into production APK"
+          mapping_path = Path("android/app/build/outputs/mapping/release/mapping.txt")
+          assert mapping_path.is_file() and mapping_path.stat().st_size > 0, "R8 mapping file missing"
+          mapping = mapping_path.read_text(errors="replace")
+          renamed = re.findall(r"(?m)^com\.v3x\.zekify\.([\w$]+) -> ([\w.$]+):$", mapping)
+          assert any(source != target for source, target in renamed), "No Zekify application class was obfuscated by R8"
+          print("PASS: production APK contains native verifier, R8 mapping and obfuscated app classes; no test simulation markers.")
+          print("Native ABIs:", ", ".join(sorted({n.split('/')[1] for n in native})))
+          PY
       - name: Enable combined root, runtime-hook and tracer simulations in test APK only
         run: |
           python3 - <<'PY'
@@ -148,6 +169,17 @@ jobs:
           test "$CERT" = "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119"
           sha256sum Zekify-v3.4.0-COMBINED-SECURITY-TEST.apk > Zekify-v3.4.0-COMBINED-SECURITY-TEST.apk.sha256
           printf '%s\\n' "TEST ONLY: forces root (Magisk/KernelSU), runtime-hook (Frida/Xposed/LSPosed), and TracerPid detections together. This validates combined blocking only, not detection against real rooted/hooked environments." > COMBINED-SECURITY-TEST-NOTES.txt
+      - name: Verify combined test APK contains forced test paths
+        run: |
+          python3 - <<'PY'
+          import re, zipfile
+          with zipfile.ZipFile("Zekify-v3.4.0-COMBINED-SECURITY-TEST.apk") as z:
+              names = z.namelist()
+              assert any(n.startswith("lib/") and n.endswith("/libzekifyguard.so") for n in names), "Native verifier missing from test APK"
+              dex = b"".join(z.read(n) for n in names if re.fullmatch(r"classes(\d+)?\.dex", n))
+              assert b"TEST SIMULATION" in dex, "Forced test-only detection markers missing"
+          print("PASS: test APK contains forced root/hook/tracer simulation paths and native verifier.")
+          PY
       - name: Upload exactly two APKs as private workflow artifacts
         uses: actions/upload-artifact@v4
         with:
