@@ -73,6 +73,7 @@ public class MainActivity extends Activity {
  private LinearLayout col(){LinearLayout x=new LinearLayout(this);x.setOrientation(1);return x;}
  private void pad(View v,int l,int t,int r,int b){v.setPadding(dp(l),dp(t),dp(r),dp(b));}
  private int dp(int n){return (int)(n*getResources().getDisplayMetrics().density+.5f);}
+ private void safeScrollAdd(ScrollView scroll,View child){if(scroll==null||child==null)return;if(child.getParent() instanceof ViewGroup)((ViewGroup)child.getParent()).removeView(child);scroll.removeAllViews();scroll.addView(child,new ScrollView.LayoutParams(-1,-2));}
  private Button btn(String s,boolean primary){Button b=new Button(this);b.setText(s);b.setTextSize(12);b.setAllCaps(false);b.setTextColor(primary?Color.BLACK:Color.WHITE);b.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));b.setBackground(ripple(primary?ORANGE:0xff171717,20));b.setMinHeight(dp(46));b.setPadding(dp(16),0,dp(16),0);b.setOnTouchListener((v,e)->{if(e.getAction()==MotionEvent.ACTION_DOWN)v.animate().scaleX(.97f).scaleY(.97f).setDuration(75).start();else if(e.getAction()==MotionEvent.ACTION_UP||e.getAction()==MotionEvent.ACTION_CANCEL)v.animate().scaleX(1f).scaleY(1f).setDuration(130).setInterpolator(new android.view.animation.OvershootInterpolator(1.15f)).start();return false;});return b;}
  private void home(){
   destination="home";
@@ -106,7 +107,7 @@ public class MainActivity extends Activity {
   HorizontalScrollView hs=new HorizontalScrollView(this);hs.setHorizontalScrollBarEnabled(false);hs.setOverScrollMode(View.OVER_SCROLL_NEVER);
   leagueRow=row();pad(leagueRow,18,2,18,10);hs.addView(leagueRow);root.addView(hs,new LinearLayout.LayoutParams(-1,dp(42)));
   ScrollView sc=new ScrollView(this);matchesScroll=sc;sc.setFillViewport(true);sc.setVerticalScrollBarEnabled(false);
-  content=col();pad(content,18,5,18,20);sc.addView(content);sc.setOnScrollChangeListener((View v,int sx,int sy,int oldSx,int oldSy)->loadVisibleBadges());
+  content=col();pad(content,18,5,18,20);safeScrollAdd(sc,content);sc.setOnScrollChangeListener((View v,int sx,int sy,int oldSx,int oldSy)->loadVisibleBadges());
   root.addView(sc,new LinearLayout.LayoutParams(-1,0,1));
   root.addView(buildBottomNavigation("home"));
   setContentView(root);if(!setting("reduce_motion",false)){root.setAlpha(0f);root.animate().alpha(1f).setDuration(220L).start();}
@@ -157,14 +158,14 @@ public class MainActivity extends Activity {
   HorizontalScrollView sports=new HorizontalScrollView(this);sports.setHorizontalScrollBarEnabled(false);LinearLayout chips=row();LinearLayout.LayoutParams sportsP=new LinearLayout.LayoutParams(-1,dp(48));sportsP.topMargin=dp(8);wrap.addView(sports,sportsP);sports.addView(chips);
   for(String[] sport:SPORTS){TextView chip=txt(sport[1],11,selectedSport.equals(sport[0])?Color.WHITE:MUTED,true);chip.setGravity(Gravity.CENTER);chip.setBackground(shape(selectedSport.equals(sport[0])?0xff382619:0xff171717,18));pad(chip,14,0,14,0);LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-2,dp(38));cp.rightMargin=dp(8);chips.addView(chip,cp);chip.setOnClickListener(v->{selectSport(sport[0]);showDestination("discover");});}
   TextView resultsTitle=txt("MATCH RESULTS",10,ORANGE,true);LinearLayout.LayoutParams rt=new LinearLayout.LayoutParams(-1,-2);rt.topMargin=dp(20);wrap.addView(resultsTitle,rt);
-  ScrollView scroll=new ScrollView(this);scroll.setVerticalScrollBarEnabled(false);content=col();pad(content,0,10,0,18);scroll.addView(content);wrap.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));matchesScroll=scroll;
+  ScrollView scroll=new ScrollView(this);scroll.setVerticalScrollBarEnabled(false);content=col();pad(content,0,10,0,18);safeScrollAdd(scroll,content);wrap.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));matchesScroll=scroll;
   Runnable refresh=()->{query=input.getText().toString().trim().toLowerCase(Locale.ROOT);content.removeAllViews();int n=0;for(JSONObject m:matches){String hay=(matchTitle(m)+" "+leagueName(m)+" "+team(m,"home")+" "+team(m,"away")).toLowerCase(Locale.ROOT);if(query.isEmpty()||hay.contains(query)){content.addView(matchCard(m));if(++n>=60)break;}}if(n==0){TextView empty=txt("No matches found. Try another team or competition.",12,MUTED,false);pad(empty,8,24,8,24);content.addView(empty);}scroll.post(this::loadVisibleBadges);};
   input.addTextChangedListener(new TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int before,int count){refresh.run();}public void afterTextChanged(Editable e){}});refresh.run();
  }
  private void renderSchedulePage(FrameLayout page){
   LinearLayout wrap=col();pad(wrap,18,5,18,18);page.addView(wrap,new FrameLayout.LayoutParams(-1,-1));pruneStartedScheduledMatches();
   TextView heading=txt("UPCOMING REMINDERS",10,ORANGE,true);wrap.addView(heading);
-  ScrollView scroll=new ScrollView(this);scroll.setVerticalScrollBarEnabled(false);LinearLayout list=col();LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,0,1);sp.topMargin=dp(10);wrap.addView(scroll,sp);scroll.addView(list);
+  ScrollView scroll=new ScrollView(this);scroll.setVerticalScrollBarEnabled(false);LinearLayout list=col();LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,0,1);sp.topMargin=dp(10);wrap.addView(scroll,sp);safeScrollAdd(scroll,list);
   Set<String> ids=getScheduledIds();JSONObject records=getScheduledRecords();int count=0;
   for(JSONObject current:matches){String id=current.optString("id");if(ids.contains(id))try{records.put(id,current);}catch(Exception ignored){}}
   for(String id:new HashSet<>(ids)){JSONObject match=records.optJSONObject(id);if(match==null||matchHasStarted(match))continue;list.addView(matchCard(match));count++;}
@@ -172,7 +173,7 @@ public class MainActivity extends Activity {
  }
  private void renderProfilePage(FrameLayout page){
   LinearLayout wrap=col();pad(wrap,18,4,18,18);
-  ScrollView profileScroll=new ScrollView(this);profileScroll.setFillViewport(true);profileScroll.setVerticalScrollBarEnabled(false);profileScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);profileScroll.addView(wrap,new ScrollView.LayoutParams(-1,-2));page.addView(profileScroll,new FrameLayout.LayoutParams(-1,-1));
+  ScrollView profileScroll=new ScrollView(this);profileScroll.setFillViewport(true);profileScroll.setVerticalScrollBarEnabled(false);profileScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);safeScrollAdd(profileScroll,wrap);page.addView(profileScroll,new FrameLayout.LayoutParams(-1,-1));
   LinearLayout identity=row();identity.setBackground(shape(0xff1c1713,24));pad(identity,18,18,18,18);wrap.addView(identity);
   identity.addView(new Ball(this),new LinearLayout.LayoutParams(dp(48),dp(48)));LinearLayout idWords=col();LinearLayout.LayoutParams idp=new LinearLayout.LayoutParams(0,-2,1);idp.leftMargin=dp(14);identity.addView(idWords,idp);idWords.addView(txt("ZEKIFY",18,Color.WHITE,true));idWords.addView(txt("Your sports, organised.",11,MUTED,false));
   TextView section=txt("PREFERENCES",10,ORANGE,true);LinearLayout.LayoutParams sectionP=new LinearLayout.LayoutParams(-1,-2);sectionP.topMargin=dp(22);sectionP.bottomMargin=dp(8);wrap.addView(section,sectionP);
@@ -187,7 +188,9 @@ public class MainActivity extends Activity {
   wrap.addView(profileAction("Check for updates","Check for the latest Zekify version","refresh",()->checkForUpdates(true)));
   TextView connect=txt("CONNECT",10,ORANGE,true);LinearLayout.LayoutParams connectP=new LinearLayout.LayoutParams(-1,-2);connectP.topMargin=dp(22);connectP.bottomMargin=dp(8);wrap.addView(connect,connectP);
   wrap.addView(profileAction("X / Twitter","@iam_czek","x",()->openExternal("https://x.com/iam_czek")));
-  wrap.addView(profileAction("Instagram and TikTok","@iamczek","instagram",()->openExternal("https://www.instagram.com/iamczek")));
+  wrap.addView(profileAction("Instagram","@iamczek","instagram",()->openExternal("https://www.instagram.com/iamczek")));
+  wrap.addView(profileAction("TikTok","@iamczek","play",()->openExternal("https://www.tiktok.com/@iamczek")));
+  wrap.addView(profileAction("Email","laczekrsa@proton.me","mail",()->{try{Intent email=new Intent(Intent.ACTION_SENDTO,Uri.parse("mailto:laczekrsa@proton.me"));email.putExtra(Intent.EXTRA_SUBJECT,"Hello LaCzek");startActivity(email);}catch(Exception ignored){Toast.makeText(this,"No email app is available.",Toast.LENGTH_SHORT).show();}}));
  }
  private View profileAction(String title,String subtitle,String icon,Runnable action){
   LinearLayout card=row();card.setBackground(ripple(0xff171717,20));pad(card,15,14,14,14);LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.bottomMargin=dp(8);card.setLayoutParams(p);
@@ -405,9 +408,10 @@ public class MainActivity extends Activity {
    NativeIcon back=new NativeIcon(this,"back",Color.WHITE);header.addView(back,new LinearLayout.LayoutParams(dp(44),dp(44)));back.setOnClickListener(v->homeAndRender());
    LinearLayout titleWords=col();LinearLayout.LayoutParams titleP=new LinearLayout.LayoutParams(0,-2,1);titleP.leftMargin=dp(9);header.addView(titleWords,titleP);titleWords.addView(txt("MATCH CENTRE",10,ORANGE,true));titleWords.addView(txt(leagueName(selected),11,MUTED,false));
    NativeIcon reminder=new NativeIcon(this,isMatchScheduled(selected)?"bell-on":"bell",isMatchScheduled(selected)?ORANGE:MUTED);header.addView(reminder,new LinearLayout.LayoutParams(dp(42),dp(42)));reminder.setOnClickListener(v->toggleMatchReminder(selected));screen.addView(header);
+   LinearLayout scrollContent=col();
    boolean live=isLiveMatch(selected);
-   LinearLayout hero=col();hero.setBackground(shape(0xff171717,28));pad(hero,16,14,16,14);LinearLayout.LayoutParams heroP=new LinearLayout.LayoutParams(-1,-2);heroP.setMargins(dp(16),dp(2),dp(16),dp(10));screen.addView(hero,heroP);
-   View miniPlayer=buildInlinePlayer();if(miniPlayer!=null){LinearLayout.LayoutParams miniP=new LinearLayout.LayoutParams(-1,-2);miniP.setMargins(dp(12),0,dp(12),dp(10));screen.addView(miniPlayer,miniP);}
+   LinearLayout hero=col();hero.setBackground(shape(0xff171717,28));pad(hero,16,14,16,14);LinearLayout.LayoutParams heroP=new LinearLayout.LayoutParams(-1,-2);heroP.setMargins(dp(16),dp(2),dp(16),dp(10));scrollContent.addView(hero,heroP);
+   View miniPlayer=buildInlinePlayer();if(miniPlayer!=null){LinearLayout.LayoutParams miniP=new LinearLayout.LayoutParams(-1,-2);miniP.setMargins(dp(12),0,dp(12),dp(10));scrollContent.addView(miniPlayer,miniP);}
    LinearLayout meta=row();TextView competition=txt(leagueName(selected).toUpperCase(Locale.ROOT),9,MUTED,true);competition.setLetterSpacing(.1f);meta.addView(competition,new LinearLayout.LayoutParams(0,-2,1));
    TextView status=txt(live?"● LIVE NOW":selected.optString("status","UPCOMING").toUpperCase(Locale.ROOT),9,live?0xffff7770:ORANGE,true);status.setBackground(shape(live?0xff351b1a:0xff302016,18));pad(status,10,6,10,6);meta.addView(status);hero.addView(meta);
    if(!eventStyle(selected)){
@@ -424,8 +428,8 @@ public class MainActivity extends Activity {
    TextView when=txt(date(selected.optLong("date",0)),10,live?0xffff8a80:MUTED,true);when.setGravity(Gravity.CENTER);hero.addView(when);
    LinearLayout tabs=row();tabs.setBackground(shape(0xff151515,20));pad(tabs,4,4,4,4);String[][] tabItems={{"overview","Overview"},{"details","Details"}};
    for(String[] item:tabItems){TextView chip=txt(item[1],11,detailTab.equals(item[0])?Color.WHITE:MUTED,true);chip.setGravity(Gravity.CENTER);chip.setBackground(shape(detailTab.equals(item[0])?0xff3b281c:Color.TRANSPARENT,16));tabs.addView(chip,new LinearLayout.LayoutParams(0,dp(42),1));chip.setOnClickListener(v->{detailTab=item[0];renderMatchScreen();});}
-   LinearLayout.LayoutParams tabP=new LinearLayout.LayoutParams(-1,dp(50));tabP.setMargins(dp(16),0,dp(16),dp(8));screen.addView(tabs,tabP);
-   ScrollView scroll=new ScrollView(this);scroll.setFillViewport(false);scroll.setVerticalScrollBarEnabled(false);LinearLayout body=col();pad(body,16,4,16,22);scroll.addView(body);screen.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+   LinearLayout.LayoutParams tabP=new LinearLayout.LayoutParams(-1,dp(50));tabP.setMargins(dp(16),0,dp(16),dp(8));scrollContent.addView(tabs,tabP);
+   ScrollView scroll=new ScrollView(this);scroll.setFillViewport(false);scroll.setVerticalScrollBarEnabled(false);LinearLayout body=col();pad(body,16,4,16,22);scrollContent.addView(body);safeScrollAdd(scroll,scrollContent);screen.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
    if("details".equals(detailTab)){
     LinearLayout details=col();details.setBackground(shape(0xff151515,24));pad(details,16,14,16,14);body.addView(details);
     details.addView(txt("EVENT INFORMATION",10,ORANGE,true));addDetailRow(details,"Competition",leagueName(selected));addDetailRow(details,"Sport",sportLabel());addDetailRow(details,"Kick-off",date(selected.optLong("date",0)));addDetailRow(details,"Status",selected.optString("status","Upcoming"));addDetailRow(details,"Available streams",selectedSources==null?"Loading":String.valueOf(selectedSources.length()));
@@ -535,8 +539,9 @@ public class MainActivity extends Activity {
  private void retrySelectedMatch(){JSONObject current=selected;if(current==null){load();return;}selected=null;selectMatch(current);}
  private View buildInlinePlayer(){
   LinearLayout card=col();card.setBackground(shape(0xff121212,26));card.setElevation(dp(4));pad(card,12,12,12,12);
-  LinearLayout top=row();TextView label=txt("NOW PLAYING",9,ORANGE,true);label.setLetterSpacing(.12f);top.addView(label,new LinearLayout.LayoutParams(0,-2,1));
-  TextView live=txt(isLiveMatch(selected)?"LIVE":"STREAM",8,isLiveMatch(selected)?0xffff7770:ORANGE,true);live.setBackground(shape(isLiveMatch(selected)?0xff351b1a:0xff302016,14));pad(live,9,5,9,5);top.addView(live);
+  LinearLayout top=row();TextView label=txt("NOW PLAYING",8,ORANGE,true);label.setLetterSpacing(.08f);top.addView(label,new LinearLayout.LayoutParams(0,-2,1));
+  if(!eventStyle(selected)){top.addView(teamBadge(selected,"home"),new LinearLayout.LayoutParams(dp(19),dp(19)));String compactScore=firstNonEmpty(selected,"homeScore","home_score")+" - "+firstNonEmpty(selected,"awayScore","away_score");JSONObject compactData=selected.optJSONObject("score");if(compactData!=null&&compactScore.equals(" - "))compactScore=firstNonEmpty(compactData,"home","homeScore")+" - "+firstNonEmpty(compactData,"away","awayScore");TextView liveScore=txt(compactScore.equals(" - ")?"VS":compactScore,9,Color.WHITE,true);liveScore.setGravity(Gravity.CENTER);LinearLayout.LayoutParams scoreP=new LinearLayout.LayoutParams(-2,-2);scoreP.leftMargin=dp(4);scoreP.rightMargin=dp(4);top.addView(liveScore,scoreP);top.addView(teamBadge(selected,"away"),new LinearLayout.LayoutParams(dp(19),dp(19)));}
+  else{TextView live=txt(isLiveMatch(selected)?"LIVE":"STREAM",8,isLiveMatch(selected)?0xffff7770:ORANGE,true);live.setBackground(shape(isLiveMatch(selected)?0xff351b1a:0xff302016,14));pad(live,7,4,7,4);top.addView(live);}
   NativeIcon close=new NativeIcon(this,"close",MUTED);LinearLayout.LayoutParams closeP=new LinearLayout.LayoutParams(dp(34),dp(34));closeP.leftMargin=dp(5);top.addView(close,closeP);close.setContentDescription("Close match player");close.setOnClickListener(v->homeAndRender());card.addView(top);
   TextView title=txt(matchTitle(selected),13,Color.WHITE,true);title.setMaxLines(1);title.setEllipsize(android.text.TextUtils.TruncateAt.END);LinearLayout.LayoutParams titleP=new LinearLayout.LayoutParams(-1,-2);titleP.topMargin=dp(2);card.addView(title,titleP);
   inlineFrame=new FrameLayout(this);inlineFrame.setBackground(shape(Color.BLACK,20));inlineFrame.setClipToOutline(true);LinearLayout.LayoutParams fp=new LinearLayout.LayoutParams(-1,dp(176));fp.topMargin=dp(10);card.addView(inlineFrame,fp);
