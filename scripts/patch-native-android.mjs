@@ -13,8 +13,8 @@ await copyFile("native-android/LiveScoreActivity.java",root+"/LiveScoreActivity.
 
 const playerActivityPath = root + "/PlayerActivity.java";
 let playerActivity = await readFile(playerActivityPath, "utf8");
-playerActivity = playerActivity.replace("public void onCreate(Bundle state) {\n        super.onCreate(state);", "public void onCreate(Bundle state) {\n        super.onCreate(state);\n        if (!SecurityGuard.verify(this) { SecurityGuard.showBlocked(this); return; }");
-playerActivity = playerActivity.replace("protected void onResume() {\n        super.onResume();", "protected void onResume() {\n        super.onResume();\n        if (!SecurityGuard.verify(this) { SecurityGuard.showBlocked(this); return; }");
+playerActivity = playerActivity.replace("public void onCreate(Bundle state) {\n        super.onCreate(state);", "public void onCreate(Bundle state) {\n        super.onCreate(state);\n        if (!SecurityGuard.verify(this)) { SecurityGuard.showBlocked(this); return; }");
+playerActivity = playerActivity.replace("protected void onResume() {\n        super.onResume();", "protected void onResume() {\n        super.onResume();\n        if (!SecurityGuard.verify(this)) { SecurityGuard.showBlocked(this); return; }");
 if (!playerActivity.includes("SecurityGuard.verify(this)")) throw new Error("PlayerActivity security checks did not apply");
 const customViewAdd = 'root.addView(view, new FrameLayout.LayoutParams(-1, -1));';
 if ((playerActivity.split(customViewAdd).length - 1) !== 2) throw new Error("Expected both Chrome fullscreen callbacks before patching");
