@@ -66,12 +66,13 @@ public class MainActivity extends Activity {
  }
  private void hideStartupSplash(){if(startupDialog!=null&&startupDialog.isShowing()){startupDialog.dismiss();startupDialog=null;}}
  private GradientDrawable shape(int c,int r){GradientDrawable d=new GradientDrawable();d.setColor(c);d.setCornerRadius(dp(Math.max(r,14)));d.setStroke(dp(1),Color.argb(c==Color.TRANSPARENT?12:28,255,255,255));return d;}
+ private Drawable ripple(int c,int r){return new RippleDrawable(android.content.res.ColorStateList.valueOf(0x26ffffff),shape(c,r),null);}
  private TextView txt(String s,int z,int c,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextSize(z);t.setTextColor(c);t.setTypeface(Typeface.create("sans-serif",bold?Typeface.BOLD:Typeface.NORMAL));t.setIncludeFontPadding(true);t.setTextIsSelectable(false);return t;}
  private LinearLayout row(){LinearLayout x=new LinearLayout(this);x.setGravity(Gravity.CENTER_VERTICAL);return x;}
  private LinearLayout col(){LinearLayout x=new LinearLayout(this);x.setOrientation(1);return x;}
  private void pad(View v,int l,int t,int r,int b){v.setPadding(dp(l),dp(t),dp(r),dp(b));}
  private int dp(int n){return (int)(n*getResources().getDisplayMetrics().density+.5f);}
- private Button btn(String s,boolean primary){Button b=new Button(this);b.setText(s);b.setTextSize(12);b.setAllCaps(false);b.setTextColor(primary?Color.BLACK:Color.WHITE);b.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));b.setBackground(shape(primary?ORANGE:0xff171717,16));b.setMinHeight(dp(46));b.setPadding(dp(16),0,dp(16),0);b.setOnTouchListener((v,e)->{if(e.getAction()==MotionEvent.ACTION_DOWN)v.animate().scaleX(.97f).scaleY(.97f).setDuration(75).start();else if(e.getAction()==MotionEvent.ACTION_UP||e.getAction()==MotionEvent.ACTION_CANCEL)v.animate().scaleX(1f).scaleY(1f).setDuration(130).setInterpolator(new android.view.animation.OvershootInterpolator(1.15f)).start();return false;});return b;}
+ private Button btn(String s,boolean primary){Button b=new Button(this);b.setText(s);b.setTextSize(12);b.setAllCaps(false);b.setTextColor(primary?Color.BLACK:Color.WHITE);b.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));b.setBackground(ripple(primary?ORANGE:0xff171717,20));b.setMinHeight(dp(46));b.setPadding(dp(16),0,dp(16),0);b.setOnTouchListener((v,e)->{if(e.getAction()==MotionEvent.ACTION_DOWN)v.animate().scaleX(.97f).scaleY(.97f).setDuration(75).start();else if(e.getAction()==MotionEvent.ACTION_UP||e.getAction()==MotionEvent.ACTION_CANCEL)v.animate().scaleX(1f).scaleY(1f).setDuration(130).setInterpolator(new android.view.animation.OvershootInterpolator(1.15f)).start();return false;});return b;}
  private void home(){
   destination="home";
   root=col();root.setBackgroundColor(BG);
@@ -116,7 +117,7 @@ public class MainActivity extends Activity {
   LinearLayout items=row();pad(items,8,7,8,7);bar.addView(items,new LinearLayout.LayoutParams(-1,dp(64)));
   String[][] destinations={{"home","Home","home"},{"discover","Discover","compass"},{"schedule","Schedule","calendar"},{"profile","Profile","user"}};
   for(String[] item:destinations){
-   boolean selectedTab=item[0].equals(active);LinearLayout cell=col();cell.setGravity(Gravity.CENTER);cell.setBackground(shape(selectedTab?0xff2b211a:Color.TRANSPARENT,18));pad(cell,4,5,4,4);
+   boolean selectedTab=item[0].equals(active);LinearLayout cell=col();cell.setGravity(Gravity.CENTER);cell.setBackground(ripple(selectedTab?0xff2b211a:Color.TRANSPARENT,20));pad(cell,4,5,4,4);
    NativeIcon glyph=new NativeIcon(this,item[2],selectedTab?ORANGE:0xff9b9b9b);glyph.setClickable(false);cell.addView(glyph,new LinearLayout.LayoutParams(dp(23),dp(23)));
    TextView label=txt(item[1],10,selectedTab?Color.WHITE:0xff9b9b9b,selectedTab);label.setGravity(Gravity.CENTER);LinearLayout.LayoutParams labelP=new LinearLayout.LayoutParams(-1,-2);labelP.topMargin=dp(3);cell.addView(label,labelP);
    items.addView(cell,new LinearLayout.LayoutParams(0,-1,1));cell.setOnClickListener(v->showDestination(item[0]));
@@ -188,13 +189,13 @@ public class MainActivity extends Activity {
   wrap.addView(profileAction("Instagram and TikTok","@iamczek","instagram",()->openExternal("https://www.instagram.com/iamczek")));
  }
  private View profileAction(String title,String subtitle,String icon,Runnable action){
-  LinearLayout card=row();card.setBackground(shape(0xff171717,18));pad(card,15,14,14,14);LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.bottomMargin=dp(8);card.setLayoutParams(p);
+  LinearLayout card=row();card.setBackground(ripple(0xff171717,20));pad(card,15,14,14,14);LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.bottomMargin=dp(8);card.setLayoutParams(p);
   NativeIcon glyph=new NativeIcon(this,icon,ORANGE);glyph.setClickable(false);card.addView(glyph,new LinearLayout.LayoutParams(dp(24),dp(24)));
   LinearLayout words=col();LinearLayout.LayoutParams wp=new LinearLayout.LayoutParams(0,-2,1);wp.leftMargin=dp(13);card.addView(words,wp);words.addView(txt(title,13,Color.WHITE,true));TextView sub=txt(subtitle,10,MUTED,false);LinearLayout.LayoutParams subp=new LinearLayout.LayoutParams(-1,-2);subp.topMargin=dp(3);words.addView(sub,subp);
   NativeIcon next=new NativeIcon(this,"next",MUTED);next.setClickable(false);card.addView(next,new LinearLayout.LayoutParams(dp(18),dp(18)));card.setOnClickListener(v->action.run());return card;
  }
  private View profileToggleAction(String title,String subtitle,String key,boolean fallback){
-  LinearLayout card=row();card.setBackground(shape(0xff171717,18));pad(card,15,13,14,13);LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.bottomMargin=dp(8);card.setLayoutParams(p);
+  LinearLayout card=row();card.setBackground(ripple(0xff171717,20));pad(card,15,13,14,13);LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.bottomMargin=dp(8);card.setLayoutParams(p);
   NativeIcon glyph=new NativeIcon(this,"play",ORANGE);glyph.setClickable(false);card.addView(glyph,new LinearLayout.LayoutParams(dp(24),dp(24)));
   LinearLayout words=col();LinearLayout.LayoutParams wp=new LinearLayout.LayoutParams(0,-2,1);wp.leftMargin=dp(13);card.addView(words,wp);words.addView(txt(title,12,Color.WHITE,true));TextView sub=txt(subtitle,10,MUTED,false);LinearLayout.LayoutParams subp=new LinearLayout.LayoutParams(-1,-2);subp.topMargin=dp(3);words.addView(sub,subp);
   Switch toggle=new Switch(this);tintSwitch(toggle);toggle.setChecked(setting(key,fallback));card.addView(toggle);
@@ -446,7 +447,7 @@ public class MainActivity extends Activity {
  }
  private View matchCard(JSONObject m){return matchCard(m,false);}
  private View matchCard(JSONObject m,boolean featured){
-  LinearLayout card=col();card.setBackground(shape(featured?0xff1d1814:0xff151515,24));card.setElevation(dp(1));pad(card,16,15,16,14);
+  LinearLayout card=col();card.setBackground(ripple(featured?0xff1d1814:0xff151515,26));card.setElevation(dp(1));pad(card,16,15,16,14);
   LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2);cp.bottomMargin=dp(10);card.setLayoutParams(cp);
   boolean live=isLiveMatch(m);
   LinearLayout meta=row();TextView leagueLabel=txt(leagueName(m),10,0xffc5b5a8,true);meta.addView(leagueLabel,new LinearLayout.LayoutParams(0,-2,1));
