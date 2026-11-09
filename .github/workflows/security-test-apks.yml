@@ -103,7 +103,7 @@ jobs:
           p = Path("android/app/src/main/java/com/v3x/zekify/SecurityGuard.java")
           s = p.read_text()
           anchor = "    private static String findInstrumentationIndicators() {"
-          injected = anchor + '\n        // TEST-ONLY: simulate a positive Frida runtime-hook signal. Never included in the original APK.\n        return "Runtime instrumentation or hooking software was detected (Frida test simulation)";'
+          injected = anchor + '\n        // TEST-ONLY: simulate a positive Frida runtime-hook signal. Never included in the original APK.\n        if (System.nanoTime() >= 0L) return "Runtime instrumentation or hooking software was detected (Frida test simulation)";'
           if s.count(anchor) != 1:
               raise SystemExit("Could not uniquely locate runtime-hook detector")
           p.write_text(s.replace(anchor, injected))
