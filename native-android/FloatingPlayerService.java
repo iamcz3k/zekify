@@ -37,19 +37,21 @@ public class FloatingPlayerService extends Service {
  }
  @Override public int onStartCommand(Intent intent,int flags,int startId){attachOverlay();return START_NOT_STICKY;}
  private int dp(float value){return (int)(value*getResources().getDisplayMetrics().density+.5f);}
+ private GradientDrawable panel(int color,int radius){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(radius));d.setStroke(dp(1),0x28ffffff);return d;}
  private void attachOverlay(){
   if(windowManager==null||pendingSurface==null||overlay!=null)return;
-  overlay=new FrameLayout(this);overlay.setBackgroundColor(Color.BLACK);
-  LinearLayout shell=new LinearLayout(this);shell.setOrientation(LinearLayout.VERTICAL);shell.setBackgroundColor(Color.rgb(5,5,5));overlay.addView(shell,new FrameLayout.LayoutParams(-1,-1));
-  View accent=new View(this);accent.setBackgroundColor(Color.rgb(255,138,61));shell.addView(accent,new LinearLayout.LayoutParams(-1,dp(2)));
-  LinearLayout bar=new LinearLayout(this);bar.setGravity(Gravity.CENTER_VERTICAL);bar.setPadding(dp(11),0,dp(8),0);bar.setBackgroundColor(Color.rgb(17,17,17));shell.addView(bar,new LinearLayout.LayoutParams(-1,dp(38)));
-  TextView title=new TextView(this);title.setText("ZEKIFY  ·  PLAYING");title.setTextColor(Color.WHITE);title.setTextSize(11);title.setLetterSpacing(.08f);title.setTypeface(null,1);bar.addView(title,new LinearLayout.LayoutParams(0,-1,1));
-  TextView close=new TextView(this);close.setText("×");close.setTextColor(Color.rgb(255,138,61));close.setTextSize(23);close.setGravity(Gravity.CENTER);bar.addView(close,new LinearLayout.LayoutParams(dp(32),-1));close.setOnClickListener(v->{removeOverlay(true);stopSelf();});
+  overlay=new FrameLayout(this);overlay.setBackground(panel(Color.BLACK,24));overlay.setClipToOutline(true);overlay.setElevation(dp(14));
+  LinearLayout shell=new LinearLayout(this);shell.setOrientation(LinearLayout.VERTICAL);shell.setBackground(panel(0xff0d0d0d,24));overlay.addView(shell,new FrameLayout.LayoutParams(-1,-1));
+  LinearLayout bar=new LinearLayout(this);bar.setGravity(Gravity.CENTER_VERTICAL);bar.setPadding(dp(13),dp(5),dp(9),dp(5));bar.setBackground(panel(0xff181818,22));shell.addView(bar,new LinearLayout.LayoutParams(-1,dp(46)));
+  LinearLayout titleGroup=new LinearLayout(this);titleGroup.setOrientation(LinearLayout.VERTICAL);titleGroup.setGravity(Gravity.CENTER_VERTICAL);bar.addView(titleGroup,new LinearLayout.LayoutParams(0,-1,1));
+  TextView title=new TextView(this);title.setText("ZEKIFY");title.setTextColor(Color.WHITE);title.setTextSize(11);title.setLetterSpacing(.12f);title.setTypeface(null,1);titleGroup.addView(title);
+  TextView subtitle=new TextView(this);subtitle.setText("NOW PLAYING");subtitle.setTextColor(Color.rgb(255,166,106));subtitle.setTextSize(8);subtitle.setLetterSpacing(.1f);subtitle.setTypeface(null,1);titleGroup.addView(subtitle);
+  TextView close=new TextView(this);close.setText("×");close.setTextColor(Color.WHITE);close.setTextSize(21);close.setGravity(Gravity.CENTER);close.setBackground(panel(0xff303030,18));bar.addView(close,new LinearLayout.LayoutParams(dp(36),dp(36)));close.setOnClickListener(v->{removeOverlay(true);stopSelf();});
   bar.setOnTouchListener((v,event)->{switch(event.getAction()){case MotionEvent.ACTION_DOWN:touchX=event.getRawX();touchY=event.getRawY();startX=params.x;startY=params.y;return true;case MotionEvent.ACTION_MOVE:params.x=startX+(int)(touchX-event.getRawX());params.y=startY+(int)(event.getRawY()-touchY);try{windowManager.updateViewLayout(overlay,params);}catch(Exception ignored){}return true;}return true;});
   View surface=pendingSurface;if(surface.getParent() instanceof ViewGroup)((ViewGroup)surface.getParent()).removeView(surface);
   shell.addView(surface,new LinearLayout.LayoutParams(-1,0,1));
   int type=Build.VERSION.SDK_INT>=26?WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY:WindowManager.LayoutParams.TYPE_PHONE;
-  params=new WindowManager.LayoutParams(dp(286),dp(194),type,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,PixelFormat.TRANSLUCENT);
+  params=new WindowManager.LayoutParams(dp(304),dp(210),type,WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,PixelFormat.TRANSLUCENT);
   params.gravity=Gravity.TOP|Gravity.RIGHT;params.x=dp(12);params.y=dp(110);
   try{windowManager.addView(overlay,params);}catch(Exception error){overlay=null;stopSelf();}
  }
