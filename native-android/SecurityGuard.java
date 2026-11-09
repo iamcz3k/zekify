@@ -36,6 +36,9 @@ public final class SecurityGuard {
 
     private SecurityGuard() {}
 
+    static { System.loadLibrary("zekifyguard"); }
+    private static native int nativeEnvironmentFlags();
+
     public static boolean verify(Context context) {
         try {
             if (!OFFICIAL_PACKAGE.equals(context.getPackageName())) {
@@ -80,6 +83,12 @@ public final class SecurityGuard {
             if (rootIssue != null) return fail(rootIssue);
             String hookIssue = findInstrumentationIndicators();
             if (hookIssue != null) return fail(hookIssue);
+            final int nativeFlags;
+            try { nativeFlags = nativeEnvironmentFlags(); }
+            catch (Throwable nativeFailure) { return fail("Native security verification is unavailable"); }
+            if ((nativeFlags & 1) != 0) return fail("A process tracer was detected by native verification");
+            if ((nativeFlags & 2) != 0) return fail("Runtime instrumentation was detected by native verification");
+            if ((nativeFlags & 4) != 0) return fail("Native security inspection could not complete");
             return true;
         } catch (Throwable ignored) {
             return fail("The application integrity check could not be completed");
