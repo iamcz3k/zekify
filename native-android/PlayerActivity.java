@@ -423,7 +423,7 @@ public class PlayerActivity extends Activity {
         toolbar = new LinearLayout(this);
         toolbar.setOrientation(LinearLayout.HORIZONTAL);
         toolbar.setGravity(Gravity.CENTER_VERTICAL);
-        toolbar.setPadding(dp(8), dp(5), dp(56), dp(5));
+        toolbar.setPadding(dp(12), dp(8), dp(12), dp(8));
         toolbar.setBackgroundColor(Color.TRANSPARENT);
         View back = iconButton("back");
         back.setContentDescription("Back to match");
@@ -462,10 +462,6 @@ public class PlayerActivity extends Activity {
         }
         sourceScroll.addView(sourceStrip);
         toolbar.addView(sourceScroll, new LinearLayout.LayoutParams(0, dp(42), 1));
-        stretchButton = iconButton("stretch");
-        stretchButton.setContentDescription("Disable edge-to-edge stretch");
-        stretchButton.setOnClickListener(v -> toggleStretch());
-        toolbar.addView(stretchButton, new LinearLayout.LayoutParams(dp(42), dp(42)));
         FrameLayout.LayoutParams barParams =
             new FrameLayout.LayoutParams(-1, -2, Gravity.TOP);
         root.addView(toolbar, barParams);
@@ -899,8 +895,17 @@ public class PlayerActivity extends Activity {
     private void setControlsVisible(boolean visible) {
         controlsVisible = visible;
         if (toolbar != null) {
-            toolbar.setVisibility(visible ? View.VISIBLE : View.GONE);
-            if (visible) toolbar.bringToFront();
+            toolbar.animate().cancel();
+            if (visible) {
+                toolbar.setVisibility(View.VISIBLE);
+                toolbar.setAlpha(0f);
+                toolbar.bringToFront();
+                toolbar.animate().alpha(1f).setDuration(150L).start();
+            } else {
+                toolbar.animate().alpha(0f).setDuration(110L).withEndAction(() -> {
+                    if (!controlsVisible && toolbar != null) toolbar.setVisibility(View.GONE);
+                }).start();
+            }
         }
         if (visible) scheduleControlsHide();
         else controlsHandler.removeCallbacks(hideControlsTask);
@@ -914,9 +919,8 @@ public class PlayerActivity extends Activity {
     }
 
     private void toggleControls() {
-        // A tap reveals hidden controls; while visible, it restarts the five-second timeout.
-        if (!controlsVisible) setControlsVisible(true);
-        else scheduleControlsHide();
+        // Every tap on the player toggles controls; visible controls can be dismissed immediately.
+        setControlsVisible(!controlsVisible);
     }
 
     private void applyWebVideoSizing() {
