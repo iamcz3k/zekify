@@ -109,23 +109,26 @@ jobs:
                       String hookIssue = findInstrumentationIndicators();
                       if (hookIssue != null) return fail(hookIssue);
                       return true;"""
+          old_verify = old_verify.replace("                      ", "            ")
           new_verify = """            StringBuilder combinedIssues = new StringBuilder();
-                      String rootIssue = findRootIndicators();
-                      if (rootIssue != null) combinedIssues.append(rootIssue);
-                      String hookIssue = findInstrumentationIndicators();
-                      if (hookIssue != null) {
-                          if (combinedIssues.length() > 0) combinedIssues.append("; ");
-                          combinedIssues.append(hookIssue);
-                      }
-                      if (combinedIssues.length() > 0) return fail(combinedIssues.toString());
-                      return true;"""
+            String rootIssue = findRootIndicators();
+            if (rootIssue != null) combinedIssues.append(rootIssue);
+            String hookIssue = findInstrumentationIndicators();
+            if (hookIssue != null) {
+                if (combinedIssues.length() > 0) combinedIssues.append("; ");
+                combinedIssues.append(hookIssue);
+            }
+            if (combinedIssues.length() > 0) return fail(combinedIssues.toString());
+            return true;"""
           if s.count(root_anchor) != 1 or s.count(hook_anchor) != 1:
               raise SystemExit("Could not uniquely locate security detector methods")
           if s.count(old_verify) != 1:
               raise SystemExit("Could not uniquely locate verification sequence")
           s = s.replace(old_verify, new_verify)
-          s = s.replace(root_anchor, root_anchor + '\\n        // TEST ONLY: force the root-detection response path for Magisk/KernelSU coverage.\\n        if (System.nanoTime() >= 0L) return \\"TEST SIMULATION: rooted environment (Magisk/KernelSU) detected\\";")
-          s = s.replace(hook_anchor, hook_anchor + '\\n        // TEST ONLY: force runtime-hook and TracerPid response paths together.\\n        if (System.nanoTime() >= 0L) return \\"TEST SIMULATION: runtime hooks (Frida/Xposed/LSPosed) and process tracer (TracerPid) detected\\";")
+          root_injection = '\\n        // TEST ONLY: force root-detection response path for Magisk/KernelSU coverage.\\n        if (System.nanoTime() >= 0L) return "TEST SIMULATION: rooted environment (Magisk/KernelSU) detected";'
+          hook_injection = '\\n        // TEST ONLY: force runtime-hook and TracerPid response paths together.\\n        if (System.nanoTime() >= 0L) return "TEST SIMULATION: runtime hooks (Frida/Xposed/LSPosed) and process tracer (TracerPid) detected";'
+          s = s.replace(root_anchor, root_anchor + root_injection)
+          s = s.replace(hook_anchor, hook_anchor + hook_injection)
           p.write_text(s)
           check = p.read_text()
           for marker in ("rooted environment (Magisk/KernelSU)", "runtime hooks (Frida/Xposed/LSPosed)", "process tracer (TracerPid)", "combinedIssues"):
