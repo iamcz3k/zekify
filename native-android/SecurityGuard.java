@@ -133,6 +133,49 @@ public final class SecurityGuard {
     }
 
     private static String findInstrumentationIndicators() {
+        // Check known runtime-hook framework entry classes without initializing them.
+        String[] hookClasses = {
+            "de.robv.android.xposed.XposedBridge",
+            "org.lsposed.lspd.core.Main",
+            "com.saurik.substrate.MS$2",
+            "re.frida.server.Frida"
+        };
+        ClassLoader loader = Thread.currentThread().getContextClassLoader();
+        if (loader != null) {
+            for (String name : hookClasses) {
+                try {
+                    Class.forName(name, false, loader);
+                    return "A known runtime hooking framework was detected";
+                } catch (ClassNotFoundException ignored) {
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+        // Check common Frida gadget/server library locations.
+        String[] hookFiles = {
+            "/data/local/tmp/frida-server",
+            "/data/local/tmp/re.frida.server",
+            "/system/lib/libfrida-gadget.so",
+            "/system/lib64/libfrida-gadget.so",
+            "/vendor/lib/libfrida-gadget.so",
+            "/vendor/lib64/libfrida-gadget.so"
+        };
+        for (String path : hookFiles) {
+            if (exists(path)) return "A known runtime hooking component was detected";
+        }
+        // Frida commonly creates identifiable worker threads.
+        try {
+            for (Thread thread : Thread.getAllStackTraces().keySet()) {
+                String threadName = thread.getName();
+                if (threadName != null) {
+                    String value = threadName.toLowerCase(Locale.US);
+                    if (value.contains("gum-js-loop") || value.contains("frida")
+                        || value.contains("gadget")) {
+                        return "A runtime instrumentation thread was detected";
+                    }
+                }
+            }
+        } catch (Throwable ignored) { }
         try (BufferedReader reader = new BufferedReader(new FileReader("/proc/self/maps"))) {
             String line;
             while ((line = reader.readLine()) != null) {
