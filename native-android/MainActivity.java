@@ -382,9 +382,10 @@ public class MainActivity extends Activity {
    }
   }
   private boolean isLiveMatch(JSONObject match){String s=match==null?"":match.optString("status","").trim().toLowerCase(Locale.ROOT);return s.equals("live")||s.equals("in play")||s.equals("live now")||s.equals("1h")||s.equals("2h")||s.equals("ht");}
-  private void selectDefaultTabForMatches(){boolean hasLive=false;for(JSONObject match:matches){if(isLiveMatch(match)){hasLive=true;break;}}String preferred=hasLive?"live":"upcoming";if(!preferred.equals(tab)){tab=preferred;if(root!=null&&selected==null)home();}}
+  private void selectDefaultTabForMatches(){boolean hasLive=false;for(JSONObject match:matches){if(isLiveMatch(match)){hasLive=true;break;}}String preferred=hasLive?"live":"upcoming";if(!preferred.equals(tab)){tab=preferred;if(root!=null&&selected==null&&"home".equals(destination))home();}}
   private void renderContent(){
    if(selected!=null){renderMatchScreen();return;}
+   if(!"home".equals(destination))return;
    pruneStartedScheduledMatches();if(content==null)return;content.removeAllViews();
    int available=0;for(JSONObject m:matches){if(m!=null&&isLiveMatch(m))available++;}
    LinearLayout section=row();section.setGravity(Gravity.CENTER_VERTICAL);LinearLayout sectionWords=col();section.addView(sectionWords,new LinearLayout.LayoutParams(0,-2,1));
@@ -420,7 +421,7 @@ public class MainActivity extends Activity {
     LinearLayout awayTeam=col();awayTeam.setGravity(Gravity.CENTER);awayTeam.addView(teamBadge(selected,"away"),new LinearLayout.LayoutParams(dp(58),dp(58)));TextView awayName=txt(team(selected,"away"),13,Color.WHITE,true);awayName.setGravity(Gravity.CENTER);awayName.setMaxLines(2);LinearLayout.LayoutParams anp=new LinearLayout.LayoutParams(0,-2,1);anp.topMargin=dp(9);awayTeam.addView(awayName,anp);
     teams.addView(homeTeam,new LinearLayout.LayoutParams(0,-2,1));TextView vs=txt("VS",13,ORANGE,true);vs.setBackground(shape(0xff302016,14));pad(vs,13,8,13,8);teams.addView(vs);teams.addView(awayTeam,new LinearLayout.LayoutParams(0,-2,1));hero.addView(teams);
    }else{LinearLayout event=row();pad(event,0,20,0,18);event.addView(eventBadge(selected),new LinearLayout.LayoutParams(dp(58),dp(58)));LinearLayout words=col();LinearLayout.LayoutParams wp=new LinearLayout.LayoutParams(0,-2,1);wp.leftMargin=dp(14);event.addView(words,wp);words.addView(txt(matchTitle(selected),17,Color.WHITE,true));words.addView(txt(firstNonEmpty(selected,"eventSubtitle","category","league"),10,MUTED,false));hero.addView(event);}
-   TextView when=txt(live?timerLabel(selected.optLong("date",0),true):date(selected.optLong("date",0)),11,live?0xffff817a:MUTED,true);when.setGravity(Gravity.CENTER);LinearLayout.LayoutParams whenP=new LinearLayout.LayoutParams(-1,-2);whenP.topMargin=dp(8);hero.addView(when,whenP);
+   TextView when=txt(live?date(selected.optLong("date",0)):date(selected.optLong("date",0)),11,live?0xffff817a:MUTED,true);when.setGravity(Gravity.CENTER);LinearLayout.LayoutParams whenP=new LinearLayout.LayoutParams(-1,-2);whenP.topMargin=dp(8);hero.addView(when,whenP);
    LinearLayout tabs=row();tabs.setBackground(shape(0xff151515,18));pad(tabs,4,4,4,4);String[][] tabItems={{"overview","Overview"},{"watch","Watch"},{"details","Details"}};
    for(String[] item:tabItems){TextView chip=txt(item[1],11,detailTab.equals(item[0])?Color.WHITE:MUTED,true);chip.setGravity(Gravity.CENTER);chip.setBackground(shape(detailTab.equals(item[0])?0xff3a281b:Color.TRANSPARENT,14));tabs.addView(chip,new LinearLayout.LayoutParams(0,dp(42),1));chip.setOnClickListener(v->{detailTab=item[0];renderMatchScreen();});}
    LinearLayout.LayoutParams tabP=new LinearLayout.LayoutParams(-1,dp(50));tabP.topMargin=dp(14);body.addView(tabs,tabP);
@@ -525,7 +526,7 @@ public class MainActivity extends Activity {
  private void bindMatchTimer(TextView view,long kickoff,boolean live){Runnable tick=new Runnable(){public void run(){if(isFinishing()||view.getWindowToken()==null)return;view.setText(timerText(kickoff,live));view.postDelayed(this,1000);}};view.setTag(tick);view.post(tick);}
  private void selectMatch(JSONObject m){
   if(selected!=null&&selected.optString("id").equals(m.optString("id")))return;
-  stopInlinePlayback();selected=m;detail=null;selectedSources=null;selectedSourceIndex=0;inlineLoading=true;render();
+  stopInlinePlayback();selected=m;detail=null;selectedSources=null;selectedSourceIndex=0;detailTab="overview";inlineLoading=true;render();
   final String sport=selectedSport;apiIo.execute(()->{try{JSONObject p=request("/api/public/football-streams?mode=detail&sport="+URLEncoder.encode(sport,"UTF-8")+"&id="+URLEncoder.encode(m.optString("id"),"UTF-8"));JSONObject d=p.optJSONObject("data");JSONArray src=d==null?null:d.optJSONArray("sources");runOnUiThread(()->{if(selected==null||!selected.optString("id").equals(m.optString("id")))return;detail=d;selectedSources=src;inlineLoading=false;render();if(src!=null&&src.length()>0)startInlineSource(0);});}catch(Exception e){runOnUiThread(()->{inlineLoading=false;if(inlineStatus!=null)inlineStatus.setText("Unable to load streams. Tap retry.");render();});}});
  }
  private View buildInlinePlayer(){
@@ -636,6 +637,7 @@ public class MainActivity extends Activity {
  private void removeScheduledMatch(String id){if(id==null||id.isEmpty())return;Set<String> ids=new HashSet<>(getScheduledIds());ids.remove(id);cancelReminder(id,15);cancelReminder(id,0);JSONObject records=getScheduledRecords();records.remove(id);appPrefs.edit().putString("scheduled_match_records",records.toString()).putStringSet(REMINDER_IDS,ids).apply();}
  private void pruneStartedScheduledMatches(){Set<String> ids=new HashSet<>(getScheduledIds());if(ids.isEmpty())return;JSONObject records=getScheduledRecords();boolean changed=false;for(String id:new HashSet<>(ids)){JSONObject match=records.optJSONObject(id);for(JSONObject current:matches){if(id.equals(current.optString("id"))){match=current;try{records.put(id,current);}catch(Exception ignored){}break;}}if(match!=null&&matchHasStarted(match)){ids.remove(id);cancelReminder(id,15);cancelReminder(id,0);records.remove(id);changed=true;}}if(changed)appPrefs.edit().putString("scheduled_match_records",records.toString()).putStringSet(REMINDER_IDS,ids).apply();}
  private void showScheduledMatches(){showDestination("schedule");}
+ private void openExternal(String url){try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(url)));}catch(Exception error){Toast.makeText(this,"No app is available to open this link.",Toast.LENGTH_SHORT).show();}}
  private void showSpeedTest(){
   Dialog d=new Dialog(this);LinearLayout panel=col();panel.setBackground(shape(0xff101010,22));pad(panel,18,16,18,16);
   LinearLayout head=row();head.addView(txt("NETWORK SPEED TEST",15,Color.WHITE,true),new LinearLayout.LayoutParams(0,-2,1));NativeIcon close=new NativeIcon(this,"close",Color.WHITE);head.addView(close,new LinearLayout.LayoutParams(dp(34),dp(34)));close.setOnClickListener(v->d.dismiss());panel.addView(head);
