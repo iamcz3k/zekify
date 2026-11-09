@@ -414,7 +414,7 @@ public class MainActivity extends Activity {
   inlineWebView.setOnLongClickListener(v->true);
   inlineWebView.setWebViewClient(new WebViewClient(){
    @Override public void onPageStarted(WebView view,String url,Bitmap favicon){
-    if(url==null||"about:blank".equals(url))return;
+    if(url==null||"about:blank".equals(url)||!url.equals(view.getUrl()))return;
     final int generation=inlineLoadGeneration;inlineWebGeneration=generation;
     if(inlineStatus!=null)inlineStatus.setText("Connecting to stream source…");
     if(inlineWebTimeout!=null)inlineNetworkHandler.removeCallbacks(inlineWebTimeout);
@@ -422,12 +422,12 @@ public class MainActivity extends Activity {
     inlineNetworkHandler.postDelayed(inlineWebTimeout,25000L);
    }
    @Override public void onPageFinished(WebView view,String url){
-    if(url==null||"about:blank".equals(url)||inlineWebGeneration!=inlineLoadGeneration)return;
+    if(url==null||"about:blank".equals(url)||!url.equals(view.getUrl())||inlineWebGeneration!=inlineLoadGeneration)return;
     if(inlineWebTimeout!=null)inlineNetworkHandler.removeCallbacks(inlineWebTimeout);
     if(inlineStatus!=null)inlineStatus.setText("Source page opened · waiting for video…");
    }
    @Override public void onReceivedError(WebView view,WebResourceRequest request,WebResourceError error){
-    if(request.isForMainFrame()&&inlineWebGeneration==inlineLoadGeneration){
+    if(request.isForMainFrame()&&request.getUrl()!=null&&request.getUrl().toString().equals(view.getUrl())&&inlineWebGeneration==inlineLoadGeneration){
      if(inlineWebTimeout!=null)inlineNetworkHandler.removeCallbacks(inlineWebTimeout);
      if(inlineStatus!=null)inlineStatus.setText("Source failed to load. Tap Retry or choose another source.");
     }
