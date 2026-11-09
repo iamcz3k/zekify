@@ -308,10 +308,10 @@ public class MainActivity extends Activity {
   });
  }
  private static final String[][] SPORTS={
-  {"football","Football"},{"motor-sports","Motorsport"},{"rugby","Rugby"},{"american-football","Am. Football"},
-  {"australian-football","Aussie Rules"},{"cricket","Cricket"},{"hockey","Hockey"},{"badminton","Badminton"},
-  {"baseball","Baseball"},{"volleyball","Volleyball"},{"fight","Fighting"},{"cycling","Cycling"},
-  {"handball","Handball"},{"basketball","Basketball"},{"tennis","Tennis"}
+  {"football","Football"},{"basketball","Basketball"},{"tennis","Tennis"},{"cricket","Cricket"},
+  {"rugby","Rugby"},{"motor-sports","Motorsport"},{"hockey","Hockey"},{"volleyball","Volleyball"},
+  {"baseball","Baseball"},{"american-football","Am. Football"},{"badminton","Badminton"},{"fight","Fighting"},
+  {"cycling","Cycling"},{"handball","Handball"},{"australian-football","Aussie Rules"}
  };
  private String sportLabel(){for(String[] sport:SPORTS)if(sport[0].equals(selectedSport))return sport[1].toUpperCase(Locale.ROOT);return "SPORTS";}
  private String sportAsset(String key){switch(key){
