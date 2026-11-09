@@ -100,40 +100,36 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
           p = Path("android/app/src/main/java/com/v3x/zekify/SecurityGuard.java")
           s = p.read_text()
           root_anchor = "    private static String findRootIndicators() {"
           hook_anchor = "    private static String findInstrumentationIndicators() {"
-          old_verify = """            String rootIssue = findRootIndicators();
-                      if (rootIssue != null) return fail(rootIssue);
-                      String hookIssue = findInstrumentationIndicators();
-                      if (hookIssue != null) return fail(hookIssue);
-                      return true;"""
-          old_verify = old_verify.replace("                      ", "            ")
-          new_verify = """            StringBuilder combinedIssues = new StringBuilder();
-            String rootIssue = findRootIndicators();
-            if (rootIssue != null) combinedIssues.append(rootIssue);
-            String hookIssue = findInstrumentationIndicators();
-            if (hookIssue != null) {
-                if (combinedIssues.length() > 0) combinedIssues.append("; ");
-                combinedIssues.append(hookIssue);
-            }
-            if (combinedIssues.length() > 0) return fail(combinedIssues.toString());
-            return true;"""
           if s.count(root_anchor) != 1 or s.count(hook_anchor) != 1:
               raise SystemExit("Could not uniquely locate security detector methods")
-          if s.count(old_verify) != 1:
-              raise SystemExit("Could not uniquely locate verification sequence")
-          s = s.replace(old_verify, new_verify)
+          pattern = re.compile(r'(?m)^            String rootIssue = findRootIndicators\(\);\n            if \(rootIssue != null\) return fail\(rootIssue\);\n            String hookIssue = findInstrumentationIndicators\(\);\n            if \(hookIssue != null\) return fail\(hookIssue\);\n            (?:final int nativeFlags;)', re.M)
+          match = pattern.search(s)
+          if not match:
+              raise SystemExit("Could not uniquely locate root/hook verification sequence")
+          replacement = """            StringBuilder combinedIssues = new StringBuilder();
+                      String rootIssue = findRootIndicators();
+                      if (rootIssue != null) combinedIssues.append(rootIssue);
+                      String hookIssue = findInstrumentationIndicators();
+                      if (hookIssue != null) {
+                          if (combinedIssues.length() > 0) combinedIssues.append("; ");
+                          combinedIssues.append(hookIssue);
+                      }
+                      if (combinedIssues.length() > 0) return fail(combinedIssues.toString());
+                      final int nativeFlags;"""
+          s = s[:match.start()] + replacement + s[match.end():]
           nl = chr(10)
-          root_injection = nl + "        // TEST ONLY: force root-detection response path for Magisk/KernelSU coverage." + nl + '        if (System.nanoTime() >= 0L) return "TEST SIMULATION: rooted environment (Magisk/KernelSU) detected";'
-          hook_injection = nl + "        // TEST ONLY: force runtime-hook and TracerPid response paths together." + nl + '        if (System.nanoTime() >= 0L) return "TEST SIMULATION: runtime hooks (Frida/Xposed/LSPosed) and process tracer (TracerPid) detected";'
+          root_injection = nl + "        // TEST ONLY: force root-detection response path." + nl + '        if (System.nanoTime() >= 0L) return "TEST SIMULATION: rooted environment (Magisk/KernelSU) detected";'
+          hook_injection = nl + "        // TEST ONLY: force runtime-hook and TracerPid response paths." + nl + '        if (System.nanoTime() >= 0L) return "TEST SIMULATION: runtime hooks (Frida/Xposed/LSPosed) and process tracer (TracerPid) detected";'
           s = s.replace(root_anchor, root_anchor + root_injection)
           s = s.replace(hook_anchor, hook_anchor + hook_injection)
           p.write_text(s)
-          check = p.read_text()
           for marker in ("rooted environment (Magisk/KernelSU)", "runtime hooks (Frida/Xposed/LSPosed)", "process tracer (TracerPid)", "combinedIssues"):
-              if marker not in check:
+              if marker not in p.read_text():
                   raise SystemExit("Combined security test patch missing: " + marker)
           PY
       - name: Build combined security test APK
