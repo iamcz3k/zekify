@@ -72,23 +72,26 @@ public class MainActivity extends Activity {
  private int dp(int n){return (int)(n*getResources().getDisplayMetrics().density+.5f);}
  private Button btn(String s,boolean primary){Button b=new Button(this);b.setText(s);b.setTextSize(12);b.setAllCaps(false);b.setTextColor(primary?Color.BLACK:Color.WHITE);b.setTypeface(null,Typeface.BOLD);b.setBackground(shape(primary?ORANGE:PANEL,12));b.setMinHeight(dp(42));b.setPadding(dp(14),0,dp(14),0);b.setOnTouchListener((v,e)->{if(e.getAction()==MotionEvent.ACTION_DOWN)v.animate().scaleX(.97f).scaleY(.97f).setDuration(75).start();else if(e.getAction()==MotionEvent.ACTION_UP||e.getAction()==MotionEvent.ACTION_CANCEL)v.animate().scaleX(1f).scaleY(1f).setDuration(130).setInterpolator(new android.view.animation.OvershootInterpolator(1.15f)).start();return false;});return b;}
  private void home(){
-  root=col();root.setBackgroundColor(BG);
-  LinearLayout header=row();pad(header,18,12,18,12);
-  LinearLayout brand=row();brand.addView(new Ball(this),new LinearLayout.LayoutParams(dp(34),dp(34)));
-  TextView name=txt("ZEKIFY",19,Color.WHITE,true);name.setLetterSpacing(.14f);LinearLayout.LayoutParams np=new LinearLayout.LayoutParams(-2,-2);np.leftMargin=dp(9);brand.addView(name,np);
-  header.addView(brand,new LinearLayout.LayoutParams(0,-2,1));
-  sportTitle=txt(sportLabel(),10,ORANGE,true);sportTitle.setLetterSpacing(.16f);header.addView(sportTitle);
-  NativeIcon menu=new NativeIcon(this,"menu",Color.WHITE);menu.setContentDescription("Menu");menu.setOnClickListener(v->menu());LinearLayout.LayoutParams mp=new LinearLayout.LayoutParams(dp(44),dp(44));mp.leftMargin=dp(10);header.addView(menu,mp);root.addView(header);
-  View line=new View(this);line.setBackgroundColor(0x22ffffff);root.addView(line,new LinearLayout.LayoutParams(-1,dp(1)));
-  HorizontalScrollView sportsScroll=new HorizontalScrollView(this);sportsScroll.setHorizontalScrollBarEnabled(false);sportsScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);sportRow=row();pad(sportRow,18,0,18,8);sportsScroll.addView(sportRow);root.addView(sportsScroll,new LinearLayout.LayoutParams(-1,dp(48)));renderSports();
-  LinearLayout tabs=row();pad(tabs,18,0,18,14);
-  Button live=btn("Live",tab.equals("live")),up=btn("Upcoming",tab.equals("upcoming"));
-  live.setOnClickListener(v->{tab="live";home();render();});up.setOnClickListener(v->{tab="upcoming";home();render();});
-  tabs.addView(live,new LinearLayout.LayoutParams(0,dp(44),1));LinearLayout.LayoutParams upP=new LinearLayout.LayoutParams(0,dp(44),1);upP.leftMargin=dp(8);tabs.addView(up,upP);root.addView(tabs);
-  LinearLayout searchBox=row();searchBox.setBackground(shape(PANEL,12));pad(searchBox,14,0,14,0);searchBox.addView(new NativeIcon(this,"search",MUTED),new LinearLayout.LayoutParams(dp(19),dp(19)));search=new EditText(this);search.setSingleLine(true);search.setTextSize(13);search.setTextColor(Color.WHITE);search.setHintTextColor(MUTED);search.setHint("Search teams, matches or leagues");search.setBackgroundColor(Color.TRANSPARENT);search.setTextIsSelectable(false);search.setLongClickable(false);pad(search,10,0,0,0);search.setText(query);searchBox.addView(search,new LinearLayout.LayoutParams(0,-1,1));LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,dp(48));sp.setMargins(dp(18),0,dp(18),dp(10));root.addView(searchBox,sp);
+  root=col();root.setBackgroundColor(BG);LinearLayout header=row();pad(header,18,13,16,12);LinearLayout brand=row();brand.addView(new Ball(this),new LinearLayout.LayoutParams(dp(32),dp(32)));
+  TextView name=txt("ZEKIFY",18,Color.WHITE,true);name.setLetterSpacing(.16f);LinearLayout.LayoutParams np=new LinearLayout.LayoutParams(-2,-2);np.leftMargin=dp(9);brand.addView(name,np);header.addView(brand,new LinearLayout.LayoutParams(0,-2,1));
+  LinearLayout right=row();right.setGravity(Gravity.CENTER_VERTICAL);TextView sport=txt(sportLabel().toUpperCase(Locale.ROOT),9,ORANGE,true);sport.setLetterSpacing(.1f);right.addView(sport);
+  NativeIcon menu=new NativeIcon(this,"menu",Color.WHITE);menu.setContentDescription("Open menu");LinearLayout.LayoutParams mp=new LinearLayout.LayoutParams(dp(42),dp(42));mp.leftMargin=dp(8);right.addView(menu,mp);menu.setOnClickListener(v->menu());header.addView(right);root.addView(header);
+  View divider=new View(this);divider.setBackgroundColor(0x20ffffff);root.addView(divider,new LinearLayout.LayoutParams(-1,dp(1)));
+  LinearLayout intro=col();pad(intro,18,17,18,13);TextView eyebrow=txt("YOUR SPORTS, LIVE",9,ORANGE,true);eyebrow.setLetterSpacing(.16f);intro.addView(eyebrow);
+  TextView heading=txt("Match centre",25,Color.WHITE,true);LinearLayout.LayoutParams headingP=new LinearLayout.LayoutParams(-1,-2);headingP.topMargin=dp(3);intro.addView(heading,headingP);
+  TextView sub=txt("Live action and upcoming fixtures in one place.",11,MUTED,false);LinearLayout.LayoutParams subP=new LinearLayout.LayoutParams(-1,-2);subP.topMargin=dp(3);intro.addView(sub,subP);root.addView(intro);
+  HorizontalScrollView sportsScroll=new HorizontalScrollView(this);sportsScroll.setHorizontalScrollBarEnabled(false);sportsScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);sportRow=row();pad(sportRow,18,0,18,12);sportsScroll.addView(sportRow);root.addView(sportsScroll,new LinearLayout.LayoutParams(-1,dp(49)));renderSports();
+  LinearLayout searchBox=row();searchBox.setBackground(shape(0xff111111,13));pad(searchBox,14,0,14,0);searchBox.addView(new NativeIcon(this,"search",MUTED),new LinearLayout.LayoutParams(dp(19),dp(19)));
+  search=new EditText(this);search.setSingleLine(true);search.setTextSize(13);search.setTextColor(Color.WHITE);search.setHintTextColor(0xff777777);search.setHint("Search teams, matches or leagues");search.setBackgroundColor(Color.TRANSPARENT);search.setTextIsSelectable(false);search.setLongClickable(false);pad(search,10,0,0,0);search.setText(query);searchBox.addView(search,new LinearLayout.LayoutParams(0,-1,1));
+  LinearLayout.LayoutParams searchP=new LinearLayout.LayoutParams(-1,dp(47));searchP.setMargins(dp(18),dp(2),dp(18),dp(12));root.addView(searchBox,searchP);
   search.addTextChangedListener(new TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int before,int count){query=s.toString().toLowerCase(Locale.ROOT);render();}public void afterTextChanged(Editable e){}});
-  HorizontalScrollView hs=new HorizontalScrollView(this);hs.setHorizontalScrollBarEnabled(false);leagueRow=row();pad(leagueRow,18,0,18,12);hs.addView(leagueRow);root.addView(hs);
-  ScrollView sc=new ScrollView(this);matchesScroll=sc;sc.setFillViewport(true);sc.setVerticalScrollBarEnabled(false);content=col();pad(content,18,2,18,24);sc.addView(content);sc.setOnScrollChangeListener((View v,int sx,int sy,int oldSx,int oldSy)->loadVisibleBadges());root.addView(sc,new LinearLayout.LayoutParams(-1,0,1));setContentView(root);renderLeagues();
+  LinearLayout tabs=row();tabs.setBackground(shape(0xff111111,13));pad(tabs,4,4,4,4);TextView live=txt("LIVE NOW",11,tab.equals("live")?Color.WHITE:MUTED,true);live.setGravity(Gravity.CENTER);live.setBackground(shape(tab.equals("live")?0xff292019:Color.TRANSPARENT,10));
+  TextView upcoming=txt("UPCOMING",11,tab.equals("upcoming")?Color.WHITE:MUTED,true);upcoming.setGravity(Gravity.CENTER);upcoming.setBackground(shape(tab.equals("upcoming")?0xff292019:Color.TRANSPARENT,10));
+  tabs.addView(live,new LinearLayout.LayoutParams(0,dp(39),1));tabs.addView(upcoming,new LinearLayout.LayoutParams(0,dp(39),1));live.setOnClickListener(v->{if(!tab.equals("live")){tab="live";home();render();}});upcoming.setOnClickListener(v->{if(!tab.equals("upcoming")){tab="upcoming";home();render();}});
+  LinearLayout.LayoutParams tabsP=new LinearLayout.LayoutParams(-1,dp(47));tabsP.setMargins(dp(18),0,dp(18),dp(10));root.addView(tabs,tabsP);
+  HorizontalScrollView hs=new HorizontalScrollView(this);hs.setHorizontalScrollBarEnabled(false);hs.setOverScrollMode(View.OVER_SCROLL_NEVER);leagueRow=row();pad(leagueRow,18,0,18,11);hs.addView(leagueRow);root.addView(hs);
+  ScrollView sc=new ScrollView(this);matchesScroll=sc;sc.setFillViewport(true);sc.setVerticalScrollBarEnabled(false);content=col();pad(content,18,3,18,24);sc.addView(content);sc.setOnScrollChangeListener((View v,int sx,int sy,int oldSx,int oldSy)->loadVisibleBadges());root.addView(sc,new LinearLayout.LayoutParams(-1,0,1));
+  setContentView(root);if(!setting("reduce_motion",false)){root.setAlpha(0f);root.animate().alpha(1f).setDuration(180L).start();}renderLeagues();
  }
  private void menu(){
   Dialog dialog=new Dialog(this);LinearLayout panel=col();panel.setBackground(shape(0xff101010,24));pad(panel,20,18,20,20);
@@ -258,7 +261,10 @@ public class MainActivity extends Activity {
  private String matchTitle(JSONObject m){String title=firstNonEmpty(m,"eventName","title","name");if(!title.isEmpty())return title;String h=team(m,"home"),a=team(m,"away");return !h.isEmpty()&&!a.isEmpty()?h+" vs "+a:leagueName(m);}
  private String eventBadgeUrl(JSONObject m){String u=firstNonEmpty(m,"eventBadge","leagueLogo","leagueBadge","poster");if(u.startsWith("/"))u=API+u;return u;}
  private String leagueName(JSONObject m){String s=m.optString("league","");return s.trim().isEmpty()?"Other competitions":s.trim();}
- private void renderLeagues(){if(leagueRow==null)return;leagueRow.removeAllViews();LinkedHashSet<String> ls=new LinkedHashSet<>();ls.add("All");for(JSONObject m:matches)ls.add(leagueName(m));for(String s:ls){Button b=btn(s,s.equals(league));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-2,dp(36));p.rightMargin=dp(7);leagueRow.addView(b,p);b.setOnClickListener(v->{league=s;renderLeagues();render();});}}
+ private void renderLeagues(){
+  if(leagueRow==null)return;leagueRow.removeAllViews();LinkedHashSet<String> ls=new LinkedHashSet<>();ls.add("All");for(JSONObject m:matches)ls.add(leagueName(m));
+  for(String value:ls){final String item=value;boolean active=item.equals(league);TextView chip=txt(item,10,active?Color.WHITE:0xffb7b7b7,true);chip.setGravity(Gravity.CENTER);chip.setBackground(shape(active?0xff302016:0xff121212,18));pad(chip,13,0,13,0);LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-2,dp(34));p.rightMargin=dp(7);leagueRow.addView(chip,p);chip.setOnClickListener(v->{league=item;renderLeagues();render();});}
+ }
   private void render(){
    try{renderContent();}
    catch(RuntimeException error){
@@ -292,40 +298,22 @@ public class MainActivity extends Activity {
   }
  private View matchCard(JSONObject m){return matchCard(m,false);}
  private View matchCard(JSONObject m,boolean featured){
-  LinearLayout card=col();
-  card.setBackground(shape(featured?0xff21170f:0xff151515,18));
-  card.setElevation(dp(featured?3:1));
-  pad(card,featured?17:15,featured?16:14,featured?17:15,featured?15:13);
-  LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2);cp.bottomMargin=dp(11);card.setLayoutParams(cp);
-  LinearLayout meta=row();
-  TextView leagueLabel=txt(leagueName(m).toUpperCase(Locale.ROOT),10,ORANGE,true);leagueLabel.setLetterSpacing(.08f);
-  meta.addView(leagueLabel,new LinearLayout.LayoutParams(0,-2,1));
-  if(featured){TextView popular=txt("POPULAR",9,ORANGE,true);popular.setBackground(shape(0xff352316,30));pad(popular,9,5,9,5);meta.addView(popular);}
+  LinearLayout card=col();card.setBackground(shape(featured?0xff17120e:0xff101010,16));card.setElevation(dp(1));pad(card,14,13,14,12);LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2);cp.bottomMargin=dp(9);card.setLayoutParams(cp);
   String matchStatus=m.optString("status","").trim().toLowerCase(Locale.ROOT);boolean live=matchStatus.equals("live")||matchStatus.equals("in play")||matchStatus.equals("live now")||matchStatus.equals("1h")||matchStatus.equals("2h")||matchStatus.equals("ht");
-  if(live){View dot=new View(this);GradientDrawable dotBg=new GradientDrawable();dotBg.setColor(0xffff625f);dotBg.setCornerRadius(dp(8));dot.setBackground(dotBg);LinearLayout.LayoutParams dotP=new LinearLayout.LayoutParams(dp(7),dp(7));dotP.rightMargin=dp(6);meta.addView(dot,dotP);}
+  LinearLayout meta=row();TextView leagueLabel=txt(leagueName(m).toUpperCase(Locale.ROOT),9,0xffb5a18f,true);leagueLabel.setLetterSpacing(.09f);meta.addView(leagueLabel,new LinearLayout.LayoutParams(0,-2,1));
+  if(featured){TextView popular=txt("FEATURED",8,ORANGE,true);popular.setLetterSpacing(.08f);popular.setBackground(shape(0xff302016,20));pad(popular,8,4,8,4);meta.addView(popular);}
+  if(live){View dot=new View(this);GradientDrawable dotBg=new GradientDrawable();dotBg.setColor(0xffff625f);dotBg.setCornerRadius(dp(8));dot.setBackground(dotBg);LinearLayout.LayoutParams dotP=new LinearLayout.LayoutParams(dp(6),dp(6));dotP.rightMargin=dp(6);meta.addView(dot,dotP);}
   TextView timer=txt("",10,live?0xffff7168:ORANGE,true);meta.addView(timer);bindMatchTimer(timer,m.optLong("date",0),live);
-  if(!live){NativeIcon bell=new NativeIcon(this,isMatchScheduled(m)?"bell-on":"bell",isMatchScheduled(m)?ORANGE:MUTED);bell.setContentDescription(isMatchScheduled(m)?"Remove match reminder":"Notify me about this match");LinearLayout.LayoutParams bellP=new LinearLayout.LayoutParams(dp(30),dp(30));bellP.leftMargin=dp(7);meta.addView(bell,bellP);bell.setOnClickListener(v->{toggleMatchReminder(m);bell.setIconColor(isMatchScheduled(m)?ORANGE:MUTED);bell.setContentDescription(isMatchScheduled(m)?"Remove match reminder":"Notify me about this match");});}
-  card.addView(meta);
-  TextView kickoffDate=txt(date(m.optLong("date",0)),10,MUTED,false);LinearLayout.LayoutParams kickoffDateP=new LinearLayout.LayoutParams(-1,-2);kickoffDateP.topMargin=dp(5);card.addView(kickoffDate,kickoffDateP);
-  if(!eventStyle(m)){
-   LinearLayout teams=row();pad(teams,0,22,0,20);teams.addView(teamBadge(m,"home"));
-   TextView home=txt(team(m,"home"),14,Color.WHITE,true);LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(0,-2,1);hp.leftMargin=dp(9);teams.addView(home,hp);
-   TextView vs=txt("VS",10,ORANGE,true);vs.setLetterSpacing(.1f);teams.addView(vs);
-   TextView away=txt(team(m,"away"),14,Color.WHITE,true);away.setGravity(Gravity.RIGHT);LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(0,-2,1);ap.rightMargin=dp(9);teams.addView(away,ap);teams.addView(teamBadge(m,"away"));card.addView(teams);
-  }else{
-   LinearLayout event=row();pad(event,0,18,0,18);
-   FrameLayout badge=eventBadge(m);event.addView(badge,new LinearLayout.LayoutParams(dp(46),dp(46)));
-   LinearLayout eventText=col();LinearLayout.LayoutParams ep=new LinearLayout.LayoutParams(0,-2,1);ep.leftMargin=dp(12);event.addView(eventText,ep);
-   eventText.addView(txt(matchTitle(m),15,Color.WHITE,true));
-   String sub=firstNonEmpty(m,"eventSubtitle","league","category");if(!sub.isEmpty()){TextView subtitle=txt(sub,10,MUTED,false);LinearLayout.LayoutParams subp=new LinearLayout.LayoutParams(-1,-2);subp.topMargin=dp(4);eventText.addView(subtitle,subp);}
-   card.addView(event);
-  }
-  View sep=new View(this);sep.setBackgroundColor(0x25ffffff);card.addView(sep,new LinearLayout.LayoutParams(-1,dp(1)));
-  LinearLayout foot=row();pad(foot,0,11,0,0);if(live){TextView watch=txt("Watch Live",12,Color.WHITE,true);watch.setGravity(Gravity.CENTER);watch.setBackground(shape(0xffe53935,11));pad(watch,15,9,15,9);foot.addView(watch,new LinearLayout.LayoutParams(-2,dp(38)));watch.setOnClickListener(v->{if(setting("haptics",true))v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);selectMatch(m);});}else{foot.addView(txt("Match details",11,0xffb7b7b7,false),new LinearLayout.LayoutParams(0,-2,1));foot.addView(new NativeIcon(this,"next",ORANGE),new LinearLayout.LayoutParams(dp(18),dp(18)));}card.addView(foot);
-  card.setOnClickListener(v->{if(setting("haptics",true))v.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP);selectMatch(m);});
-  if(setting("compact_cards",false)){card.setPadding(dp(11),dp(9),dp(11),dp(8));cp.bottomMargin=dp(6);}
-  if(!setting("reduce_motion",false)){card.setAlpha(0f);card.setScaleY(.985f);card.animate().alpha(1f).scaleY(1f).setDuration(170L).start();}
-  return card;
+  if(!live){NativeIcon bell=new NativeIcon(this,isMatchScheduled(m)?"bell-on":"bell",isMatchScheduled(m)?ORANGE:MUTED);bell.setContentDescription(isMatchScheduled(m)?"Remove match reminder":"Notify me about this match");LinearLayout.LayoutParams bellP=new LinearLayout.LayoutParams(dp(28),dp(28));bellP.leftMargin=dp(5);meta.addView(bell,bellP);bell.setOnClickListener(v->{toggleMatchReminder(m);bell.setIconColor(isMatchScheduled(m)?ORANGE:MUTED);bell.setContentDescription(isMatchScheduled(m)?"Remove match reminder":"Notify me about this match");});}
+  card.addView(meta);TextView kickoffDate=txt(date(m.optLong("date",0)),10,MUTED,false);LinearLayout.LayoutParams dateP=new LinearLayout.LayoutParams(-1,-2);dateP.topMargin=dp(4);card.addView(kickoffDate,dateP);
+  if(!eventStyle(m)){LinearLayout teams=row();pad(teams,0,17,0,16);teams.setGravity(Gravity.CENTER_VERTICAL);teams.addView(teamBadge(m,"home"));TextView home=txt(team(m,"home"),13,Color.WHITE,true);home.setMaxLines(2);home.setGravity(Gravity.CENTER_VERTICAL);LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(0,-2,1);hp.leftMargin=dp(9);teams.addView(home,hp);
+   TextView vs=txt("VS",9,ORANGE,true);vs.setLetterSpacing(.12f);vs.setBackground(shape(0xff241a13,8));pad(vs,8,5,8,5);teams.addView(vs);TextView away=txt(team(m,"away"),13,Color.WHITE,true);away.setMaxLines(2);away.setGravity(Gravity.CENTER_VERTICAL|Gravity.RIGHT);LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(0,-2,1);ap.rightMargin=dp(9);teams.addView(away,ap);teams.addView(teamBadge(m,"away"));card.addView(teams);
+  }else{LinearLayout event=row();pad(event,0,15,0,15);FrameLayout badge=eventBadge(m);event.addView(badge,new LinearLayout.LayoutParams(dp(44),dp(44)));LinearLayout eventText=col();LinearLayout.LayoutParams ep=new LinearLayout.LayoutParams(0,-2,1);ep.leftMargin=dp(12);event.addView(eventText,ep);eventText.addView(txt(matchTitle(m),14,Color.WHITE,true));String sub=firstNonEmpty(m,"eventSubtitle","league","category");if(!sub.isEmpty()){TextView subtitle=txt(sub,10,MUTED,false);LinearLayout.LayoutParams subp=new LinearLayout.LayoutParams(-1,-2);subp.topMargin=dp(4);eventText.addView(subtitle,subp);}card.addView(event);}
+  View sep=new View(this);sep.setBackgroundColor(0x20ffffff);card.addView(sep,new LinearLayout.LayoutParams(-1,dp(1)));LinearLayout foot=row();pad(foot,0,9,0,0);
+  if(live){TextView watch=txt("WATCH MATCH",10,Color.WHITE,true);watch.setLetterSpacing(.05f);watch.setGravity(Gravity.CENTER);watch.setBackground(shape(0xffb8322e,9));pad(watch,13,8,13,8);foot.addView(watch,new LinearLayout.LayoutParams(-2,dp(34)));watch.setOnClickListener(v->{if(setting("haptics",true))v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);selectMatch(m);});}
+  else{foot.addView(txt("VIEW MATCH DETAILS",9,0xffa9a9a9,true),new LinearLayout.LayoutParams(0,-2,1));foot.addView(new NativeIcon(this,"next",MUTED),new LinearLayout.LayoutParams(dp(17),dp(17)));}card.addView(foot);
+  card.setOnClickListener(v->{if(setting("haptics",true))v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);selectMatch(m);});if(setting("compact_cards",false)){card.setPadding(dp(11),dp(9),dp(11),dp(8));cp.bottomMargin=dp(6);}
+  if(!setting("reduce_motion",false)){card.setAlpha(0f);card.setTranslationY(dp(4));card.animate().alpha(1f).translationY(0f).setDuration(160L).start();}return card;
  }
  private FrameLayout eventBadge(JSONObject m){
   FrameLayout frame=new FrameLayout(this);frame.setBackground(shape(0xff252525,14));
