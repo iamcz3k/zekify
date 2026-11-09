@@ -276,3 +276,52 @@ if (!floatingService.includes("if(!SecurityGuard.verify(this))")) throw new Erro
 await writeFile(floatingServicePath, floatingService);
 
 console.log("Configured native Android screens, player vector icons, black system splash and Media3 playback.");
+
+// Harden release builds with R8 and a native environment verifier.
+const cppRoot = "android/app/src/main/cpp";
+await mkdir(cppRoot, {recursive:true});
+await writeFile(cppRoot + "/CMakeLists.txt", [
+  "cmake_minimum_required(VERSION 3.22.1)",
+  "project(zekifyguard)",
+  "add_library(zekifyguard SHARED zekifyguard.cpp)",
+  "find_library(log-lib log)",
+  "target_link_libraries(zekifyguard ${log-lib})",
+  ""
+].join("\n"));
+await writeFile(cppRoot + "/zekifyguard.cpp", [
+  "#include <jni.h>",
+  "#include <cstdio>",
+  "#include <cstdlib>",
+  "#include <cstring>",
+  "#include <string>",
+  "#include <algorithm>",
+  "#include <cctype>",
+  "static bool suspicious(const char* input) {",
+  "  std::string value(input ? input : \"\");",
+  "  std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c){ return (char)std::tolower(c); });",
+  "  const char* markers[] = {\"frida\",\"gum-js\",\"xposed\",\"lsposed\",\"substrate\",\"zygisk\",\"riru\",\"edxposed\",\"gadget\"};",
+  "  for (const char* marker : markers) if (value.find(marker) != std::string::npos) return true;",
+  "  return false;",
+  "}",
+  "extern \"C\" JNIEXPORT jint JNICALL Java_com_v3x_zekify_SecurityGuard_nativeEnvironmentFlags(JNIEnv*, jclass) {",
+  "  int flags = 0;",
+  "  FILE* status = std::fopen(\"/proc/self/status\", \"r\");",
+  "  if (!status) flags |= 4; else { char line[512]; while (std::fgets(line, sizeof(line), status)) { if (std::strncmp(line, \"TracerPid:\", 10) == 0) { if (std::atoi(line + 10) != 0) flags |= 1; break; } } std::fclose(status); }",
+  "  FILE* maps = std::fopen(\"/proc/self/maps\", \"r\");",
+  "  if (!maps) flags |= 4; else { char line[2048]; while (std::fgets(line, sizeof(line), maps)) { if (suspicious(line)) { flags |= 2; break; } } std::fclose(maps); }",
+  "  return flags;",
+  "}",
+].join("\n"));
+let hardenedGradle = await readFile(gradlePath, "utf8");
+if (!hardenedGradle.includes("externalNativeBuild")) hardenedGradle = hardenedGradle.replace(/android\\s*\\{/, 'android {\\n    externalNativeBuild { cmake { path file("src/main/cpp/CMakeLists.txt"); version "3.22.1" } }');
+if (!hardenedGradle.includes("minifyEnabled true")) hardenedGradle = hardenedGradle.replace(/release\\s*\\{/, 'release {\\n            minifyEnabled true\\n            shrinkResources true\\n            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"');
+await writeFile(gradlePath, hardenedGradle);
+await writeFile("android/app/proguard-rules.pro", [
+  "-keep class com.v3x.zekify.SecurityGuard { *; }",
+  "-keepclasseswithmembernames class * { native <methods>; }",
+  "-keep class com.v3x.zekify.** extends android.app.Activity",
+  "-keep class com.v3x.zekify.** extends android.app.Service",
+  "-dontwarn org.apache.**",
+  ""
+].join("\n"));
+console.log("Enabled R8 obfuscation, resource shrinking and native environment checks.");
