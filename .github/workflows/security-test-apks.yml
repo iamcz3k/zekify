@@ -1,4 +1,4 @@
-name: Build Zekify security test APKs (no release)
+name: Build Zekify runtime-hook security test APKs (no release)
 on:
   push:
     branches:
@@ -10,7 +10,7 @@ concurrency:
   group: zekify-security-test-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  build-two-test-apks:
+  build-two-apks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -44,7 +44,7 @@ jobs:
         run: node scripts/patch-native-android.mjs
       - name: Apply native playback fixes
         run: node scripts/fix-player-playback-state.mjs
-      - name: Set next app version
+      - name: Set app version
         run: |
           sed -i 's/versionCode 1/versionCode 34/' android/app/build.gradle
           sed -i 's/versionName "1.0"/versionName "3.4.0"/' android/app/build.gradle
@@ -76,7 +76,7 @@ jobs:
               }
           }
           GRADLE
-      - name: Build official release candidate
+      - name: Build original APK
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
@@ -85,128 +85,58 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew clean assembleRelease
-          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.4.0-OFFICIAL-TEST.apk
+          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.4.0-ORIGINAL.apk
           cd ..
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.4.0-OFFICIAL-TEST.apk | tee official-signature.txt
-          CERT="$(awk '/Signer #1 certificate SHA-256 digest:/ {print $NF; exit}' official-signature.txt)"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Zekify-v3.4.0-ORIGINAL.apk | grep -F "package: name='com.v3x.zekify'"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.4.0-ORIGINAL.apk | tee original-signature.txt
+          CERT="$(awk '/Signer #1 certificate SHA-256 digest:/ {print $NF; exit}' original-signature.txt)"
           test "$CERT" = "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119"
-          sha256sum Zekify-v3.4.0-OFFICIAL-TEST.apk > Zekify-v3.4.0-OFFICIAL-TEST.apk.sha256
-      - name: Prepare same-package same-signature tamper test
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: |
-          printf 'ZEKIFY-INTEGRITY-V1:modified-by-test\n' > android/app/src/main/assets/zekify-integrity.bin
-          cd android
-          ./gradlew clean assembleRelease
-          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.4.0-SAME-KEY-TAMPER-TEST.apk
-          cd ..
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Zekify-v3.4.0-SAME-KEY-TAMPER-TEST.apk | grep -F "package: name='com.v3x.zekify'"
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.4.0-SAME-KEY-TAMPER-TEST.apk | tee same-key-tamper-signature.txt
-          grep -q "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119" same-key-tamper-signature.txt
-          sha256sum Zekify-v3.4.0-SAME-KEY-TAMPER-TEST.apk > Zekify-v3.4.0-SAME-KEY-TAMPER-TEST.apk.sha256
-      - name: Build debuggable build detection test
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: |
-          cat >> android/app/build.gradle <<'GRADLE'
-          android {
-              buildTypes {
-                  release { debuggable true }
-              }
-          }
-          GRADLE
-          cd android
-          ./gradlew clean assembleRelease
-          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.4.0-DEBUGGABLE-TEST.apk
-          cd ..
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.4.0-DEBUGGABLE-TEST.apk | tee debuggable-signature.txt
-          CERT="$(awk '/Signer #1 certificate SHA-256 digest:/ {print $NF; exit}' debuggable-signature.txt)"
-          test "$CERT" = "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119"
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Zekify-v3.4.0-DEBUGGABLE-TEST.apk | grep -F "package: name='com.v3x.zekify'"
-          sha256sum Zekify-v3.4.0-DEBUGGABLE-TEST.apk > Zekify-v3.4.0-DEBUGGABLE-TEST.apk.sha256
-          sed -i '/release { debuggable true }/d' android/app/build.gradle
-      - name: Prepare deliberately modified side-by-side test copy
-        run: |
-          TAMPER_PASSWORD="$(openssl rand -hex 24)"
-          TAMPER_STORE_PASSWORD="$TAMPER_PASSWORD"
-          TAMPER_KEY_PASSWORD="$TAMPER_PASSWORD"
-          echo "TAMPER_STORE_PASSWORD=$TAMPER_PASSWORD" >> "$GITHUB_ENV"
-          echo "TAMPER_KEY_PASSWORD=$TAMPER_PASSWORD" >> "$GITHUB_ENV"
-          cat >> android/app/build.gradle <<'GRADLE'
-          android {
-              signingConfigs {
-                  tamperTest {
-                      storeFile file("../tamper-test.jks")
-                      storePassword System.getenv("TAMPER_STORE_PASSWORD")
-                      keyAlias "zekify-tamper-test"
-                      keyPassword System.getenv("TAMPER_KEY_PASSWORD")
-                  }
-              }
-              defaultConfig { applicationIdSuffix ".tampertest" }
-              buildTypes { release { signingConfig signingConfigs.tamperTest } }
-          }
-          GRADLE
-          mkdir -p android/app/src/main/assets/security-test
-          printf 'This asset was deliberately changed for the Zekify tamper-detection test.\n' > android/app/src/main/assets/security-test/TAMPER_MARKER.txt
-          keytool -genkeypair -v -keystore android/tamper-test.jks -storepass "$TAMPER_STORE_PASSWORD" -keypass "$TAMPER_KEY_PASSWORD" -alias zekify-tamper-test -keyalg RSA -keysize 2048 -validity 3650 -dname "CN=Zekify Tamper Test, OU=QA, O=LaCzek, L=Kampala, ST=Central, C=UG"
-      - name: Build modified test APK
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          TAMPER_STORE_PASSWORD: ${{ env.TAMPER_STORE_PASSWORD }}
-          TAMPER_KEY_PASSWORD: ${{ env.TAMPER_KEY_PASSWORD }}
-        run: |
-          cd android
-          ./gradlew clean assembleRelease
-          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.4.0-TAMPER-TEST.apk
-          cd ..
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.4.0-TAMPER-TEST.apk | tee tamper-signature.txt
-          if grep -q "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119" tamper-signature.txt; then
-            echo "Tamper test unexpectedly used the official signing certificate"
+          if "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Zekify-v3.4.0-ORIGINAL.apk | grep -q "application-debuggable"; then
+            echo "Original APK must not be debuggable"
             exit 1
           fi
-          sha256sum Zekify-v3.4.0-TAMPER-TEST.apk > Zekify-v3.4.0-TAMPER-TEST.apk.sha256
-      - name: Build same-package wrong-signature test APK
-        env:
-          TAMPER_STORE_PASSWORD: ${{ env.TAMPER_STORE_PASSWORD }}
-          TAMPER_KEY_PASSWORD: ${{ env.TAMPER_KEY_PASSWORD }}
+          sha256sum Zekify-v3.4.0-ORIGINAL.apk > Zekify-v3.4.0-ORIGINAL.apk.sha256
+      - name: Enable runtime-hook simulation in test APK only
         run: |
-          sed -i 's/applicationIdSuffix ".tampertest"//' android/app/build.gradle
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("android/app/src/main/java/com/v3x/zekify/SecurityGuard.java")
+          s = p.read_text()
+          anchor = "    private static String findInstrumentationIndicators() {"
+          injected = anchor + '\n        // TEST-ONLY: simulate a positive Frida runtime-hook signal. Never included in the original APK.\n        return "Runtime instrumentation or hooking software was detected (Frida test simulation)";'
+          if s.count(anchor) != 1:
+              raise SystemExit("Could not uniquely locate runtime-hook detector")
+          p.write_text(s.replace(anchor, injected))
+          if "Frida test simulation" not in p.read_text():
+              raise SystemExit("Runtime-hook test simulation patch did not apply")
+          PY
+      - name: Build runtime-hook security test APK
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
           cd android
           ./gradlew clean assembleRelease
-          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.4.0-SIGNATURE-TEST.apk
+          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.4.0-RUNTIME-HOOK-TEST.apk
           cd ..
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Zekify-v3.4.0-SIGNATURE-TEST.apk | grep -F "package: name='com.v3x.zekify'"
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.4.0-SIGNATURE-TEST.apk | tee signature-test.txt
-          if grep -q "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119" signature-test.txt; then
-            echo "Signature test unexpectedly used the official signing certificate"
-            exit 1
-          fi
-          sha256sum Zekify-v3.4.0-SIGNATURE-TEST.apk > Zekify-v3.4.0-SIGNATURE-TEST.apk.sha256
-      - name: Upload all APKs as workflow artifacts only
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Zekify-v3.4.0-RUNTIME-HOOK-TEST.apk | grep -F "package: name='com.v3x.zekify'"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.4.0-RUNTIME-HOOK-TEST.apk | tee runtime-hook-signature.txt
+          CERT="$(awk '/Signer #1 certificate SHA-256 digest:/ {print $NF; exit}' runtime-hook-signature.txt)"
+          test "$CERT" = "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119"
+          sha256sum Zekify-v3.4.0-RUNTIME-HOOK-TEST.apk > Zekify-v3.4.0-RUNTIME-HOOK-TEST.apk.sha256
+          printf '%s\n' "TEST ONLY: injects a simulated positive Frida runtime-hook signal; this is not a real Frida installation." > RUNTIME-HOOK-TEST-NOTES.txt
+      - name: Upload exactly two APKs as private workflow artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: zekify-v3.4.0-security-round2-apks
+          name: zekify-v3.4.0-runtime-hook-test
           path: |
-            Zekify-v3.4.0-OFFICIAL-TEST.apk
-            Zekify-v3.4.0-DEBUGGABLE-TEST.apk
-            Zekify-v3.4.0-DEBUGGABLE-TEST.apk.sha256
-            debuggable-signature.txt
-            Zekify-v3.4.0-OFFICIAL-TEST.apk.sha256
-            Zekify-v3.4.0-SAME-KEY-TAMPER-TEST.apk
-            Zekify-v3.4.0-SAME-KEY-TAMPER-TEST.apk.sha256
-            same-key-tamper-signature.txt
-            Zekify-v3.4.0-TAMPER-TEST.apk
-            Zekify-v3.4.0-TAMPER-TEST.apk.sha256
-            Zekify-v3.4.0-SIGNATURE-TEST.apk
-            Zekify-v3.4.0-SIGNATURE-TEST.apk.sha256
-            signature-test.txt
-            official-signature.txt
-            tamper-signature.txt
+            Zekify-v3.4.0-ORIGINAL.apk
+            Zekify-v3.4.0-ORIGINAL.apk.sha256
+            Zekify-v3.4.0-RUNTIME-HOOK-TEST.apk
+            Zekify-v3.4.0-RUNTIME-HOOK-TEST.apk.sha256
+            original-signature.txt
+            runtime-hook-signature.txt
+            RUNTIME-HOOK-TEST-NOTES.txt
           if-no-files-found: error
           retention-days: 14
