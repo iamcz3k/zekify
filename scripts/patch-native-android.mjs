@@ -5,6 +5,18 @@ await mkdir(root,{recursive:true});
 await copyFile("native-android/MainActivity.java",root+"/MainActivity.java");
 await copyFile("native-android/SecurityGuard.java",root+"/SecurityGuard.java");
 await copyFile("native-android/PlayerActivity.java",root+"/PlayerActivity.java");
+const playerPath = root + "/PlayerActivity.java";
+let playerSource = await readFile(playerPath, "utf8");
+playerSource = playerSource.replace(
+    "public void onCreate(Bundle state) {\\n        super.onCreate(state);",
+    "public void onCreate(Bundle state) {\\n        super.onCreate(state);\\n        if (!SecurityGuard.verify(this)) { SecurityGuard.showBlocked(this); return; }"
+);
+playerSource = playerSource.replace(
+    "protected void onResume() {\\n        super.onResume();",
+    "protected void onResume() {\\n        super.onResume();\\n        if (!SecurityGuard.verify(this)) { SecurityGuard.showBlocked(this); return; }"
+);
+if (!playerSource.includes("SecurityGuard.verify(this)")) throw new Error("PlayerActivity security checks did not apply");
+await writeFile(playerPath, playerSource);
 await copyFile("native-android/FloatingPlayerService.java",root+"/FloatingPlayerService.java");
 await copyFile("native-android/LiveScoreActivity.java",root+"/LiveScoreActivity.java");
 
@@ -194,7 +206,7 @@ mainActivity = mainActivity.replace(
 );
 mainActivity = mainActivity.replace(
  '@Override protected void onResume(){super.onResume();if(!SecurityGuard.verify(this)){SecurityGuard.showBlocked(this);return;}ZekifyUpdateManager.resumeInstall(this);if(PlayerActivity.returningSourceIndex>=0)',
- '@Override protected void onResume(){super.onResume();ZekifyUpdateManager.resumeInstall(this);if(PlayerActivity.returningSourceIndex>=0)'
+ '@Override protected void onResume(){super.onResume();if(!SecurityGuard.verify(this)){SecurityGuard.showBlocked(this);return;}ZekifyUpdateManager.resumeInstall(this);if(PlayerActivity.returningSourceIndex>=0)'
 );
 
 if (!mainActivity.includes("badgeWaiters")) {
