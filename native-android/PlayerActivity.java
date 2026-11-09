@@ -430,20 +430,49 @@ public class PlayerActivity extends Activity {
         View back = iconButton("back");
         back.setContentDescription("Back to match");
         back.setOnClickListener(v -> finish());
-        toolbar.addView(back);
-        TextView sourcesButton = new TextView(this);
-        sourcesButton.setText("Sources");
-        sourcesButton.setTextColor(Color.WHITE);
-        sourcesButton.setTextSize(12);
-        sourcesButton.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        sourcesButton.setGravity(Gravity.CENTER);
-        sourcesButton.setPadding(dp(16), 0, dp(16), 0);
-        sourcesButton.setBackground(panel(0xe6242424, 24));
-        sourcesButton.setMinHeight(dp(44));
-        sourcesButton.setOnClickListener(v -> { chooseSource(); scheduleControlsHide(); });
-        LinearLayout.LayoutParams sourceButtonParams = new LinearLayout.LayoutParams(-2, dp(44));
-        sourceButtonParams.leftMargin = dp(8);
-        toolbar.addView(sourcesButton, sourceButtonParams);
+        toolbar.addView(back, new LinearLayout.LayoutParams(dp(46), dp(46)));
+        HorizontalScrollView sourceStrip = new HorizontalScrollView(this);
+        sourceStrip.setHorizontalScrollBarEnabled(false);
+        sourceStrip.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        LinearLayout sourceItems = new LinearLayout(this);
+        sourceItems.setOrientation(LinearLayout.HORIZONTAL);
+        sourceItems.setGravity(Gravity.CENTER_VERTICAL);
+        sourceStrip.addView(sourceItems, new HorizontalScrollView.LayoutParams(-2, dp(46)));
+        LinearLayout.LayoutParams stripParams = new LinearLayout.LayoutParams(0, dp(46), 1f);
+        stripParams.leftMargin = dp(8);
+        toolbar.addView(sourceStrip, stripParams);
+        if (sources != null) {
+            for (int i = 0; i < sources.length(); i++) {
+                JSONObject source = sources.optJSONObject(i);
+                if (source == null) continue;
+                final int index = i;
+                TextView chip = new TextView(this);
+                chip.setText(currentSourceNameFor(source, i) + (source.optBoolean("hd") ? " · HD" : ""));
+                chip.setTextColor(i == sourceIndex ? Color.BLACK : Color.WHITE);
+                chip.setTextSize(11);
+                chip.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+                chip.setGravity(Gravity.CENTER);
+                chip.setPadding(dp(13), 0, dp(13), 0);
+                chip.setMinHeight(dp(38));
+                chip.setBackground(panel(i == sourceIndex ? 0xffff8a3d : 0xe6242424, 22));
+                LinearLayout.LayoutParams chipParams = new LinearLayout.LayoutParams(-2, dp(38));
+                chipParams.rightMargin = dp(7);
+                sourceItems.addView(chip, chipParams);
+                chip.setOnClickListener(v -> {
+                    if (index == sourceIndex) return;
+                    sourceIndex = index;
+                    playSource();
+                    for (int j = 0; j < sourceItems.getChildCount(); j++) {
+                        View child = sourceItems.getChildAt(j);
+                        if (child instanceof TextView) {
+                            ((TextView) child).setTextColor(j == sourceIndex ? Color.BLACK : Color.WHITE);
+                            child.setBackground(panel(j == sourceIndex ? 0xffff8a3d : 0xe6242424, 22));
+                        }
+                    }
+                    scheduleControlsHide();
+                });
+            }
+        }
         FrameLayout.LayoutParams barParams =
             new FrameLayout.LayoutParams(-1, -2, Gravity.TOP);
         barParams.setMargins(dp(12), dp(12), dp(12), 0);
