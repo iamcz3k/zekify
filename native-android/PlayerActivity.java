@@ -80,6 +80,11 @@ public class PlayerActivity extends Activity {
     private View resizeButton;
     private View stretchButton;
     private boolean stretchEnabled = true;
+    private View gestureIndicator;
+    private TextView gestureLabel;
+    private ProgressBar gestureProgress;
+    private final Handler gestureHandler = new Handler(Looper.getMainLooper());
+    private final Runnable hideGestureIndicator = () -> { if (gestureIndicator != null) gestureIndicator.setVisibility(View.GONE); };
     private JSONArray sources;
     private int sourceIndex = 0;
     private String matchTitle = "";
@@ -419,13 +424,14 @@ public class PlayerActivity extends Activity {
         toolbar.setOrientation(LinearLayout.HORIZONTAL);
         toolbar.setGravity(Gravity.CENTER_VERTICAL);
         toolbar.setPadding(dp(8), dp(5), dp(56), dp(5));
-        toolbar.setBackgroundColor(0xaa090909);
+        toolbar.setBackgroundColor(Color.TRANSPARENT);
         View back = iconButton("back");
         back.setContentDescription("Back to match");
         back.setOnClickListener(v -> finish());
         toolbar.addView(back);
         HorizontalScrollView sourceScroll = new HorizontalScrollView(this);
         sourceScroll.setHorizontalScrollBarEnabled(false);
+        sourceScroll.setBackgroundColor(Color.TRANSPARENT);
         LinearLayout sourceStrip = new LinearLayout(this);
         sourceStrip.setOrientation(LinearLayout.HORIZONTAL);
         sourceStrip.setGravity(Gravity.CENTER_VERTICAL);
@@ -463,6 +469,7 @@ public class PlayerActivity extends Activity {
         FrameLayout.LayoutParams barParams =
             new FrameLayout.LayoutParams(-1, -2, Gravity.TOP);
         root.addView(toolbar, barParams);
+        buildGestureIndicator();
         if (handedOffFromMain) {
             controlsVisible = false;
             toolbar.setVisibility(View.GONE);
@@ -513,22 +520,121 @@ public class PlayerActivity extends Activity {
             Math.max(0, Math.min(max, current + direction)), 0);
     }
 
+    private void buildGestureIndicator() {
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(12), dp(8), dp(12), dp(8));
+        panel.setBackground(panel(0xe61a1a1a, 14));
+        gestureLabel = new TextView(this);
+        gestureLabel.setTextColor(Color.WHITE);
+        gestureLabel.setTextSize(12);
+        gestureLabel.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        gestureLabel.setGravity(Gravity.CENTER);
+        panel.addView(gestureLabel, new LinearLayout.LayoutParams(-1, dp(22)));
+        gestureProgress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        gestureProgress.setMax(100);
+        gestureProgress.setProgressTintList(android.content.res.ColorStateList.valueOf(0xffff8a3d));
+        gestureProgress.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(0xff444444));
+        panel.addView(gestureProgress, new LinearLayout.LayoutParams(-1, dp(5)));
+        gestureIndicator = panel;
+        gestureIndicator.setVisibility(View.GONE);
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(dp(132), dp(52), Gravity.CENTER_VERTICAL | Gravity.LEFT);
+        params.leftMargin = dp(24);
+        root.addView(gestureIndicator, params);
+    }
+
+    private void showGestureLevel(boolean brightness, int percent) {
+        if (gestureIndicator == null || gestureLabel == null || gestureProgress == null) return;
+        int value = Math.max(0, Math.min(100, percent));
+        gestureLabel.setText((brightness ? "☀  " : "♪  ") + value + "%");
+        gestureProgress.setProgress(value);
+        FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) gestureIndicator.getLayoutParams();
+        params.gravity = Gravity.CENTER_VERTICAL | (brightness ? Gravity.LEFT : Gravity.RIGHT);
+        params.leftMargin = brightness ? dp(24) : 0;
+        params.rightMargin = brightness ? 0 : dp(24);
+        gestureIndicator.setLayoutParams(params);
+        gestureIndicator.setVisibility(View.VISIBLE);
+        gestureIndicator.bringToFront();
+        gestureHandler.removeCallbacks(hideGestureIndicator);
+        gestureHandler.postDelayed(hideGestureIndicator, 850L);
+    }
+
     private class GestureSurface implements View.OnTouchListener {
-        private final boolean direct; private float downX,downY,lastX,lastY; private long downTime,lastTap,startPosition; private boolean moved;
-        GestureSurface(boolean direct){this.direct=direct;}
+        private final boolean direct;
+        private float downX, downY, lastX, lastY, volumeAccumulator;
+        private long lastTap, startPosition;
+        private boolean moved;
+
+        GestureSurface(boolean direct) { this.direct = direct; }
+
         @Override public boolean onTouch(View view, MotionEvent e) {
-            float x=e.getX(), y=e.getY();
-            if(e.getAction()==MotionEvent.ACTION_DOWN){downX=x;downY=y;lastX=x;lastY=y;downTime=System.currentTimeMillis();startPosition=player==null?0:player.getCurrentPosition();moved=false;return direct;}
-            if(e.getAction()==MotionEvent.ACTION_MOVE){
-                float dx=x-downX,dy=y-downY;if(Math.abs(dx)>dp(18)||Math.abs(dy)>dp(18))moved=true;
-                if(moved&&Math.abs(dx)>Math.abs(dy)){ if(player!=null&&player.isCurrentMediaItemSeekable()){long target=Math.max(0,startPosition+(long)(dx*180));player.seekTo(target);} }
-                else if(moved&&Math.abs(dy)>Math.abs(dx)){float delta=(lastY-y)/Math.max(1,view.getHeight());if(downX<view.getWidth()/2f){WindowManager.LayoutParams lp=getWindow().getAttributes();float b=lp.screenBrightness<0?0.5f:lp.screenBrightness;lp.screenBrightness=Math.max(0.02f,Math.min(1f,b+delta));getWindow().setAttributes(lp);}else{android.media.AudioManager am=(android.media.AudioManager)getSystemService(AUDIO_SERVICE);int max=am.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC);int cur=am.getStreamVolume(android.media.AudioManager.STREAM_MUSIC);am.setStreamVolume(android.media.AudioManager.STREAM_MUSIC,Math.max(0,Math.min(max,cur+(int)(delta*max))),0);} }
-                lastX=x;lastY=y;return direct||moved;
+            float x = e.getX(), y = e.getY();
+            if (e.getAction() == MotionEvent.ACTION_DOWN) {
+                downX = x; downY = y; lastX = x; lastY = y;
+                startPosition = player == null ? 0 : player.getCurrentPosition();
+                volumeAccumulator = 0f;
+                moved = false;
+                return direct;
             }
-            if(e.getAction()==MotionEvent.ACTION_UP){
-                long now=System.currentTimeMillis();if(!moved){if(now-lastTap<320){if(x<view.getWidth()/2f)seekBy(-10000);else seekBy(10000);lastTap=0;if(!direct)return true;}else{lastTap=now;toggleControls();}}else if(Math.abs(x-downX)>dp(40)&&Math.abs(y-downY)<dp(35)&&player!=null&&!player.isCurrentMediaItemSeekable()){Toast.makeText(PlayerActivity.this,"Seeking is unavailable for this live stream.",Toast.LENGTH_SHORT).show();}
-                return direct||moved;
-            }return direct;
+            if (e.getAction() == MotionEvent.ACTION_MOVE) {
+                float dx = x - downX, dy = y - downY;
+                if (Math.abs(dx) > dp(18) || Math.abs(dy) > dp(18)) moved = true;
+                if (moved && Math.abs(dx) > Math.abs(dy)) {
+                    if (player != null && player.isCurrentMediaItemSeekable()) {
+                        long target = Math.max(0, startPosition + (long) (dx * 180));
+                        player.seekTo(target);
+                    }
+                } else if (moved && Math.abs(dy) > Math.abs(dx)) {
+                    float delta = (lastY - y) / Math.max(1, view.getHeight());
+                    if (downX < view.getWidth() / 2f) {
+                        WindowManager.LayoutParams lp = getWindow().getAttributes();
+                        float current = lp.screenBrightness < 0 ? 0.5f : lp.screenBrightness;
+                        float next = Math.max(0.02f, Math.min(1f, current + delta));
+                        lp.screenBrightness = next;
+                        getWindow().setAttributes(lp);
+                        showGestureLevel(true, Math.round(next * 100f));
+                    } else {
+                        android.media.AudioManager audio = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
+                        if (audio != null) {
+                            int max = audio.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC);
+                            int current = audio.getStreamVolume(android.media.AudioManager.STREAM_MUSIC);
+                            volumeAccumulator += delta * Math.max(1, max);
+                            int steps = Math.round(volumeAccumulator);
+                            if (steps != 0) {
+                                audio.setStreamVolume(android.media.AudioManager.STREAM_MUSIC,
+                                    Math.max(0, Math.min(max, current + steps)), 0);
+                                volumeAccumulator -= steps;
+                            }
+                            int actual = audio.getStreamVolume(android.media.AudioManager.STREAM_MUSIC);
+                            showGestureLevel(false, max <= 0 ? 0 : Math.round(actual * 100f / max));
+                        }
+                    }
+                }
+                lastX = x; lastY = y;
+                return direct || moved;
+            }
+            if (e.getAction() == MotionEvent.ACTION_UP) {
+                long now = System.currentTimeMillis();
+                if (!moved) {
+                    if (now - lastTap < 320) {
+                        if (x < view.getWidth() / 2f) seekBy(-10000); else seekBy(10000);
+                        lastTap = 0;
+                        if (!direct) return true;
+                    } else {
+                        lastTap = now;
+                        toggleControls();
+                    }
+                } else if (Math.abs(x - downX) > dp(40) && Math.abs(y - downY) < dp(35)
+                    && player != null && !player.isCurrentMediaItemSeekable()) {
+                    Toast.makeText(PlayerActivity.this, "Seeking is unavailable for this live stream.", Toast.LENGTH_SHORT).show();
+                }
+                return direct || moved;
+            }
+            if (e.getAction() == MotionEvent.ACTION_CANCEL) {
+                gestureHandler.removeCallbacks(hideGestureIndicator);
+                gestureHandler.postDelayed(hideGestureIndicator, 250L);
+            }
+            return direct;
         }
     }
     private void seekBy(long delta){if(player==null)return;if(!player.isCurrentMediaItemSeekable()){Toast.makeText(this,"This live stream does not support rewind or forward.",Toast.LENGTH_SHORT).show();return;}player.seekTo(Math.max(0,player.getCurrentPosition()+delta));}
