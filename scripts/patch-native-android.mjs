@@ -313,8 +313,8 @@ await writeFile(cppRoot + "/zekifyguard.cpp", [
   "}",
 ].join("\n"));
 let hardenedGradle = await readFile(gradlePath, "utf8");
-if (!hardenedGradle.includes("externalNativeBuild")) hardenedGradle = hardenedGradle.replace(/android\\s*\\{/, 'android {\\n    externalNativeBuild { cmake { path file("src/main/cpp/CMakeLists.txt"); version "3.22.1" } }');
-if (!hardenedGradle.includes("minifyEnabled true")) hardenedGradle = hardenedGradle.replace(/release\\s*\\{/, 'release {\\n            minifyEnabled true\\n            shrinkResources true\\n            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"');
+if (!hardenedGradle.includes("externalNativeBuild")) hardenedGradle = hardenedGradle.replace(/android\s*\{/, 'android {\n    externalNativeBuild { cmake { path file("src/main/cpp/CMakeLists.txt"); version "3.22.1" } }');
+if (!hardenedGradle.includes("minifyEnabled true")) hardenedGradle = hardenedGradle.replace(/release\s*\{/, 'release {\n            minifyEnabled true\n            shrinkResources true\n            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"');
 await writeFile(gradlePath, hardenedGradle);
 await writeFile("android/app/proguard-rules.pro", [
   "-keep class com.v3x.zekify.SecurityGuard { *; }",
