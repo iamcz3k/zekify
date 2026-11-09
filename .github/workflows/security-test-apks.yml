@@ -106,6 +106,29 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.4.0-SAME-KEY-TAMPER-TEST.apk | tee same-key-tamper-signature.txt
           grep -q "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119" same-key-tamper-signature.txt
           sha256sum Zekify-v3.4.0-SAME-KEY-TAMPER-TEST.apk > Zekify-v3.4.0-SAME-KEY-TAMPER-TEST.apk.sha256
+      - name: Build debuggable build detection test
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          cat >> android/app/build.gradle <<'GRADLE'
+          android {
+              buildTypes {
+                  release { debuggable true }
+              }
+          }
+          GRADLE
+          cd android
+          ./gradlew clean assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.4.0-DEBUGGABLE-TEST.apk
+          cd ..
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.4.0-DEBUGGABLE-TEST.apk | tee debuggable-signature.txt
+          CERT="$(awk '/Signer #1 certificate SHA-256 digest:/ {print $NF; exit}' debuggable-signature.txt)"
+          test "$CERT" = "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Zekify-v3.4.0-DEBUGGABLE-TEST.apk | grep -F "package: name='com.v3x.zekify'"
+          sha256sum Zekify-v3.4.0-DEBUGGABLE-TEST.apk > Zekify-v3.4.0-DEBUGGABLE-TEST.apk.sha256
+          sed -i '/release { debuggable true }/d' android/app/build.gradle
       - name: Prepare deliberately modified side-by-side test copy
         run: |
           TAMPER_PASSWORD="$(openssl rand -hex 24)"
@@ -168,9 +191,12 @@ jobs:
       - name: Upload all APKs as workflow artifacts only
         uses: actions/upload-artifact@v4
         with:
-          name: zekify-v3.4.0-security-test-apks
+          name: zekify-v3.4.0-security-round2-apks
           path: |
             Zekify-v3.4.0-OFFICIAL-TEST.apk
+            Zekify-v3.4.0-DEBUGGABLE-TEST.apk
+            Zekify-v3.4.0-DEBUGGABLE-TEST.apk.sha256
+            debuggable-signature.txt
             Zekify-v3.4.0-OFFICIAL-TEST.apk.sha256
             Zekify-v3.4.0-SAME-KEY-TAMPER-TEST.apk
             Zekify-v3.4.0-SAME-KEY-TAMPER-TEST.apk.sha256
