@@ -125,8 +125,9 @@ jobs:
           if s.count(old_verify) != 1:
               raise SystemExit("Could not uniquely locate verification sequence")
           s = s.replace(old_verify, new_verify)
-          root_injection = '\\n        // TEST ONLY: force root-detection response path for Magisk/KernelSU coverage.\\n        if (System.nanoTime() >= 0L) return "TEST SIMULATION: rooted environment (Magisk/KernelSU) detected";'
-          hook_injection = '\\n        // TEST ONLY: force runtime-hook and TracerPid response paths together.\\n        if (System.nanoTime() >= 0L) return "TEST SIMULATION: runtime hooks (Frida/Xposed/LSPosed) and process tracer (TracerPid) detected";'
+          nl = chr(10)
+          root_injection = nl + "        // TEST ONLY: force root-detection response path for Magisk/KernelSU coverage." + nl + '        if (System.nanoTime() >= 0L) return "TEST SIMULATION: rooted environment (Magisk/KernelSU) detected";'
+          hook_injection = nl + "        // TEST ONLY: force runtime-hook and TracerPid response paths together." + nl + '        if (System.nanoTime() >= 0L) return "TEST SIMULATION: runtime hooks (Frida/Xposed/LSPosed) and process tracer (TracerPid) detected";'
           s = s.replace(root_anchor, root_anchor + root_injection)
           s = s.replace(hook_anchor, hook_anchor + hook_injection)
           p.write_text(s)
