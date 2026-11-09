@@ -189,7 +189,7 @@ public class MainActivity extends Activity {
   TextView connect=txt("CONNECT",10,ORANGE,true);LinearLayout.LayoutParams connectP=new LinearLayout.LayoutParams(-1,-2);connectP.topMargin=dp(22);connectP.bottomMargin=dp(8);wrap.addView(connect,connectP);
   wrap.addView(profileAction("X / Twitter","@iam_czek","x",()->openExternal("https://x.com/iam_czek")));
   wrap.addView(profileAction("Instagram","@iamczek","instagram",()->openExternal("https://www.instagram.com/iamczek")));
-  wrap.addView(profileAction("TikTok","@iamczek","play",()->openExternal("https://www.tiktok.com/@iamczek")));
+  wrap.addView(profileAction("TikTok","@iamczek","tiktok",()->openExternal("https://www.tiktok.com/@iamczek")));
   wrap.addView(profileAction("Email","laczekrsa@proton.me","mail",()->{try{Intent email=new Intent(Intent.ACTION_SENDTO,Uri.parse("mailto:laczekrsa@proton.me"));email.putExtra(Intent.EXTRA_SUBJECT,"Hello LaCzek");startActivity(email);}catch(Exception ignored){Toast.makeText(this,"No email app is available.",Toast.LENGTH_SHORT).show();}}));
  }
  private View profileAction(String title,String subtitle,String icon,Runnable action){
@@ -749,5 +749,5 @@ public class MainActivity extends Activity {
    canvas.restore();
   }
  }
- private static class Ball extends View{Paint p=new Paint(3);Ball(Context c){super(c);}protected void onDraw(Canvas c){float w=getWidth(),h=getHeight(),r=Math.min(w,h)*.45f,x=w/2,y=h/2;p.setColor(0xfff4f4f4);c.drawCircle(x,y,r,p);p.setColor(0xffff8a3d);Path pent=new Path();pent.moveTo(x,y-r*.42f);pent.lineTo(x+r*.34f,y-r*.12f);pent.lineTo(x+r*.21f,y+r*.3f);pent.lineTo(x-r*.21f,y+r*.3f);pent.lineTo(x-r*.34f,y-r*.12f);pent.close();c.drawPath(pent,p);p.setColor(0xff171717);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(Math.max(1,r*.055f));c.drawCircle(x,y,r,p);c.drawLine(x,y-r*.42f,x,y-r,p);c.drawLine(x+r*.34f,y-r*.12f,x+r*.8f,y-r*.6f,p);c.drawLine(x+r*.21f,y+r*.3f,x+r*.7f,y+r*.8f,p);c.drawLine(x-r*.21f,y+r*.3f,x-r*.7f,y+r*.8f,p);c.drawLine(x-r*.34f,y-r*.12f,x-r*.8f,y-r*.6f,p);p.setStyle(Paint.Style.FILL);}}
+ private static class Ball extends View{Paint p=new Paint(3);Ball(Context c){super(c);float lift=3f*c.getResources().getDisplayMetrics().density;android.animation.ObjectAnimator bob=android.animation.ObjectAnimator.ofFloat(this,View.TRANSLATION_Y,0f,-lift,0f);bob.setDuration(1900L);bob.setRepeatCount(android.animation.ValueAnimator.INFINITE);bob.start();}protected void onDraw(Canvas c){float w=getWidth(),h=getHeight(),r=Math.min(w,h)*.45f,x=w/2,y=h/2;p.setColor(0xfff4f4f4);c.drawCircle(x,y,r,p);p.setColor(0xffff8a3d);Path pent=new Path();pent.moveTo(x,y-r*.42f);pent.lineTo(x+r*.34f,y-r*.12f);pent.lineTo(x+r*.21f,y+r*.3f);pent.lineTo(x-r*.21f,y+r*.3f);pent.lineTo(x-r*.34f,y-r*.12f);pent.close();c.drawPath(pent,p);p.setColor(0xff171717);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(Math.max(1,r*.055f));c.drawCircle(x,y,r,p);c.drawLine(x,y-r*.42f,x,y-r,p);c.drawLine(x+r*.34f,y-r*.12f,x+r*.8f,y-r*.6f,p);c.drawLine(x+r*.21f,y+r*.3f,x+r*.7f,y+r*.8f,p);c.drawLine(x-r*.21f,y+r*.3f,x-r*.7f,y+r*.8f,p);c.drawLine(x-r*.34f,y-r*.12f,x-r*.8f,y-r*.6f,p);p.setStyle(Paint.Style.FILL);}}
 }
