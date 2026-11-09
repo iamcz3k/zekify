@@ -91,6 +91,24 @@ jobs:
           CERT="$(awk '/Signer #1 certificate SHA-256 digest:/ {print $NF; exit}' official-signature.txt)"
           test "$CERT" = "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119"
           sha256sum Zekify-v3.4.0-OFFICIAL-TEST.apk > Zekify-v3.4.0-OFFICIAL-TEST.apk.sha256
+      - name: Prepare same-package same-signature tamper test
+        run: |
+          printf 'ZEKIFY-INTEGRITY-V1:modified-by-test\n' > android/app/src/main/assets/zekify-integrity.bin
+          cat >> android/app/build.gradle <<'GRADLE'
+          android {
+              buildTypes {
+                  release { signingConfig signingConfigs.release }
+              }
+          }
+          GRADLE
+          cd android
+          ./gradlew clean assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.4.0-SAME-KEY-TAMPER-TEST.apk
+          cd ..
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Zekify-v3.4.0-SAME-KEY-TAMPER-TEST.apk | grep -F "package: name='com.v3x.zekify'"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.4.0-SAME-KEY-TAMPER-TEST.apk | tee same-key-tamper-signature.txt
+          grep -q "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119" same-key-tamper-signature.txt
+          sha256sum Zekify-v3.4.0-SAME-KEY-TAMPER-TEST.apk > Zekify-v3.4.0-SAME-KEY-TAMPER-TEST.apk.sha256
       - name: Prepare deliberately modified side-by-side test copy
         run: |
           TAMPER_PASSWORD="$(openssl rand -hex 24)"
@@ -157,6 +175,9 @@ jobs:
           path: |
             Zekify-v3.4.0-OFFICIAL-TEST.apk
             Zekify-v3.4.0-OFFICIAL-TEST.apk.sha256
+            Zekify-v3.4.0-SAME-KEY-TAMPER-TEST.apk
+            Zekify-v3.4.0-SAME-KEY-TAMPER-TEST.apk.sha256
+            same-key-tamper-signature.txt
             Zekify-v3.4.0-TAMPER-TEST.apk
             Zekify-v3.4.0-TAMPER-TEST.apk.sha256
             Zekify-v3.4.0-SIGNATURE-TEST.apk
