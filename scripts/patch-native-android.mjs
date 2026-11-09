@@ -254,4 +254,23 @@ floatingService = floatingService.replace("@Override public int onStartCommand(I
 if (!floatingService.includes("if(!SecurityGuard.verify(this))")) throw new Error("FloatingPlayerService security gate did not apply");
 await writeFile(floatingServicePath, floatingService);
 
+// Native verifier used by SecurityGuard through JNI.
+const cppRoot="android/app/src/main/cpp";
+await mkdir(cppRoot,{recursive:true});
+await writeFile(cppRoot+"/CMakeLists.txt", "cmake_minimum_required(VERSION 3.22.1)\nproject(zekifyguard)\nadd_library(zekifyguard SHARED zekifyguard.cpp)\nfind_library(log-lib log)\ntarget_link_libraries(zekifyguard ${log-lib})\n");
+await writeFile(cppRoot+"/zekifyguard.cpp", `#include <jni.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <string>
+#include <algorithm>
+#include <cctype>
+static bool suspicious(const char* input){std::string v(input?input:"");std::transform(v.begin(),v.end(),v.begin(),[](unsigned char c){return (char)std::tolower(c);});const char* m[]={"frida","gum-js","xposed","lsposed","substrate","zygisk","riru","edxposed","gadget"};for(const char* x:m)if(v.find(x)!=std::string::npos)return true;return false;}
+extern "C" JNIEXPORT jint JNICALL Java_com_v3x_zekify_SecurityGuard_nativeEnvironmentFlags(JNIEnv*,jclass){int f=0;FILE* s=fopen("/proc/self/status","r");if(!s)f|=4;else{char l[512];while(fgets(l,sizeof(l),s))if(strncmp(l,"TracerPid:",10)==0){if(atoi(l+10)!=0)f|=1;break;}fclose(s);}FILE* p=fopen("/proc/self/maps","r");if(!p)f|=4;else{char l[2048];while(fgets(l,sizeof(l),p))if(suspicious(l)){f|=2;break;}fclose(p);}return f;}`);
+let hg=await readFile(gradlePath,"utf8");
+if(!hg.includes("externalNativeBuild")) hg=hg.replace("android {","android {\n    externalNativeBuild { cmake { path file(\"src/main/cpp/CMakeLists.txt\"); version \"3.22.1\" } }");
+if(!hg.includes("ndkVersion")) hg=hg.replace("android {","android {\n    ndkVersion \"27.0.12077973\"");
+if(!hg.includes("minifyEnabled true")) hg=hg.replace("release {","release {\n            minifyEnabled true\n            shrinkResources true\n            proguardFiles getDefaultProguardFile(\"proguard-android-optimize.txt\"), \"proguard-rules.pro\"");
+await writeFile(gradlePath,hg);
+await writeFile("android/app/proguard-rules.pro","-keep class com.v3x.zekify.SecurityGuard { *; }\n-keepclasseswithmembernames class * { native <methods>; }\n-keep class com.v3x.zekify.** extends android.app.Activity\n-keep class com.v3x.zekify.** extends android.app.Service\n-dontwarn org.apache.**\n");
 console.log("Configured native Android screens, player vector icons, black system splash and Media3 playback.");
