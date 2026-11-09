@@ -212,7 +212,8 @@ public class PlayerActivity extends Activity {
         status.setTextSize(13);
         status.setGravity(Gravity.CENTER);
         status.setPadding(dp(16), dp(9), dp(16), dp(9));
-        status.setBackground(panel(0xaa090909, 12));
+        status.setBackground(panel(0xdd151515, 22));
+        status.setElevation(dp(8));
         status.setVisibility(View.GONE);
 
         FrameLayout.LayoutParams playerParams =
@@ -423,8 +424,9 @@ public class PlayerActivity extends Activity {
         toolbar = new LinearLayout(this);
         toolbar.setOrientation(LinearLayout.HORIZONTAL);
         toolbar.setGravity(Gravity.CENTER_VERTICAL);
-        toolbar.setPadding(dp(12), dp(8), dp(12), dp(8));
-        toolbar.setBackgroundColor(Color.TRANSPARENT);
+        toolbar.setPadding(dp(10), dp(8), dp(10), dp(8));
+        toolbar.setBackground(panel(0xe6111111, 26));
+        toolbar.setElevation(dp(10));
         View back = iconButton("back");
         back.setContentDescription("Back to match");
         back.setOnClickListener(v -> finish());
@@ -446,7 +448,8 @@ public class PlayerActivity extends Activity {
             chip.setTextSize(11); chip.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
             chip.setGravity(Gravity.CENTER); chip.setSingleLine(true);
             chip.setPadding(dp(13), dp(8), dp(13), dp(8));
-            chip.setBackground(panel(i == sourceIndex ? 0xff332015 : 0x66202020, 22));
+            chip.setBackground(panel(i == sourceIndex ? 0xffff8a3d : 0xff242424, 20));
+            if(i == sourceIndex) chip.setTextColor(Color.BLACK);
             LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(-2, dp(38));
             cp.setMargins(dp(3), 0, dp(3), 0); sourceStrip.addView(chip, cp);
             chip.setOnClickListener(v -> {
@@ -454,7 +457,7 @@ public class PlayerActivity extends Activity {
                     sourceIndex = sourceNumber; playSource();
                     for (int k=0;k<sourceStrip.getChildCount();k++) {
                         View child=sourceStrip.getChildAt(k);
-                        if(child instanceof TextView){((TextView)child).setTextColor(k==sourceIndex?0xffff8a3d:Color.WHITE);child.setBackground(panel(k==sourceIndex?0xff332015:0x66202020,22));}
+                        if(child instanceof TextView){((TextView)child).setTextColor(k==sourceIndex?0xffff8a3d:Color.WHITE);child.setBackground(panel(k==sourceIndex?0xffff8a3d:0xff242424,20));child.setTextColor(k==sourceIndex?Color.BLACK:Color.WHITE);}
                     }
                 }
                 scheduleControlsHide();
@@ -464,6 +467,7 @@ public class PlayerActivity extends Activity {
         toolbar.addView(sourceScroll, new LinearLayout.LayoutParams(0, dp(42), 1));
         FrameLayout.LayoutParams barParams =
             new FrameLayout.LayoutParams(-1, -2, Gravity.TOP);
+        barParams.setMargins(dp(12), dp(12), dp(12), 0);
         root.addView(toolbar, barParams);
         buildGestureIndicator();
         if (handedOffFromMain) {
@@ -483,7 +487,7 @@ public class PlayerActivity extends Activity {
         button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         button.setGravity(Gravity.CENTER);
         button.setPadding(dp(9), 0, dp(9), 0);
-        button.setBackground(panel(0x66202020, 10));
+        button.setBackground(panel(0xe6242424, 18));
         button.setMinimumWidth(dp(48));
         button.setMinimumHeight(dp(42));
         button.setClickable(true);
@@ -493,9 +497,10 @@ public class PlayerActivity extends Activity {
 
     private View iconButton(String name) {
         FrameLayout holder = new FrameLayout(this);
-        holder.setBackground(panel(0x66202020, 12));
-        holder.setMinimumWidth(dp(42));
-        holder.setMinimumHeight(dp(42));
+        holder.setBackground(panel(0xe6242424, 20));
+        holder.setElevation(dp(4));
+        holder.setMinimumWidth(dp(46));
+        holder.setMinimumHeight(dp(46));
         ImageView glyph = new ImageView(this);
         glyph.setImageResource(getResources().getIdentifier(
             "zekify_ic_" + name.replace("-", "_"), "drawable", getPackageName()));
@@ -520,7 +525,8 @@ public class PlayerActivity extends Activity {
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setPadding(dp(12), dp(8), dp(12), dp(8));
-        panel.setBackground(panel(0xe61a1a1a, 14));
+        panel.setBackground(panel(0xe6111111, 22));
+        panel.setElevation(dp(8));
         gestureLabel = new TextView(this);
         gestureLabel.setTextColor(Color.WHITE);
         gestureLabel.setTextSize(12);
