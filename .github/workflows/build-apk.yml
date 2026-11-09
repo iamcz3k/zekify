@@ -1,4 +1,4 @@
-# v3.4.1 release build [release v3.4.1] (rebuild after correcting the native player patch anchor)
+# v3.5.0 release build [release v3.5.0] (rebuild after correcting the native player patch anchor)
 # Authorized release build for the verified player patch; publish only on release-marked commits or manual dispatch.
 name: Build and release Zekify APK
 on:
@@ -30,7 +30,7 @@ jobs:
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses
-          "$SDKMANAGER" --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          "$SDKMANAGER" --install "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;27.0.12077973" "cmake;3.22.1"
           echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
       - name: Install Node dependencies
         env:
@@ -52,8 +52,8 @@ jobs:
           python3 -c "import xml.etree.ElementTree as ET; ET.parse('android/app/src/main/AndroidManifest.xml'); print('AndroidManifest.xml is valid XML')"
       - name: Set Android version
         run: |
-          sed -i 's/versionCode 1/versionCode 34/' android/app/build.gradle
-          sed -i 's/versionName "1.0"/versionName "3.4.1"/' android/app/build.gradle
+          sed -i 's/versionCode 1/versionCode 35/' android/app/build.gradle
+          sed -i 's/versionName "1.0"/versionName "3.5.0"/' android/app/build.gradle
           grep -E 'versionCode|versionName' android/app/build.gradle
       - name: Configure release signing
         env:
@@ -94,41 +94,41 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew assembleRelease
-          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.4.1.apk
+          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.5.0.apk
           cd ..
           rm -f android/zekify-release.jks
-          test -s Zekify-v3.4.1.apk
+          test -s Zekify-v3.5.0.apk
       - name: Generate update checksum
-        run: sha256sum Zekify-v3.4.1.apk > Zekify-v3.4.1.apk.sha256
+        run: sha256sum Zekify-v3.5.0.apk > Zekify-v3.5.0.apk.sha256
       - name: Verify APK signature
         run: |
           set -o pipefail
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.4.1.apk | tee signing-certificate.txt
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.5.0.apk | tee signing-certificate.txt
           CERT="$(awk '/Signer #1 certificate SHA-256 digest:/ {print $NF; exit}' signing-certificate.txt)"
           echo "Release signing certificate: $CERT"
           test "$CERT" = "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119" || (echo "Unexpected signing key. Refusing to publish an incompatible update." && exit 1)
       - uses: actions/upload-artifact@v4
         with:
-          name: zekify-v3.4.1-signed-apk
+          name: zekify-v3.5.0-signed-apk
           path: |
-            Zekify-v3.4.1.apk
-            Zekify-v3.4.1.apk.sha256
+            Zekify-v3.5.0.apk
+            Zekify-v3.5.0.apk.sha256
           if-no-files-found: error
       - name: Publish signed APK release
-        if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[release v3.4.1]')
+        if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[release v3.5.0]')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view v3.4.1 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload v3.4.1 Zekify-v3.4.1.apk Zekify-v3.4.1.apk.sha256 --clobber --repo "$GITHUB_REPOSITORY"
+          if gh release view v3.5.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload v3.5.0 Zekify-v3.5.0.apk Zekify-v3.5.0.apk.sha256 --clobber --repo "$GITHUB_REPOSITORY"
           else
-            gh release create v3.4.1 Zekify-v3.4.1.apk Zekify-v3.4.1.apk.sha256 --title "Zekify v3.4.1" --notes "Zekify 3.4.1 fixes mini-player stream switching and stale WebView callbacks, improves playback status reporting and recovery, removes the dark source-picker panel, and adds live brightness and volume percentage indicators during vertical gestures." --target "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY"
+            gh release create v3.5.0 Zekify-v3.5.0.apk Zekify-v3.5.0.apk.sha256 --title "Zekify v3.5.0" --notes "Zekify 3.4.1 fixes mini-player stream switching and stale WebView callbacks, improves playback status reporting and recovery, removes the dark source-picker panel, and adds live brightness and volume percentage indicators during vertical gestures." --target "$GITHUB_SHA" --repo "$GITHUB_REPOSITORY"
           fi
 
-# v3.4.1 multi-sport release build.
+# v3.5.0 multi-sport release build.
 
-# Multi-sport assets and event rendering included in v3.4.1.
+# Multi-sport assets and event rendering included in v3.5.0.
 
-# v3.4.1 compile fix release build.
+# v3.5.0 compile fix release build.
 
-# Release trigger: v3.4.1 authorized by repository owner.
+# Release trigger: v3.5.0 authorized by repository owner.

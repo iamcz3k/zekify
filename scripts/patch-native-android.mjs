@@ -2,13 +2,20 @@ import { readFile, writeFile, mkdir, copyFile, readdir } from "node:fs/promises"
 const pkg="com.v3x.zekify";
 const root="android/app/src/main/java/"+pkg.replaceAll(".","/");
 await mkdir(root,{recursive:true});
+const appAssets="android/app/src/main/assets";
+await mkdir(appAssets,{recursive:true});
+await writeFile(appAssets+"/zekify-integrity.bin","ZEKIFY-INTEGRITY-V1:official-native-build");
 await copyFile("native-android/MainActivity.java",root+"/MainActivity.java");
+await copyFile("native-android/SecurityGuard.java",root+"/SecurityGuard.java");
 await copyFile("native-android/PlayerActivity.java",root+"/PlayerActivity.java");
 await copyFile("native-android/FloatingPlayerService.java",root+"/FloatingPlayerService.java");
 await copyFile("native-android/LiveScoreActivity.java",root+"/LiveScoreActivity.java");
 
 const playerActivityPath = root + "/PlayerActivity.java";
 let playerActivity = await readFile(playerActivityPath, "utf8");
+playerActivity = playerActivity.replace("public void onCreate(Bundle state) {\n        super.onCreate(state);", "public void onCreate(Bundle state) {\n        super.onCreate(state);\n        if (!SecurityGuard.verify(this) { SecurityGuard.showBlocked(this); return; }");
+playerActivity = playerActivity.replace("protected void onResume() {\n        super.onResume();", "protected void onResume() {\n        super.onResume();\n        if (!SecurityGuard.verify(this) { SecurityGuard.showBlocked(this); return; }");
+if (!playerActivity.includes("SecurityGuard.verify(this)")) throw new Error("PlayerActivity security checks did not apply");
 const customViewAdd = 'root.addView(view, new FrameLayout.LayoutParams(-1, -1));';
 if ((playerActivity.split(customViewAdd).length - 1) !== 2) throw new Error("Expected both Chrome fullscreen callbacks before patching");
 playerActivity = playerActivity.replaceAll(customViewAdd, 'configureCustomFullscreenView(view); root.addView(view, new FrameLayout.LayoutParams(-1, -1)); hideBars();');
@@ -163,6 +170,8 @@ for (const icon of [
 
 const mainActivityPath = root + "/MainActivity.java";
 let mainActivity = await readFile(mainActivityPath, "utf8");
+mainActivity = mainActivity.replace("@Override public void onCreate(Bundle b){super.onCreate(b);appPrefs=", "@Override public void onCreate(Bundle b){super.onCreate(b);if(!SecurityGuard.verify(this)){SecurityGuard.showBlocked(this);return;}appPrefs=");
+mainActivity = mainActivity.replace("@Override protected void onResume(){super.onResume();FloatingPlayerService.hideForReturn();", "@Override protected void onResume(){super.onResume();if(!SecurityGuard.verify(this)){SecurityGuard.showBlocked(this);return;}FloatingPlayerService.hideForReturn();");
 mainActivity = mainActivity.replace(
  'private String team(JSONObject m,String side){JSONObject teams=m.optJSONObject("teams"),t=teams==null?null:teams.optJSONObject(side);return t==null?"Team":t.optString("name","Team");}',
  'private String team(JSONObject m,String side){if(m==null)return "Team";JSONObject teams=m.optJSONObject("teams"),t=teams==null?null:teams.optJSONObject(side);String name=t==null?"":t.optString("name","").trim();return name.isEmpty()||"null".equalsIgnoreCase(name)?"Team":name;}'
@@ -232,5 +241,36 @@ mainActivity = mainActivity.replace(
 );
 if (!mainActivity.includes("badgeWaiters")) throw new Error("Badge cache navigation patch did not apply");
 await writeFile(mainActivityPath, mainActivity);
+if (!mainActivity.includes("if(!SecurityGuard.verify(this))")) throw new Error("MainActivity security gate did not apply");
+const liveScorePath = root + "/LiveScoreActivity.java";
+let liveScore = await readFile(liveScorePath, "utf8");
+liveScore = liveScore.replace("@Override public void onCreate(Bundle state){super.onCreate(state);", "@Override public void onCreate(Bundle state){super.onCreate(state);if(!SecurityGuard.verify(this)){SecurityGuard.showBlocked(this);return;}");
+if (!liveScore.includes("if(!SecurityGuard.verify(this))")) throw new Error("LiveScoreActivity security gate did not apply");
+await writeFile(liveScorePath, liveScore);
+const floatingServicePath = root + "/FloatingPlayerService.java";
+let floatingService = await readFile(floatingServicePath, "utf8");
+floatingService = floatingService.replace("super.onCreate();instance=this;", "super.onCreate();if(!SecurityGuard.verify(this)){stopSelf();return;}instance=this;");
+floatingService = floatingService.replace("@Override public int onStartCommand(Intent intent,int flags,int startId){attachOverlay();return START_NOT_STICKY;}", "@Override public int onStartCommand(Intent intent,int flags,int startId){if(!SecurityGuard.verify(this)){stopSelf(startId);return START_NOT_STICKY;}attachOverlay();return START_NOT_STICKY;}");
+if (!floatingService.includes("if(!SecurityGuard.verify(this))")) throw new Error("FloatingPlayerService security gate did not apply");
+await writeFile(floatingServicePath, floatingService);
 
+// Native verifier used by SecurityGuard through JNI.
+const cppRoot="android/app/src/main/cpp";
+await mkdir(cppRoot,{recursive:true});
+await writeFile(cppRoot+"/CMakeLists.txt", "cmake_minimum_required(VERSION 3.22.1)\nproject(zekifyguard)\nadd_library(zekifyguard SHARED zekifyguard.cpp)\nfind_library(log-lib log)\ntarget_link_libraries(zekifyguard ${log-lib})\n");
+await writeFile(cppRoot+"/zekifyguard.cpp", `#include <jni.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <string>
+#include <algorithm>
+#include <cctype>
+static bool suspicious(const char* input){std::string v(input?input:"");std::transform(v.begin(),v.end(),v.begin(),[](unsigned char c){return (char)std::tolower(c);});const char* m[]={"frida","gum-js","xposed","lsposed","substrate","zygisk","riru","edxposed","gadget"};for(const char* x:m)if(v.find(x)!=std::string::npos)return true;return false;}
+extern "C" JNIEXPORT jint JNICALL Java_com_v3x_zekify_SecurityGuard_nativeEnvironmentFlags(JNIEnv*,jclass){int f=0;FILE* s=fopen("/proc/self/status","r");if(!s)f|=4;else{char l[512];while(fgets(l,sizeof(l),s))if(strncmp(l,"TracerPid:",10)==0){if(atoi(l+10)!=0)f|=1;break;}fclose(s);}FILE* p=fopen("/proc/self/maps","r");if(!p)f|=4;else{char l[2048];while(fgets(l,sizeof(l),p))if(suspicious(l)){f|=2;break;}fclose(p);}return f;}`);
+let hg=await readFile(gradlePath,"utf8");
+if(!hg.includes("externalNativeBuild")) hg=hg.replace("android {","android {\n    externalNativeBuild { cmake { path file(\"src/main/cpp/CMakeLists.txt\"); version \"3.22.1\" } }");
+if(!hg.includes("ndkVersion")) hg=hg.replace("android {","android {\n    ndkVersion \"27.0.12077973\"");
+if(!hg.includes("minifyEnabled true")) hg=hg.replace("release {","release {\n            minifyEnabled true\n            shrinkResources true\n            proguardFiles getDefaultProguardFile(\"proguard-android-optimize.txt\"), \"proguard-rules.pro\"");
+await writeFile(gradlePath,hg);
+await writeFile("android/app/proguard-rules.pro","-keep class com.v3x.zekify.SecurityGuard { *; }\n-keepclasseswithmembernames class * { native <methods>; }\n-keep class com.v3x.zekify.** extends android.app.Activity\n-keep class com.v3x.zekify.** extends android.app.Service\n-dontwarn org.apache.**\n");
 console.log("Configured native Android screens, player vector icons, black system splash and Media3 playback.");
