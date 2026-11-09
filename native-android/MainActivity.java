@@ -406,6 +406,7 @@ public class MainActivity extends Activity {
    NativeIcon reminder=new NativeIcon(this,isMatchScheduled(selected)?"bell-on":"bell",isMatchScheduled(selected)?ORANGE:MUTED);header.addView(reminder,new LinearLayout.LayoutParams(dp(42),dp(42)));reminder.setOnClickListener(v->toggleMatchReminder(selected));screen.addView(header);
    boolean live=isLiveMatch(selected);
    LinearLayout hero=col();hero.setBackground(shape(0xff171717,28));pad(hero,16,14,16,14);LinearLayout.LayoutParams heroP=new LinearLayout.LayoutParams(-1,-2);heroP.setMargins(dp(16),dp(2),dp(16),dp(10));screen.addView(hero,heroP);
+   View miniPlayer=buildInlinePlayer();if(miniPlayer!=null){LinearLayout.LayoutParams miniP=new LinearLayout.LayoutParams(-1,-2);miniP.setMargins(dp(12),0,dp(12),dp(10));screen.addView(miniPlayer,miniP);}
    LinearLayout meta=row();TextView competition=txt(leagueName(selected).toUpperCase(Locale.ROOT),9,MUTED,true);competition.setLetterSpacing(.1f);meta.addView(competition,new LinearLayout.LayoutParams(0,-2,1));
    TextView status=txt(live?"● LIVE NOW":selected.optString("status","UPCOMING").toUpperCase(Locale.ROOT),9,live?0xffff7770:ORANGE,true);status.setBackground(shape(live?0xff351b1a:0xff302016,18));pad(status,10,6,10,6);meta.addView(status);hero.addView(meta);
    if(!eventStyle(selected)){
@@ -420,26 +421,21 @@ public class MainActivity extends Activity {
     LinearLayout event=row();pad(event,0,15,0,12);event.addView(eventBadge(selected),new LinearLayout.LayoutParams(dp(54),dp(54)));LinearLayout words=col();LinearLayout.LayoutParams wp=new LinearLayout.LayoutParams(0,-2,1);wp.leftMargin=dp(13);event.addView(words,wp);words.addView(txt(matchTitle(selected),16,Color.WHITE,true));words.addView(txt(firstNonEmpty(selected,"eventSubtitle","category","league"),10,MUTED,false));hero.addView(event);
    }
    TextView when=txt(date(selected.optLong("date",0)),10,live?0xffff8a80:MUTED,true);when.setGravity(Gravity.CENTER);hero.addView(when);
-   Button watch=btn(live?"Watch live":"Open available streams",true);LinearLayout.LayoutParams watchP=new LinearLayout.LayoutParams(-1,dp(44));watchP.topMargin=dp(12);hero.addView(watch,watchP);watch.setOnClickListener(v->{detailTab="watch";renderMatchScreen();if(selectedSources==null||selectedSources.length()==0)inlineLoading=true;});
-   LinearLayout tabs=row();tabs.setBackground(shape(0xff151515,20));pad(tabs,4,4,4,4);String[][] tabItems={{"overview","Overview"},{"watch","Watch"},{"details","Details"}};
+   LinearLayout tabs=row();tabs.setBackground(shape(0xff151515,20));pad(tabs,4,4,4,4);String[][] tabItems={{"overview","Overview"},{"details","Details"}};
    for(String[] item:tabItems){TextView chip=txt(item[1],11,detailTab.equals(item[0])?Color.WHITE:MUTED,true);chip.setGravity(Gravity.CENTER);chip.setBackground(shape(detailTab.equals(item[0])?0xff3b281c:Color.TRANSPARENT,16));tabs.addView(chip,new LinearLayout.LayoutParams(0,dp(42),1));chip.setOnClickListener(v->{detailTab=item[0];renderMatchScreen();});}
    LinearLayout.LayoutParams tabP=new LinearLayout.LayoutParams(-1,dp(50));tabP.setMargins(dp(16),0,dp(16),dp(8));screen.addView(tabs,tabP);
-   if("watch".equals(detailTab)){
-    View player=buildInlinePlayer();if(player!=null){LinearLayout.LayoutParams pp=new LinearLayout.LayoutParams(-1,-2);pp.setMargins(dp(12),0,dp(12),dp(10));screen.addView(player,pp);}
+   ScrollView scroll=new ScrollView(this);scroll.setFillViewport(false);scroll.setVerticalScrollBarEnabled(false);LinearLayout body=col();pad(body,16,4,16,22);scroll.addView(body);screen.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+   if("details".equals(detailTab)){
+    LinearLayout details=col();details.setBackground(shape(0xff151515,24));pad(details,16,14,16,14);body.addView(details);
+    details.addView(txt("EVENT INFORMATION",10,ORANGE,true));addDetailRow(details,"Competition",leagueName(selected));addDetailRow(details,"Sport",sportLabel());addDetailRow(details,"Kick-off",date(selected.optLong("date",0)));addDetailRow(details,"Status",selected.optString("status","Upcoming"));addDetailRow(details,"Available streams",selectedSources==null?"Loading":String.valueOf(selectedSources.length()));
    }else{
-    ScrollView scroll=new ScrollView(this);scroll.setFillViewport(false);scroll.setVerticalScrollBarEnabled(false);LinearLayout body=col();pad(body,16,4,16,22);scroll.addView(body);screen.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
-    if("details".equals(detailTab)){
-     LinearLayout details=col();details.setBackground(shape(0xff151515,24));pad(details,16,14,16,14);body.addView(details);
-     details.addView(txt("EVENT INFORMATION",10,ORANGE,true));addDetailRow(details,"Competition",leagueName(selected));addDetailRow(details,"Sport",sportLabel());addDetailRow(details,"Kick-off",date(selected.optLong("date",0)));addDetailRow(details,"Status",selected.optString("status","Upcoming"));addDetailRow(details,"Available streams",selectedSources==null?"Loading":String.valueOf(selectedSources.length()));
-    }else{
-     LinearLayout overview=col();overview.setBackground(shape(0xff151515,24));pad(overview,16,15,16,15);body.addView(overview);
-     overview.addView(txt("MATCH OVERVIEW",10,ORANGE,true));TextView note=txt(live?"This event is live. Watch to open the available stream sources.":"Match information and stream sources will appear here when provided.",11,MUTED,false);LinearLayout.LayoutParams noteP=new LinearLayout.LayoutParams(-1,-2);noteP.topMargin=dp(7);overview.addView(note,noteP);
-     if(inlineLoading){TextView loading=txt("Loading available sources…",10,MUTED,false);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.topMargin=dp(12);overview.addView(loading,lp);}
-     if(selectedSources!=null&&selectedSources.length()>0){TextView ready=txt(selectedSources.length()+" stream sources available",11,Color.WHITE,true);LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,-2);rp.topMargin=dp(12);overview.addView(ready,rp);}
-    }
-    TextView recommendations=txt("MORE TO WATCH",10,ORANGE,true);LinearLayout.LayoutParams recP=new LinearLayout.LayoutParams(-1,-2);recP.topMargin=dp(20);recP.bottomMargin=dp(9);body.addView(recommendations,recP);
-    ArrayList<JSONObject> candidates=new ArrayList<>();for(JSONObject item:matches){if(!item.optString("id").equals(selected.optString("id")))candidates.add(item);}boolean popular=false;for(JSONObject item:candidates)if(popularScore(item)>0){popular=true;break;}if(popular)Collections.sort(candidates,(a,b)->Integer.compare(popularScore(b),popularScore(a)));int shown=0;for(JSONObject item:candidates){if(shown>=4)break;body.addView(matchCard(item,popular&&popularScore(item)>0));shown++;}if(shown==0){TextView empty=txt("No other matches available yet.",11,MUTED,false);pad(empty,8,16,8,16);body.addView(empty);}
+    LinearLayout overview=col();overview.setBackground(shape(0xff151515,24));pad(overview,16,15,16,15);body.addView(overview);
+    overview.addView(txt("MATCH OVERVIEW",10,ORANGE,true));TextView note=txt(live?"This event is live. The player above keeps its controls and stream sources within reach.":"Match information and available stream sources will appear here when provided.",11,MUTED,false);LinearLayout.LayoutParams noteP=new LinearLayout.LayoutParams(-1,-2);noteP.topMargin=dp(7);overview.addView(note,noteP);
+    if(inlineLoading){TextView loading=txt("Loading available sources…",10,MUTED,false);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.topMargin=dp(12);overview.addView(loading,lp);}
+    if(selectedSources!=null&&selectedSources.length()>0){TextView ready=txt(selectedSources.length()+" stream sources available",11,Color.WHITE,true);LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,-2);rp.topMargin=dp(12);overview.addView(ready,rp);}
    }
+   TextView recommendations=txt("MORE TO WATCH",10,ORANGE,true);LinearLayout.LayoutParams recP=new LinearLayout.LayoutParams(-1,-2);recP.topMargin=dp(20);recP.bottomMargin=dp(9);body.addView(recommendations,recP);
+   ArrayList<JSONObject> candidates=new ArrayList<>();for(JSONObject item:matches){if(!item.optString("id").equals(selected.optString("id")))candidates.add(item);}boolean popular=false;for(JSONObject item:candidates)if(popularScore(item)>0){popular=true;break;}if(popular)Collections.sort(candidates,(a,b)->Integer.compare(popularScore(b),popularScore(a)));int shown=0;for(JSONObject item:candidates){if(shown>=4)break;body.addView(matchCard(item,popular&&popularScore(item)>0));shown++;}if(shown==0){TextView empty=txt("No other matches available yet.",11,MUTED,false);pad(empty,8,16,8,16);body.addView(empty);}
    root=screen;setContentView(screen);if(!setting("reduce_motion",false)){screen.setAlpha(0f);screen.animate().alpha(1f).setDuration(200L).start();}
   }
  private void addDetailRow(LinearLayout list,String label,String value){
