@@ -181,6 +181,7 @@ public class MainActivity extends Activity {
   wrap.addView(profileAction("Network speed test","Measure ping, jitter, download and upload","activity",this::showSpeedTest));
   wrap.addView(profileAction("Bug reports","View and share saved error reports","bug",this::showBugReports));
   wrap.addView(profileAction("Share Zekify","Share the installed app APK","share",this::shareInstalledApk));
+  wrap.addView(profileAction("Check for updates","Check for the latest Zekify version","refresh",()->checkForUpdates(true)));
   TextView connect=txt("CONNECT",10,ORANGE,true);LinearLayout.LayoutParams connectP=new LinearLayout.LayoutParams(-1,-2);connectP.topMargin=dp(22);connectP.bottomMargin=dp(8);wrap.addView(connect,connectP);
   wrap.addView(profileAction("X / Twitter","@iam_czek","x",()->openExternal("https://x.com/iam_czek")));
   wrap.addView(profileAction("Instagram and TikTok","@iamczek","instagram",()->openExternal("https://www.instagram.com/iamczek")));
