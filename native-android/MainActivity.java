@@ -55,6 +55,7 @@ public class MainActivity extends Activity {
  private JSONObject selected,detail; private LinearLayout sourceList; private WebView matchPreview; private int selectedSourceIndex=0; private JSONArray selectedSources; private FrameLayout inlineFrame; private PlayerView inlinePlayerView; private ExoPlayer inlinePlayer; private WebView inlineWebView; private TextView inlineStatus; private LinearLayout inlineSources; private boolean inlineLoading=false; private Dialog startupDialog; private boolean mainPipActive=false;
  private final int ORANGE=Color.rgb(255,138,61),BG=Color.rgb(5,5,5),PANEL=Color.rgb(17,17,17),MUTED=Color.rgb(145,145,145);
  private String destination="home",settingsReturnDestination="profile",detailTab="overview";
+ private String matchReturnDestination="home";
  @Override public void onCreate(Bundle b){super.onCreate(b);appPrefs=getSharedPreferences("zekify_cache",MODE_PRIVATE);installCrashRecorder();pendingMatchId=getIntent().getStringExtra("matchId")==null?"":getIntent().getStringExtra("matchId");getWindow().setStatusBarColor(BG);getWindow().setNavigationBarColor(BG);getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR^View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);createReminderChannel();home();applySettings();showStartupSplash();registerNetworkRecovery();load();}
  private void installCrashRecorder(){Thread.UncaughtExceptionHandler previous=Thread.getDefaultUncaughtExceptionHandler();Thread.setDefaultUncaughtExceptionHandler((thread,error)->{try{StringWriter trace=new StringWriter();error.printStackTrace(new PrintWriter(trace));recordBug("APP_CRASH",error,trace.toString());appPrefs.edit().putString("last_uncaught_error",trace.toString()).putLong("last_uncaught_error_at",System.currentTimeMillis()).apply();}catch(Exception ignored){}if(previous!=null)previous.uncaughtException(thread,error);else{android.os.Process.killProcess(android.os.Process.myPid());System.exit(10);}});}
  private void showStartupSplash(){
@@ -436,6 +437,7 @@ public class MainActivity extends Activity {
    }
    TextView recommendations=txt("MORE TO WATCH",10,ORANGE,true);LinearLayout.LayoutParams recP=new LinearLayout.LayoutParams(-1,-2);recP.topMargin=dp(20);recP.bottomMargin=dp(9);body.addView(recommendations,recP);
    ArrayList<JSONObject> candidates=new ArrayList<>();for(JSONObject item:matches){if(!item.optString("id").equals(selected.optString("id")))candidates.add(item);}boolean popular=false;for(JSONObject item:candidates)if(popularScore(item)>0){popular=true;break;}if(popular)Collections.sort(candidates,(a,b)->Integer.compare(popularScore(b),popularScore(a)));int shown=0;for(JSONObject item:candidates){if(shown>=4)break;body.addView(matchCard(item,popular&&popularScore(item)>0));shown++;}if(shown==0){TextView empty=txt("No other matches available yet.",11,MUTED,false);pad(empty,8,16,8,16);body.addView(empty);}
+   screen.addView(buildBottomNavigation(matchReturnDestination));
    root=screen;setContentView(screen);if(!setting("reduce_motion",false)){screen.setAlpha(0f);screen.animate().alpha(1f).setDuration(200L).start();}
   }
  private void addDetailRow(LinearLayout list,String label,String value){
@@ -526,6 +528,7 @@ public class MainActivity extends Activity {
  private void selectMatch(JSONObject m){
   if(m==null)return;
   if(selected!=null&&selected.optString("id").equals(m.optString("id")))return;
+  if(selected==null)matchReturnDestination=destination;
   stopInlinePlayback();selected=m;detail=null;selectedSources=null;selectedSourceIndex=0;detailTab="overview";inlineLoading=true;render();
   final String sport=selectedSport;apiIo.execute(()->{try{JSONObject p=request("/api/public/football-streams?mode=detail&sport="+URLEncoder.encode(sport,"UTF-8")+"&id="+URLEncoder.encode(m.optString("id"),"UTF-8"));JSONObject d=p.optJSONObject("data");JSONArray src=d==null?null:d.optJSONArray("sources");runOnUiThread(()->{if(selected==null||!selected.optString("id").equals(m.optString("id")))return;detail=d;selectedSources=src;inlineLoading=false;render();if(src!=null&&src.length()>0)startInlineSource(0);});}catch(Exception e){runOnUiThread(()->{if(selected==null||!selected.optString("id").equals(m.optString("id")))return;inlineLoading=false;recordBug("MATCH_DETAIL",e,null);render();});}});
  }
@@ -684,7 +687,7 @@ public class MainActivity extends Activity {
  private View metricTile(TextView value,String label,String unit){LinearLayout tile=col();tile.setGravity(Gravity.CENTER);tile.setBackground(shape(PANEL,12));tile.setPadding(dp(2),dp(8),dp(2),dp(8));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-1);p.setMargins(dp(2),0,dp(2),0);tile.setLayoutParams(p);TextView title=txt(label,9,ORANGE,true);title.setGravity(Gravity.CENTER);tile.addView(title);tile.addView(value,new LinearLayout.LayoutParams(-1,0,1));TextView suffix=txt(unit,9,MUTED,false);suffix.setGravity(Gravity.CENTER);tile.addView(suffix);return tile;}
  private void showLiveScores(){startActivity(new Intent(this,LiveScoreActivity.class));}
  private void registerNetworkRecovery(){connectivityManager=(ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);if(connectivityManager==null)return;networkCallback=new ConnectivityManager.NetworkCallback(){@Override public void onAvailable(Network network){inlineNetworkHandler.postDelayed(()->{if(isFinishing())return;if(setting("auto_refresh",true))load();if(setting("auto_reconnect",true)&&selectedSources!=null&&inlineStatus!=null){String state=inlineStatus.getText().toString().toLowerCase(Locale.ROOT);if(state.contains("failed")||state.contains("timed out")||state.contains("stopped"))startInlineSource(selectedSourceIndex);}},1000L);}};try{connectivityManager.registerDefaultNetworkCallback(networkCallback);}catch(RuntimeException ignored){networkCallback=null;}}
- private void homeAndRender(){stopInlinePlayback();selected=null;selectedSources=null;home();renderLeagues();render();}
+ private void homeAndRender(){String target=matchReturnDestination;stopInlinePlayback();selected=null;selectedSources=null;if("home".equals(target)){home();renderLeagues();render();}else showDestination(target);}
  @Override public void onBackPressed(){
   if(selected!=null){homeAndRender();return;}
   if(!"home".equals(destination)){showDestination("home");return;}
