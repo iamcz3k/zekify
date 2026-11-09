@@ -64,7 +64,7 @@ public class MainActivity extends Activity {
   startupDialog.setContentView(splash);startupDialog.setCancelable(false);startupDialog.show();Window w=startupDialog.getWindow();if(w!=null){w.setBackgroundDrawableResource(android.R.color.transparent);w.setLayout(-1,-1);w.setStatusBarColor(Color.BLACK);w.setNavigationBarColor(Color.BLACK);}
  }
  private void hideStartupSplash(){if(startupDialog!=null&&startupDialog.isShowing()){startupDialog.dismiss();startupDialog=null;}}
- private GradientDrawable shape(int c,int r){int top=Color.rgb(Math.min(255,Color.red(c)+13),Math.min(255,Color.green(c)+13),Math.min(255,Color.blue(c)+13));GradientDrawable d=new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,new int[]{top,c});d.setCornerRadius(dp(r));d.setStroke(dp(1),0x35ffffff);return d;}
+ private GradientDrawable shape(int c,int r){GradientDrawable d=new GradientDrawable();d.setColor(c);d.setCornerRadius(dp(r));d.setStroke(dp(1),Color.argb(20,255,255,255));return d;}
  private TextView txt(String s,int z,int c,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextSize(z);t.setTextColor(c);t.setTypeface(Typeface.create("sans-serif",bold?Typeface.BOLD:Typeface.NORMAL));t.setIncludeFontPadding(true);t.setTextIsSelectable(false);return t;}
  private LinearLayout row(){LinearLayout x=new LinearLayout(this);x.setGravity(Gravity.CENTER_VERTICAL);return x;}
  private LinearLayout col(){LinearLayout x=new LinearLayout(this);x.setOrientation(1);return x;}
