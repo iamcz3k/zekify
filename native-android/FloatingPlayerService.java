@@ -3,6 +3,7 @@ package com.v3x.zekify;
 import android.app.*;
 import android.content.*;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.graphics.PixelFormat;
 import android.os.*;
 import android.view.*;
