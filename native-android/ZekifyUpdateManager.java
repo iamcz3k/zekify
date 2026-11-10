@@ -163,7 +163,7 @@ public final class ZekifyUpdateManager {
         brandTextParams.leftMargin = dp(activity, 12);
         brandRow.addView(brand, brandTextParams);
         TextView brandSub = new TextView(activity);
-        brandSub.setText("SYSTEM UPDATE");
+        brandSub.setText("UPDATE CENTRE");
         brandSub.setTextColor(0xffff8a3d);
         brandSub.setTextSize(10);
         brandSub.setTypeface(null, Typeface.BOLD);
@@ -212,7 +212,7 @@ public final class ZekifyUpdateManager {
             catch (Exception ignored) { android.widget.Toast.makeText(activity, "Could not open the website.", android.widget.Toast.LENGTH_SHORT).show(); }
         });
         TextView foot = new TextView(activity);
-        foot.setText("This required update must be installed before continuing to Zekify.");
+        foot.setText("SECURE UPDATE  ·  VERIFIED BY ZEKIFY");
         foot.setTextColor(0xff777777);
         foot.setTextSize(12);
         LinearLayout.LayoutParams fp = new LinearLayout.LayoutParams(-1, -2);
@@ -245,7 +245,7 @@ public final class ZekifyUpdateManager {
         progress.setMax(100);
         progress.setProgress(0);
         TextView status = new TextView(activity);
-        status.setText("Preparing secure download…");
+        status.setText("Preparing secure download and verification…");
         status.setTextColor(0xffbdbdbd);
         status.setTextSize(14);
         Dialog page = new Dialog(activity);
@@ -276,7 +276,7 @@ public final class ZekifyUpdateManager {
         brandRow.addView(brandSub, brandSubParams);
         layout.addView(brandRow);
         TextView heading = new TextView(activity);
-        heading.setText("Installing update " + update.version);
+        heading.setText("Downloading Zekify " + update.version);
         heading.setTextColor(0xffffffff);
         heading.setTextSize(25);
         heading.setTypeface(null, 1);
@@ -290,7 +290,7 @@ public final class ZekifyUpdateManager {
         progressParams.topMargin = dp(activity, 22);
         layout.addView(progress, progressParams);
         TextView actionButton = new TextView(activity);
-        actionButton.setText("Downloading…");
+        actionButton.setText("Downloading update…");
         actionButton.setTextColor(0xff111111);
         actionButton.setTextSize(15);
         actionButton.setTypeface(null, 1);
@@ -372,7 +372,7 @@ public final class ZekifyUpdateManager {
                     actionButton.setEnabled(true);
                     actionButton.setOnClickListener(v -> download(activity, update));
                 } else {
-                    status.setText("Download complete. Checks passed. Opening Android installer…");
+                    status.setText("Download complete. Checksum verified. Opening Android installer…");
                     progress.setProgress(100);
                     actionButton.setText("Opening installer…");
                     actionButton.setEnabled(false);

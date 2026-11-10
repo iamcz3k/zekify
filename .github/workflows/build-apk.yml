@@ -102,9 +102,9 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.5.2.apk
           cd ..
           rm -f android/zekify-release.jks
-          test -s Zekify-v3.5.1.apk
+          test -s Zekify-v3.5.2.apk
       - name: Generate update checksum
-        run: sha256sum Zekify-v3.5.1.apk > Zekify-v3.5.1.apk.sha256
+        run: sha256sum Zekify-v3.5.2.apk > Zekify-v3.5.2.apk.sha256
       - name: Verify APK signature
         run: |
           set -o pipefail
@@ -116,8 +116,8 @@ jobs:
         with:
           name: zekify-v3.5.2-signed-apk
           path: |
-            Zekify-v3.5.1.apk
-            Zekify-v3.5.1.apk.sha256
+            Zekify-v3.5.2.apk
+            Zekify-v3.5.2.apk.sha256
           if-no-files-found: error
       - name: Publish v3.5.1 GitHub Release
         if: github.ref == 'refs/heads/pixel-ui-v3.5.1-test'

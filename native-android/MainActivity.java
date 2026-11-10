@@ -51,7 +51,7 @@ public class MainActivity extends Activity {
  private ScrollView matchesScroll;
  private EditText search;
  private String tab="live",league="All",query="",selectedSport="football";
- private TextView sportTitle; private LinearLayout sportRow; private int matchesGeneration=0;
+ private TextView sportTitle; private LinearLayout sportRow; private int matchesGeneration=0; private String matchesError="";
  private JSONObject selected,detail; private LinearLayout sourceList; private WebView matchPreview; private int selectedSourceIndex=0; private JSONArray selectedSources; private FrameLayout inlineFrame; private PlayerView inlinePlayerView; private ExoPlayer inlinePlayer; private WebView inlineWebView; private TextView inlineStatus; private LinearLayout inlineSources; private boolean inlineLoading=false; private Dialog startupDialog; private boolean mainPipActive=false;
  private final int ORANGE=Color.rgb(255,138,61),BG=Color.rgb(5,5,5),PANEL=Color.rgb(17,17,17),MUTED=Color.rgb(145,145,145);
  private String destination="home",settingsReturnDestination="profile",detailTab="overview";
@@ -122,11 +122,15 @@ public class MainActivity extends Activity {
   String[][] destinations={{"home","Home","home"},{"discover","Discover","compass"},{"schedule","Schedule","calendar"},{"livescore","LiveScore","activity"},{"profile","Profile","user"}};
   for(String[] item:destinations){
    boolean selectedTab=item[0].equals(active);LinearLayout cell=col();cell.setGravity(Gravity.CENTER);cell.setBackground(ripple(selectedTab?0xff2b211a:Color.TRANSPARENT,20));pad(cell,4,5,4,4);
-   NativeIcon glyph=new NativeIcon(this,item[2],selectedTab?ORANGE:0xff9b9b9b);glyph.setClickable(false);cell.addView(glyph,new LinearLayout.LayoutParams(dp(23),dp(23)));
+   if("livescore".equals(item[0])){ImageView liveMark=new ImageView(this);liveMark.setScaleType(ImageView.ScaleType.FIT_CENTER);cell.addView(liveMark,new LinearLayout.LayoutParams(dp(25),dp(25)));loadLiveScoreMark(liveMark);}else{NativeIcon glyph=new NativeIcon(this,item[2],selectedTab?ORANGE:0xff9b9b9b);glyph.setClickable(false);cell.addView(glyph,new LinearLayout.LayoutParams(dp(23),dp(23)));}
    TextView label=txt(item[1],10,selectedTab?Color.WHITE:0xff9b9b9b,selectedTab);label.setGravity(Gravity.CENTER);LinearLayout.LayoutParams labelP=new LinearLayout.LayoutParams(-1,-2);labelP.topMargin=dp(3);cell.addView(label,labelP);
    items.addView(cell,new LinearLayout.LayoutParams(0,-1,1));cell.setOnClickListener(v->{if("livescore".equals(item[0])){startActivity(new Intent(this,LiveScoreActivity.class));}else showDestination(item[0]);});
   }
   return bar;
+ }
+ private void loadLiveScoreMark(ImageView target){
+  final String address="https://upload.wikimedia.org/wikipedia/commons/c/cc/Logo_Live_Score.png";target.setTag(address);
+  imageIo.execute(()->{Bitmap bitmap=null;HttpURLConnection connection=null;try{connection=(HttpURLConnection)new URL(address).openConnection();connection.setConnectTimeout(5000);connection.setReadTimeout(7000);connection.setInstanceFollowRedirects(true);try(InputStream input=connection.getInputStream()){bitmap=BitmapFactory.decodeStream(input);}}catch(Exception ignored){}finally{if(connection!=null)connection.disconnect();}Bitmap result=bitmap;if(result!=null&&!isFinishing())runOnUiThread(()->{if(address.equals(target.getTag()))target.setImageBitmap(result);});});
  }
  private void showDestination(String target){
   if(target==null)return;
@@ -165,9 +169,15 @@ public class MainActivity extends Activity {
   input.addTextChangedListener(new TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int before,int count){refresh.run();}public void afterTextChanged(Editable e){}});refresh.run();
  }
  private void refreshDiscoverResults(){
-  if(!"discover".equals(destination)||content==null)return;content.removeAllViews();int n=0;
-  for(JSONObject m:matches){if(m==null)continue;String hay=(matchTitle(m)+" "+leagueName(m)+" "+team(m,"home")+" "+team(m,"away")).toLowerCase(Locale.ROOT);if(query.isEmpty()||hay.contains(query)){content.addView(matchCard(m));if(++n>=60)break;}}
-  if(n==0){TextView empty=txt("No matches found for "+sportLabel()+". Try another team or competition.",12,MUTED,false);pad(empty,8,24,8,24);content.addView(empty);}if(matchesScroll!=null)matchesScroll.post(this::loadVisibleBadges);
+  if(!"discover".equals(destination)||content==null)return;
+  content.removeAllViews();int n=0;
+  for(JSONObject match:matches){if(match==null)continue;String hay=(matchTitle(match)+" "+leagueName(match)+" "+team(match,"home")+" "+team(match,"away")).toLowerCase(Locale.ROOT);if(query.isEmpty()||hay.contains(query)){content.addView(matchCard(match));if(++n>=60)break;}}
+  if(n==0){
+   LinearLayout empty=col();empty.setGravity(Gravity.CENTER_HORIZONTAL);empty.setBackground(shape(0xff141414,22));pad(empty,18,24,18,24);LinearLayout.LayoutParams ep=new LinearLayout.LayoutParams(-1,-2);ep.topMargin=dp(8);content.addView(empty,ep);
+   if(matchesLoading){ProgressBar progress=new ProgressBar(this);progress.setIndeterminate(true);progress.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(ORANGE));empty.addView(progress,new LinearLayout.LayoutParams(dp(28),dp(28)));TextView label=txt("Loading "+sportLabel().toLowerCase(Locale.ROOT)+" matches…",12,MUTED,false);label.setGravity(Gravity.CENTER);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.topMargin=dp(12);empty.addView(label,lp);}
+   else{TextView title=txt(matchesError.isEmpty()?"No "+sportLabel().toLowerCase(Locale.ROOT)+" matches found":"Could not load "+sportLabel().toLowerCase(Locale.ROOT)+" matches",14,Color.WHITE,true);title.setGravity(Gravity.CENTER);empty.addView(title);TextView note=txt(matchesError.isEmpty()?(query.isEmpty()?"There are no available events right now.":"Try another team or competition."):matchesError,11,MUTED,false);note.setGravity(Gravity.CENTER);LinearLayout.LayoutParams np=new LinearLayout.LayoutParams(-1,-2);np.topMargin=dp(7);empty.addView(note,np);TextView retry=txt("Refresh matches",12,ORANGE,true);retry.setGravity(Gravity.CENTER);retry.setBackground(shape(0xff302016,16));pad(retry,16,12,16,12);LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-2,-2);rp.topMargin=dp(16);empty.addView(retry,rp);retry.setOnClickListener(v->load());}
+  }
+  if(matchesScroll!=null)matchesScroll.post(this::loadVisibleBadges);
  }
  private void renderSchedulePage(FrameLayout page){
   LinearLayout wrap=col();pad(wrap,18,5,18,18);page.addView(wrap,new FrameLayout.LayoutParams(-1,-1));pruneStartedScheduledMatches();
@@ -298,20 +308,20 @@ public class MainActivity extends Activity {
   throw last==null?new IOException("Request failed"):last;
  }
  private void load(){
-  final int generation=++matchesGeneration;final String sport=selectedSport;matchesLoading.set(true);
+  final int generation=++matchesGeneration;final String sport=selectedSport;matchesLoading.set(true);matchesError="";if("discover".equals(destination))refreshDiscoverResults();
   apiIo.execute(()->{
    try{
     String cached=appPrefs.getString("matches_json_"+sport,"");
     if(!cached.isEmpty()){try{JSONArray cachedArray=new JSONArray(cached);ArrayList<JSONObject> cachedMatches=new ArrayList<>();for(int i=0;i<cachedArray.length();i++)cachedMatches.add(cachedArray.getJSONObject(i));runOnUiThread(()->{if(generation==matchesGeneration&&matches.isEmpty()){matches.clear();matches.addAll(cachedMatches);selectDefaultTabForMatches();renderLeagues();if("discover".equals(destination))refreshDiscoverResults();else render();}});}catch(Exception ignored){}}
     JSONObject p=request("/api/public/football-streams?mode=matches&sport="+URLEncoder.encode(sport,"UTF-8"));
-    JSONArray a=p.optJSONArray("data");if(!p.optBoolean("success")||a==null)throw new Exception("Unexpected match response");
+    JSONArray a=p.optJSONArray("data");if(!(p.optBoolean("success")||p.optBoolean("ok"))||a==null){JSONObject nested=p.optJSONObject("data");if(nested!=null){a=nested.optJSONArray("matches");if(a==null)a=nested.optJSONArray("events");}if(a==null)a=p.optJSONArray("matches");if(a==null)a=p.optJSONArray("events");if(a==null)throw new Exception(firstNonEmpty(p,"message","error","detail").isEmpty()?"Unexpected match response":firstNonEmpty(p,"message","error","detail"));}
     ArrayList<JSONObject> fresh=new ArrayList<>();for(int i=0;i<a.length();i++)fresh.add(a.getJSONObject(i));
     appPrefs.edit().putString("matches_json_"+sport,a.toString()).putLong("matches_cached_at_"+sport,System.currentTimeMillis()).apply();
-    runOnUiThread(()->{if(generation!=matchesGeneration)return;matchesLoading.set(false);matches.clear();matches.addAll(fresh);selectDefaultTabForMatches();renderLeagues();if("discover".equals(destination))refreshDiscoverResults();else render();openPendingMatchIfAvailable();hideStartupSplash();});
+    runOnUiThread(()->{if(generation!=matchesGeneration)return;matchesLoading.set(false);matchesError="";matches.clear();matches.addAll(fresh);selectDefaultTabForMatches();renderLeagues();if("discover".equals(destination))refreshDiscoverResults();else render();openPendingMatchIfAvailable();hideStartupSplash();});
    }catch(Exception e){
-    recordBug("MATCH_LOAD_"+sport,e,null);String cached=appPrefs.getString("matches_json_"+sport,"");ArrayList<JSONObject> fallback=new ArrayList<>();
+    recordBug("MATCH_LOAD_"+sport,e,null);String failure=e.getMessage()==null?"Network request failed":e.getMessage();String cached=appPrefs.getString("matches_json_"+sport,"");ArrayList<JSONObject> fallback=new ArrayList<>();
     try{JSONArray a=new JSONArray(cached);for(int i=0;i<a.length();i++)fallback.add(a.getJSONObject(i));}catch(Exception ignored){}
-    runOnUiThread(()->{if(generation!=matchesGeneration)return;matchesLoading.set(false);hideStartupSplash();if(!fallback.isEmpty()){matches.clear();matches.addAll(fallback);selectDefaultTabForMatches();renderLeagues();if("discover".equals(destination))refreshDiscoverResults();else render();openPendingMatchIfAvailable();Toast.makeText(this,"Showing saved "+sport+" matches. Refresh when connected.",Toast.LENGTH_SHORT).show();}else if(content!=null){content.removeAllViews();TextView err=txt("Unable to load "+sport+" matches. Tap to retry.",14,Color.WHITE,false);pad(err,12,25,12,25);err.setOnClickListener(v->load());content.addView(err);}});
+    runOnUiThread(()->{if(generation!=matchesGeneration)return;matchesLoading.set(false);matchesError=fallback.isEmpty()?failure:"";hideStartupSplash();if(!fallback.isEmpty()){matches.clear();matches.addAll(fallback);selectDefaultTabForMatches();renderLeagues();if("discover".equals(destination))refreshDiscoverResults();else render();openPendingMatchIfAvailable();Toast.makeText(this,"Showing saved "+sport+" matches. Refresh when connected.",Toast.LENGTH_SHORT).show();}else if("discover".equals(destination)){refreshDiscoverResults();}else if(content!=null){content.removeAllViews();TextView err=txt("Unable to load "+sport+" matches. Tap to retry.",14,Color.WHITE,false);pad(err,12,25,12,25);err.setOnClickListener(v->load());content.addView(err);}});
    }
   });
  }
@@ -362,8 +372,8 @@ public class MainActivity extends Activity {
  }
  private void selectSport(String sport){
   if(sport==null||sport.equals(selectedSport))return;
-  selectedSport=sport;matchesGeneration++;matchesLoading.set(false);league="All";selected=null;detail=null;selectedSources=null;
-  if(sportTitle!=null)sportTitle.setText(sportLabel());matches.clear();renderSports();renderLeagues();render();
+  selectedSport=sport;matchesGeneration++;matchesLoading.set(false);matchesError="";query="";league="All";selected=null;detail=null;selectedSources=null;
+  if(sportTitle!=null)sportTitle.setText(sportLabel());matches.clear();renderSports();renderLeagues();if("discover".equals(destination))refreshDiscoverResults();else render();
   if(!setting("reduce_motion",false)&&content!=null){content.setAlpha(.65f);content.animate().alpha(1f).setDuration(150).start();}
   load();
  }

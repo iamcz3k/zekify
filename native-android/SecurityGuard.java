@@ -231,14 +231,14 @@ public final class SecurityGuard {
         card.setStroke(dp(activity, 1), 0x28ffffff);
         panel.setBackground(card);
         TextView eyebrow = new TextView(activity);
-        eyebrow.setText("ZEKIFY  /  SECURITY");
+        eyebrow.setText("ZEKIFY  •  APP SECURITY");
         eyebrow.setTextColor(Color.rgb(255, 138, 61));
         eyebrow.setTextSize(10);
         eyebrow.setLetterSpacing(0.14f);
         eyebrow.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         panel.addView(eyebrow, new LinearLayout.LayoutParams(-1, -2));
         TextView icon = new TextView(activity);
-        icon.setText("⛨");
+        icon.setText("⬡");
         icon.setTextColor(Color.rgb(255, 138, 61));
         icon.setTextSize(44);
         icon.setGravity(Gravity.CENTER);
@@ -246,7 +246,7 @@ public final class SecurityGuard {
         iconP.topMargin = dp(activity, 22);
         panel.addView(icon, iconP);
         TextView status = new TextView(activity);
-        status.setText("APP ACCESS BLOCKED");
+        status.setText("INTEGRITY CHECK FAILED");
         status.setTextColor(Color.rgb(255, 138, 61));
         status.setTextSize(10);
         status.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
@@ -260,7 +260,7 @@ public final class SecurityGuard {
         statusP.topMargin = dp(activity, 14);
         panel.addView(status, statusP);
         TextView title = new TextView(activity);
-        title.setText("Unofficial application detected");
+        title.setText("This app copy is not verified");
         title.setTextColor(Color.WHITE);
         title.setTextSize(21);
         title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
@@ -269,7 +269,7 @@ public final class SecurityGuard {
         titleP.topMargin = dp(activity, 18);
         panel.addView(title, titleP);
         TextView message = new TextView(activity);
-        message.setText("Zekify blocked this session because the app failed its integrity check. " + failureReason + ". Install the official application to continue.");
+        message.setText("This installation did not pass Zekify’s authenticity checks. " + failureReason + ". To protect your account and device, access is disabled until you install the official build.");
         message.setTextColor(0xffb7b7b7);
         message.setTextSize(13);
         message.setGravity(Gravity.CENTER);
@@ -278,7 +278,7 @@ public final class SecurityGuard {
         messageP.topMargin = dp(activity, 12);
         panel.addView(message, messageP);
         TextView install = new TextView(activity);
-        install.setText("Install official Zekify");
+        install.setText("Get official Zekify");
         install.setTextColor(0xff111111);
         install.setTextSize(14);
         install.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
@@ -292,7 +292,7 @@ public final class SecurityGuard {
         installP.topMargin = dp(activity, 26);
         panel.addView(install, installP);
         TextView footer = new TextView(activity);
-        footer.setText("Only the verified official build can access Zekify.");
+        footer.setText("Official build · verified signing certificate");
         footer.setTextColor(0xff777777);
         footer.setTextSize(10);
         footer.setGravity(Gravity.CENTER);
