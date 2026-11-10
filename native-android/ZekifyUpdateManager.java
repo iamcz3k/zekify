@@ -267,7 +267,7 @@ public final class ZekifyUpdateManager {
         brandTextParams.leftMargin = dp(activity, 12);
         brandRow.addView(brand, brandTextParams);
         TextView brandSub = new TextView(activity);
-        brandSub.setText("SYSTEM UPDATE");
+        brandSub.setText("UPDATE CENTRE");
         brandSub.setTextColor(0xffff8a3d);
         brandSub.setTextSize(10);
         brandSub.setTypeface(null, Typeface.BOLD);
