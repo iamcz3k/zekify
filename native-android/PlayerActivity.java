@@ -532,7 +532,8 @@ public class PlayerActivity extends Activity {
     private void buildGestureIndicator() {
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
-        panel.setPadding(dp(12), dp(8), dp(12), dp(8));
+        panel.setGravity(Gravity.CENTER);
+        panel.setPadding(dp(8), dp(10), dp(8), dp(10));
         panel.setBackground(panel(0xe6111111, 22));
         panel.setElevation(dp(8));
         gestureLabel = new TextView(this);
@@ -540,15 +541,20 @@ public class PlayerActivity extends Activity {
         gestureLabel.setTextSize(12);
         gestureLabel.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         gestureLabel.setGravity(Gravity.CENTER);
-        panel.addView(gestureLabel, new LinearLayout.LayoutParams(-1, dp(22)));
+        panel.addView(gestureLabel, new LinearLayout.LayoutParams(-1, dp(24)));
+        FrameLayout track = new FrameLayout(this);
+        LinearLayout.LayoutParams trackParams = new LinearLayout.LayoutParams(dp(28), dp(94));
+        trackParams.topMargin = dp(5);
+        panel.addView(track, trackParams);
         gestureProgress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         gestureProgress.setMax(100);
+        gestureProgress.setRotation(-90f);
         gestureProgress.setProgressTintList(android.content.res.ColorStateList.valueOf(0xffff8a3d));
         gestureProgress.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(0xff444444));
-        panel.addView(gestureProgress, new LinearLayout.LayoutParams(-1, dp(5)));
+        track.addView(gestureProgress, new FrameLayout.LayoutParams(dp(86), dp(5), Gravity.CENTER));
         gestureIndicator = panel;
         gestureIndicator.setVisibility(View.GONE);
-        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(dp(132), dp(52), Gravity.CENTER_VERTICAL | Gravity.LEFT);
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(dp(64), dp(150), Gravity.CENTER_VERTICAL | Gravity.LEFT);
         params.leftMargin = dp(24);
         root.addView(gestureIndicator, params);
     }
@@ -589,12 +595,7 @@ public class PlayerActivity extends Activity {
             if (e.getAction() == MotionEvent.ACTION_MOVE) {
                 float dx = x - downX, dy = y - downY;
                 if (Math.abs(dx) > dp(18) || Math.abs(dy) > dp(18)) moved = true;
-                if (moved && Math.abs(dx) > Math.abs(dy)) {
-                    if (player != null && player.isCurrentMediaItemSeekable()) {
-                        long target = Math.max(0, startPosition + (long) (dx * 180));
-                        player.seekTo(target);
-                    }
-                } else if (moved && Math.abs(dy) > Math.abs(dx)) {
+                if (moved && Math.abs(dy) > Math.abs(dx)) {
                     float delta = (lastY - y) / Math.max(1, view.getHeight());
                     if (downX < view.getWidth() / 2f) {
                         WindowManager.LayoutParams lp = getWindow().getAttributes();
@@ -634,9 +635,6 @@ public class PlayerActivity extends Activity {
                         lastTap = now;
                         toggleControls();
                     }
-                } else if (Math.abs(x - downX) > dp(40) && Math.abs(y - downY) < dp(35)
-                    && player != null && !player.isCurrentMediaItemSeekable()) {
-                    Toast.makeText(PlayerActivity.this, "Seeking is unavailable for this live stream.", Toast.LENGTH_SHORT).show();
                 }
                 return direct || moved;
             }
