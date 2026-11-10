@@ -1,4 +1,4 @@
-# v3.5.1 isolated test build. No GitHub Release or production publishing.
+# v3.5.2 isolated test build. No GitHub Release or production publishing.
 name: Build Zekify v3.5.2 test APK
 on:
   push:
@@ -99,7 +99,7 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew assembleRelease
-          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.5.1.apk
+          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.5.2.apk
           cd ..
           rm -f android/zekify-release.jks
           test -s Zekify-v3.5.1.apk
@@ -114,7 +114,7 @@ jobs:
           test "$CERT" = "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119" || (echo "Unexpected signing key. Refusing to publish an incompatible update." && exit 1)
       - uses: actions/upload-artifact@v4
         with:
-          name: zekify-v3.5.1-signed-apk
+          name: zekify-v3.5.2-signed-apk
           path: |
             Zekify-v3.5.1.apk
             Zekify-v3.5.1.apk.sha256

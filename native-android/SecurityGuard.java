@@ -1,6 +1,11 @@
 package com.v3x.zekify;
 
 import android.app.Activity;
+import android.widget.FrameLayout;
+import android.view.Window;
+import android.view.ViewGroup;
+import android.graphics.drawable.GradientDrawable;
+import android.app.Dialog;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
@@ -214,64 +219,106 @@ public final class SecurityGuard {
     public static void showBlocked(Activity activity) {
         if (activity == null || activity.isFinishing() || blockedDialogShown) return;
         blockedDialogShown = true;
+        FrameLayout screen = new FrameLayout(activity);
+        screen.setBackgroundColor(Color.BLACK);
         LinearLayout panel = new LinearLayout(activity);
         panel.setOrientation(LinearLayout.VERTICAL);
-        panel.setGravity(Gravity.CENTER);
-        panel.setPadding(dp(activity, 26), dp(activity, 28), dp(activity, 26), dp(activity, 24));
-        panel.setBackgroundColor(Color.rgb(12, 12, 12));
-
+        panel.setGravity(Gravity.CENTER_HORIZONTAL);
+        panel.setPadding(dp(activity, 26), dp(activity, 30), dp(activity, 26), dp(activity, 26));
+        GradientDrawable card = new GradientDrawable();
+        card.setColor(Color.rgb(17, 17, 17));
+        card.setCornerRadius(dp(activity, 28));
+        card.setStroke(dp(activity, 1), 0x28ffffff);
+        panel.setBackground(card);
+        TextView eyebrow = new TextView(activity);
+        eyebrow.setText("ZEKIFY  /  SECURITY");
+        eyebrow.setTextColor(Color.rgb(255, 138, 61));
+        eyebrow.setTextSize(10);
+        eyebrow.setLetterSpacing(0.14f);
+        eyebrow.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        panel.addView(eyebrow, new LinearLayout.LayoutParams(-1, -2));
         TextView icon = new TextView(activity);
         icon.setText("⛨");
         icon.setTextColor(Color.rgb(255, 138, 61));
-        icon.setTextSize(42);
+        icon.setTextSize(44);
         icon.setGravity(Gravity.CENTER);
-        panel.addView(icon, new LinearLayout.LayoutParams(-1, dp(activity, 64)));
-
-        TextView title = new TextView(activity);
-        title.setText("Unofficial application detected");
-        title.setTextColor(Color.WHITE);
-        title.setTextSize(20);
-        title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        title.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(-1, -2);
-        titleParams.topMargin = dp(activity, 12);
-        panel.addView(title, titleParams);
-
-        TextView message = new TextView(activity);
-        message.setText("Zekify blocked this session. " + failureReason + ". Install the official application to continue.");
-        message.setTextColor(Color.LTGRAY);
-        message.setTextSize(14);
-        message.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams messageParams = new LinearLayout.LayoutParams(-1, -2);
-        messageParams.topMargin = dp(activity, 12);
-        panel.addView(message, messageParams);
-
+        LinearLayout.LayoutParams iconP = new LinearLayout.LayoutParams(-1, dp(activity, 76));
+        iconP.topMargin = dp(activity, 22);
+        panel.addView(icon, iconP);
         TextView status = new TextView(activity);
         status.setText("APP ACCESS BLOCKED");
         status.setTextColor(Color.rgb(255, 138, 61));
-        status.setTextSize(11);
+        status.setTextSize(10);
         status.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         status.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(-1, -2);
-        statusParams.topMargin = dp(activity, 22);
-        panel.addView(status, statusParams);
-
-        AlertDialog dialog = new AlertDialog.Builder(activity)
-            .setView(panel)
-            .setCancelable(false)
-            .setPositiveButton("Install the real application", (d, which) -> {
-                try {
-                    activity.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://zekify.vercel.app")));
-                } finally {
-                    activity.finishAffinity();
-                }
-            })
-            .create();
+        status.setPadding(dp(activity, 12), dp(activity, 8), dp(activity, 12), dp(activity, 8));
+        GradientDrawable statusBg = new GradientDrawable();
+        statusBg.setColor(0x263b2619);
+        statusBg.setCornerRadius(dp(activity, 30));
+        status.setBackground(statusBg);
+        LinearLayout.LayoutParams statusP = new LinearLayout.LayoutParams(-2, -2);
+        statusP.topMargin = dp(activity, 14);
+        panel.addView(status, statusP);
+        TextView title = new TextView(activity);
+        title.setText("Unofficial application detected");
+        title.setTextColor(Color.WHITE);
+        title.setTextSize(21);
+        title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        title.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams titleP = new LinearLayout.LayoutParams(-1, -2);
+        titleP.topMargin = dp(activity, 18);
+        panel.addView(title, titleP);
+        TextView message = new TextView(activity);
+        message.setText("Zekify blocked this session because the app failed its integrity check. " + failureReason + ". Install the official application to continue.");
+        message.setTextColor(0xffb7b7b7);
+        message.setTextSize(13);
+        message.setGravity(Gravity.CENTER);
+        message.setLineSpacing(dp(activity, 3), 1f);
+        LinearLayout.LayoutParams messageP = new LinearLayout.LayoutParams(-1, -2);
+        messageP.topMargin = dp(activity, 12);
+        panel.addView(message, messageP);
+        TextView install = new TextView(activity);
+        install.setText("Install official Zekify");
+        install.setTextColor(0xff111111);
+        install.setTextSize(14);
+        install.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        install.setGravity(Gravity.CENTER);
+        install.setPadding(dp(activity, 16), dp(activity, 16), dp(activity, 16), dp(activity, 16));
+        GradientDrawable buttonBg = new GradientDrawable();
+        buttonBg.setColor(Color.rgb(255, 138, 61));
+        buttonBg.setCornerRadius(dp(activity, 16));
+        install.setBackground(buttonBg);
+        LinearLayout.LayoutParams installP = new LinearLayout.LayoutParams(-1, dp(activity, 54));
+        installP.topMargin = dp(activity, 26);
+        panel.addView(install, installP);
+        TextView footer = new TextView(activity);
+        footer.setText("Only the verified official build can access Zekify.");
+        footer.setTextColor(0xff777777);
+        footer.setTextSize(10);
+        footer.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams footerP = new LinearLayout.LayoutParams(-1, -2);
+        footerP.topMargin = dp(activity, 16);
+        panel.addView(footer, footerP);
+        FrameLayout.LayoutParams panelP = new FrameLayout.LayoutParams(-1, -2, Gravity.CENTER);
+        panelP.setMargins(dp(activity, 18), dp(activity, 24), dp(activity, 18), dp(activity, 24));
+        screen.addView(panel, panelP);
+        Dialog dialog = new Dialog(activity);
+        dialog.setContentView(screen);
+        dialog.setCancelable(false);
         dialog.setCanceledOnTouchOutside(false);
         dialog.setOnDismissListener(d -> activity.finishAffinity());
+        install.setOnClickListener(v -> {
+            try { activity.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://laczek.dpdns.org/zekify"))); }
+            finally { activity.finishAffinity(); }
+        });
         dialog.show();
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(Color.rgb(255, 138, 61));
-        if (dialog.getWindow() != null) dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+            window.setBackgroundDrawableResource(android.R.color.transparent);
+            window.setStatusBarColor(Color.BLACK);
+            window.setNavigationBarColor(Color.BLACK);
+        }
     }
 
     private static int dp(Context context, int value) {

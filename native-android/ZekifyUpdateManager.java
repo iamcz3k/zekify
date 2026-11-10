@@ -5,6 +5,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.drawable.GradientDrawable;
 import android.graphics.Typeface;
 import android.app.AlertDialog;
 import android.app.Dialog;
@@ -136,6 +137,13 @@ public final class ZekifyUpdateManager {
         } finally { connection.disconnect(); }
     }
 
+    private static GradientDrawable rounded(Activity activity, int color, int radius) {
+        GradientDrawable shape = new GradientDrawable();
+        shape.setColor(color);
+        shape.setCornerRadius(dp(activity, radius));
+        return shape;
+    }
+
     private static Dialog requiredPage(Activity activity, String title, String message, String buttonText, Runnable action) {
         LinearLayout page = new LinearLayout(activity);
         page.setOrientation(LinearLayout.VERTICAL);
@@ -186,7 +194,8 @@ public final class ZekifyUpdateManager {
         button.setTypeface(null, 1);
         button.setGravity(Gravity.CENTER);
         button.setPadding(dp(activity, 16), dp(activity, 17), dp(activity, 16), dp(activity, 17));
-        button.setBackgroundColor(0xffff8a3d);
+        button.setBackground(rounded(activity, 0xffff8a3d, 16));
+        button.setElevation(dp(activity, 2));
         LinearLayout.LayoutParams btnp = new LinearLayout.LayoutParams(-1, -2);
         btnp.topMargin = dp(activity, 30);
         page.addView(button, btnp);
@@ -287,7 +296,8 @@ public final class ZekifyUpdateManager {
         actionButton.setTypeface(null, 1);
         actionButton.setGravity(Gravity.CENTER);
         actionButton.setPadding(dp(activity, 16), dp(activity, 17), dp(activity, 16), dp(activity, 17));
-        actionButton.setBackgroundColor(0xffff8a3d);
+        actionButton.setBackground(rounded(activity, 0xffff8a3d, 16));
+        actionButton.setElevation(dp(activity, 2));
         actionButton.setEnabled(false);
         LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(-1, -2);
         actionParams.topMargin = dp(activity, 30);
