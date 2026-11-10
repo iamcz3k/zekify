@@ -129,7 +129,7 @@ public class MainActivity extends Activity {
   return bar;
  }
  private void loadLiveScoreMark(ImageView target){
-  final String address="https://upload.wikimedia.org/wikipedia/commons/c/cc/Logo_Live_Score.png";target.setTag(address);
+  final String address="https://www.google.com/s2/favicons?domain=livescore.com&sz=128";target.setTag(address);
   imageIo.execute(()->{Bitmap bitmap=null;HttpURLConnection connection=null;try{connection=(HttpURLConnection)new URL(address).openConnection();connection.setConnectTimeout(5000);connection.setReadTimeout(7000);connection.setInstanceFollowRedirects(true);try(InputStream input=connection.getInputStream()){bitmap=BitmapFactory.decodeStream(input);}}catch(Exception ignored){}finally{if(connection!=null)connection.disconnect();}Bitmap result=bitmap;if(result!=null&&!isFinishing())runOnUiThread(()->{if(address.equals(target.getTag()))target.setImageBitmap(result);});});
  }
  private void showDestination(String target){
