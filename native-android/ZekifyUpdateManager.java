@@ -1,6 +1,10 @@
 package com.v3x.zekify;
 
 import android.app.Activity;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -44,6 +48,8 @@ public final class ZekifyUpdateManager {
     private static final String PREFS = "zekify_updates";
     private static final ExecutorService IO = Executors.newSingleThreadExecutor();
     private static volatile boolean installPromptVisible = false;
+    private static final String UPDATE_CHANNEL = "zekify_updates_v1";
+    private static final int UPDATE_NOTIFICATION_ID = 3525;
 
     public static final class Update {
         public final String version;
@@ -100,9 +106,52 @@ public final class ZekifyUpdateManager {
             Update result = update;
             String failure = error;
             activity.runOnUiThread(() -> {
-                if (!activity.isFinishing()) callback.onResult(result, failure);
+                if (!activity.isFinishing()) {
+                    if (result != null) notifyUpdateAvailable(activity, result);
+                    callback.onResult(result, failure);
+                }
             });
         });
+    }
+
+    private static void notifyUpdateAvailable(Activity activity, Update update) {
+        if (activity == null || update == null || activity.isFinishing()) return;
+        if (Build.VERSION.SDK_INT >= 33
+            && activity.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            activity.requestPermissions(
+                new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 4103);
+            return;
+        }
+        NotificationManager manager = (NotificationManager) activity.getSystemService(Activity.NOTIFICATION_SERVICE);
+        if (manager == null) return;
+        if (Build.VERSION.SDK_INT >= 26) {
+            NotificationChannel channel = new NotificationChannel(
+                UPDATE_CHANNEL, "App updates", NotificationManager.IMPORTANCE_DEFAULT);
+            channel.setDescription("New Zekify versions and secure update links");
+            manager.createNotificationChannel(channel);
+        }
+        android.content.SharedPreferences prefs = activity.getSharedPreferences(PREFS, Activity.MODE_PRIVATE);
+        if (update.version.equals(prefs.getString("last_notified_version", ""))) return;
+        Intent openUpdate = new Intent(activity, MainActivity.class);
+        openUpdate.setAction("com.v3x.zekify.OPEN_UPDATE");
+        openUpdate.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= 23) flags |= PendingIntent.FLAG_IMMUTABLE;
+        PendingIntent pending = PendingIntent.getActivity(activity, UPDATE_NOTIFICATION_ID, openUpdate, flags);
+        Notification.Builder notification = Build.VERSION.SDK_INT >= 26
+            ? new Notification.Builder(activity, UPDATE_CHANNEL)
+            : new Notification.Builder(activity);
+        notification.setSmallIcon(android.R.drawable.stat_sys_download_done)
+            .setContentTitle("Zekify update available")
+            .setContentText("Version " + update.version + " is ready. Tap to review and install.")
+            .setStyle(new Notification.BigTextStyle()
+                .bigText("Zekify " + update.version + " is ready. Tap to open the secure update centre."))
+            .setContentIntent(pending)
+            .setAutoCancel(true)
+            .setPriority(Notification.PRIORITY_DEFAULT);
+        manager.notify(UPDATE_NOTIFICATION_ID, notification.build());
+        prefs.edit().putString("last_notified_version", update.version).apply();
     }
 
     private static int compareVersions(String left, String right) {
