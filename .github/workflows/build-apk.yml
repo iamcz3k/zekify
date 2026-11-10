@@ -5,7 +5,6 @@ on:
     branches:
       - native-android-v2
       - native-android-only
-      - pixel-ui-v3.5.1-test
       - zekify-v3.5.2-redesign
   workflow_dispatch:
 permissions:
@@ -108,7 +107,7 @@ jobs:
       - name: Verify APK signature
         run: |
           set -o pipefail
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.5.1.apk | tee signing-certificate.txt
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.5.2.apk | tee signing-certificate.txt
           CERT="$(awk '/Signer #1 certificate SHA-256 digest:/ {print $NF; exit}' signing-certificate.txt)"
           echo "Release signing certificate: $CERT"
           test "$CERT" = "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119" || (echo "Unexpected signing key. Refusing to publish an incompatible update." && exit 1)
@@ -119,15 +118,3 @@ jobs:
             Zekify-v3.5.2.apk
             Zekify-v3.5.2.apk.sha256
           if-no-files-found: error
-      - name: Publish v3.5.1 GitHub Release
-        if: github.ref == 'refs/heads/pixel-ui-v3.5.1-test'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v3.5.1
-          name: Zekify v3.5.1
-          target_commitish: pixel-ui-v3.5.1-test
-          generate_release_notes: true
-          files: |
-            Zekify-v3.5.1.apk
-            Zekify-v3.5.1.apk.sha256
-
