@@ -101,13 +101,13 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.5.3.apk
           cd ..
           rm -f android/zekify-release.jks
-          test -s Zekify-v3.5.2.apk
+          test -s Zekify-v3.5.3.apk
       - name: Generate update checksum
-        run: sha256sum Zekify-v3.5.2.apk > Zekify-v3.5.2.apk.sha256
+        run: sha256sum Zekify-v3.5.3.apk > Zekify-v3.5.3.apk.sha256
       - name: Verify APK signature
         run: |
           set -o pipefail
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.5.2.apk | tee signing-certificate.txt
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.5.3.apk | tee signing-certificate.txt
           CERT="$(awk '/Signer #1 certificate SHA-256 digest:/ {print $NF; exit}' signing-certificate.txt)"
           echo "Release signing certificate: $CERT"
           test "$CERT" = "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119" || (echo "Unexpected signing key. Refusing to publish an incompatible update." && exit 1)
@@ -115,8 +115,8 @@ jobs:
         with:
           name: zekify-v3.5.3-release-apk
           path: |
-            Zekify-v3.5.2.apk
-            Zekify-v3.5.2.apk.sha256
+            Zekify-v3.5.3.apk
+            Zekify-v3.5.3.apk.sha256
           if-no-files-found: error
 
       - name: Publish GitHub Release
