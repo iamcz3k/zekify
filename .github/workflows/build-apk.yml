@@ -1,11 +1,12 @@
 # v3.5.1 isolated test build. No GitHub Release or production publishing.
-name: Build Zekify v3.5.1 test APK
+name: Build Zekify v3.5.2 test APK
 on:
   push:
     branches:
       - native-android-v2
       - native-android-only
       - pixel-ui-v3.5.1-test
+      - zekify-v3.5.2-redesign
   workflow_dispatch:
 permissions:
   contents: write
@@ -53,8 +54,8 @@ jobs:
           python3 -c "import xml.etree.ElementTree as ET; ET.parse('android/app/src/main/AndroidManifest.xml'); print('AndroidManifest.xml is valid XML')"
       - name: Set Android version
         run: |
-          sed -i 's/versionCode 1/versionCode 37/' android/app/build.gradle
-          sed -i 's/versionName "1.0"/versionName "3.5.1"/' android/app/build.gradle
+          sed -i 's/versionCode 1/versionCode 38/' android/app/build.gradle
+          sed -i 's/versionName "1.0"/versionName "3.5.2"/' android/app/build.gradle
           grep -E 'versionCode|versionName' android/app/build.gradle
       - name: Configure release signing
         env:

@@ -61,6 +61,7 @@ public class MainActivity extends Activity {
  private void showStartupSplash(){
   startupDialog=new Dialog(this);startupDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);FrameLayout splash=new FrameLayout(this);splash.setBackgroundColor(Color.BLACK);
   LinearLayout center=col();center.setGravity(Gravity.CENTER);FrameLayout.LayoutParams cp=new FrameLayout.LayoutParams(-1,-2,Gravity.CENTER);splash.addView(center,cp);
+  TextView versionLabel;try{String installedVersion=getPackageManager().getPackageInfo(getPackageName(),0).versionName;versionLabel=txt("v"+installedVersion,10,0xff777777,false);}catch(Exception ignored){versionLabel=txt("",10,0xff777777,false);}versionLabel.setGravity(Gravity.CENTER);FrameLayout.LayoutParams versionParams=new FrameLayout.LayoutParams(-1,dp(24),Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);versionParams.bottomMargin=dp(22);splash.addView(versionLabel,versionParams);
   center.addView(new Ball(this),new LinearLayout.LayoutParams(dp(78),dp(78)));TextView brand=txt("ZEKIFY",20,Color.WHITE,true);brand.setLetterSpacing(.18f);brand.setGravity(Gravity.CENTER);LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(-1,-2);bp.topMargin=dp(18);center.addView(brand,bp);
   ProgressBar progress=new ProgressBar(this);progress.setIndeterminate(true);progress.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(ORANGE));LinearLayout.LayoutParams pp=new LinearLayout.LayoutParams(dp(42),dp(42));pp.topMargin=dp(24);center.addView(progress,pp);
   startupDialog.setContentView(splash);startupDialog.setCancelable(false);startupDialog.show();Window w=startupDialog.getWindow();if(w!=null){w.setBackgroundDrawableResource(android.R.color.transparent);w.setLayout(-1,-1);w.setStatusBarColor(Color.BLACK);w.setNavigationBarColor(Color.BLACK);}
@@ -87,27 +88,28 @@ public class MainActivity extends Activity {
   NativeIcon searchAction=new NativeIcon(this,"search",Color.WHITE);searchAction.setContentDescription("Search matches");header.addView(searchAction,new LinearLayout.LayoutParams(dp(42),dp(42)));searchAction.setOnClickListener(v->showDestination("discover"));
   NativeIcon profileAction=new NativeIcon(this,"user",Color.WHITE);profileAction.setContentDescription("Profile");LinearLayout.LayoutParams profileP=new LinearLayout.LayoutParams(dp(42),dp(42));profileP.leftMargin=dp(5);header.addView(profileAction,profileP);profileAction.setOnClickListener(v->showDestination("profile"));
   root.addView(header);
+  LinearLayout collapsibleHeader=col();root.addView(collapsibleHeader);
   LinearLayout sportsWrap=col();pad(sportsWrap,18,4,18,8);
   TextView sportHeading=txt("CHOOSE YOUR SPORT",9,MUTED,true);sportHeading.setLetterSpacing(.12f);sportsWrap.addView(sportHeading);
   HorizontalScrollView sportsScroll=new HorizontalScrollView(this);sportsScroll.setHorizontalScrollBarEnabled(false);sportsScroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
-  sportRow=row();LinearLayout.LayoutParams srp=new LinearLayout.LayoutParams(-1,dp(48));srp.topMargin=dp(8);sportsWrap.addView(sportsScroll,srp);sportsScroll.addView(sportRow);root.addView(sportsWrap);renderSports();
+  sportRow=row();LinearLayout.LayoutParams srp=new LinearLayout.LayoutParams(-1,dp(48));srp.topMargin=dp(8);sportsWrap.addView(sportsScroll,srp);sportsScroll.addView(sportRow);collapsibleHeader.addView(sportsWrap);renderSports();
   LinearLayout searchBox=row();searchBox.setBackground(shape(0xff171717,20));pad(searchBox,15,0,14,0);
   searchBox.addView(new NativeIcon(this,"search",MUTED),new LinearLayout.LayoutParams(dp(20),dp(20)));
   TextView searchHint=txt(query.isEmpty()?"Search teams, matches and competitions":query,12,query.isEmpty()?MUTED:Color.WHITE,false);
   LinearLayout.LayoutParams searchHintP=new LinearLayout.LayoutParams(0,-2,1);searchHintP.leftMargin=dp(11);searchBox.addView(searchHint,searchHintP);
   NativeIcon searchNext=new NativeIcon(this,"next",MUTED);searchBox.addView(searchNext,new LinearLayout.LayoutParams(dp(20),dp(20)));
-  LinearLayout.LayoutParams searchP=new LinearLayout.LayoutParams(-1,dp(52));searchP.setMargins(dp(18),dp(5),dp(18),dp(14));root.addView(searchBox,searchP);searchBox.setOnClickListener(v->showDestination("discover"));
+  LinearLayout.LayoutParams searchP=new LinearLayout.LayoutParams(-1,dp(52));searchP.setMargins(dp(18),dp(5),dp(18),dp(14));collapsibleHeader.addView(searchBox,searchP);searchBox.setOnClickListener(v->showDestination("discover"));
   LinearLayout tabs=row();tabs.setBackground(shape(0xff151515,18));pad(tabs,5,5,5,5);
   TextView live=txt("Live",13,tab.equals("live")?Color.WHITE:MUTED,true);live.setGravity(Gravity.CENTER);
   TextView upcoming=txt("Upcoming",13,tab.equals("upcoming")?Color.WHITE:MUTED,true);upcoming.setGravity(Gravity.CENTER);
   live.setBackground(shape(tab.equals("live")?0xff3b2619:Color.TRANSPARENT,14));upcoming.setBackground(shape(tab.equals("upcoming")?0xff3b2619:Color.TRANSPARENT,14));
   tabs.addView(live,new LinearLayout.LayoutParams(0,dp(42),1));tabs.addView(upcoming,new LinearLayout.LayoutParams(0,dp(42),1));
   live.setOnClickListener(v->{if(!tab.equals("live")){tab="live";home();render();}});upcoming.setOnClickListener(v->{if(!tab.equals("upcoming")){tab="upcoming";home();render();}});
-  LinearLayout.LayoutParams tabsP=new LinearLayout.LayoutParams(-1,dp(52));tabsP.setMargins(dp(18),0,dp(18),dp(8));root.addView(tabs,tabsP);
+  LinearLayout.LayoutParams tabsP=new LinearLayout.LayoutParams(-1,dp(52));tabsP.setMargins(dp(18),0,dp(18),dp(8));collapsibleHeader.addView(tabs,tabsP);
   HorizontalScrollView hs=new HorizontalScrollView(this);hs.setHorizontalScrollBarEnabled(false);hs.setOverScrollMode(View.OVER_SCROLL_NEVER);
-  leagueRow=row();pad(leagueRow,18,2,18,10);hs.addView(leagueRow);root.addView(hs,new LinearLayout.LayoutParams(-1,dp(42)));
+  leagueRow=row();pad(leagueRow,18,2,18,10);hs.addView(leagueRow);collapsibleHeader.addView(hs,new LinearLayout.LayoutParams(-1,dp(42)));
   ScrollView sc=new ScrollView(this);matchesScroll=sc;sc.setFillViewport(true);sc.setVerticalScrollBarEnabled(false);
-  content=col();pad(content,18,5,18,20);safeScrollAdd(sc,content);sc.setOnScrollChangeListener((View v,int sx,int sy,int oldSx,int oldSy)->loadVisibleBadges());
+  content=col();pad(content,18,5,18,20);safeScrollAdd(sc,content);sc.setOnScrollChangeListener((View v,int sx,int sy,int oldSx,int oldSy)->{loadVisibleBadges();if(sy>oldSy+dp(8)){if(collapsibleHeader.getVisibility()!=View.GONE)collapsibleHeader.setVisibility(View.GONE);}else if(sy<oldSy-dp(4)){if(collapsibleHeader.getVisibility()!=View.VISIBLE)collapsibleHeader.setVisibility(View.VISIBLE);}});
   root.addView(sc,new LinearLayout.LayoutParams(-1,0,1));
   root.addView(buildBottomNavigation("home"));
   setContentView(root);if(!setting("reduce_motion",false)){root.setAlpha(0f);root.animate().alpha(1f).setDuration(220L).start();}
@@ -117,12 +119,12 @@ public class MainActivity extends Activity {
   LinearLayout bar=col();bar.setBackgroundColor(0xff101010);
   View line=new View(this);line.setBackgroundColor(0x24ffffff);bar.addView(line,new LinearLayout.LayoutParams(-1,dp(1)));
   LinearLayout items=row();pad(items,8,7,8,7);bar.addView(items,new LinearLayout.LayoutParams(-1,dp(64)));
-  String[][] destinations={{"home","Home","home"},{"discover","Discover","compass"},{"schedule","Schedule","calendar"},{"profile","Profile","user"}};
+  String[][] destinations={{"home","Home","home"},{"discover","Discover","compass"},{"schedule","Schedule","calendar"},{"livescore","LiveScore","activity"},{"profile","Profile","user"}};
   for(String[] item:destinations){
    boolean selectedTab=item[0].equals(active);LinearLayout cell=col();cell.setGravity(Gravity.CENTER);cell.setBackground(ripple(selectedTab?0xff2b211a:Color.TRANSPARENT,20));pad(cell,4,5,4,4);
    NativeIcon glyph=new NativeIcon(this,item[2],selectedTab?ORANGE:0xff9b9b9b);glyph.setClickable(false);cell.addView(glyph,new LinearLayout.LayoutParams(dp(23),dp(23)));
    TextView label=txt(item[1],10,selectedTab?Color.WHITE:0xff9b9b9b,selectedTab);label.setGravity(Gravity.CENTER);LinearLayout.LayoutParams labelP=new LinearLayout.LayoutParams(-1,-2);labelP.topMargin=dp(3);cell.addView(label,labelP);
-   items.addView(cell,new LinearLayout.LayoutParams(0,-1,1));cell.setOnClickListener(v->showDestination(item[0]));
+   items.addView(cell,new LinearLayout.LayoutParams(0,-1,1));cell.setOnClickListener(v->{if("livescore".equals(item[0])){startActivity(new Intent(this,LiveScoreActivity.class));}else showDestination(item[0]);});
   }
   return bar;
  }
@@ -159,8 +161,13 @@ public class MainActivity extends Activity {
   for(String[] sport:SPORTS){TextView chip=txt(sport[1],11,selectedSport.equals(sport[0])?Color.WHITE:MUTED,true);chip.setGravity(Gravity.CENTER);chip.setBackground(shape(selectedSport.equals(sport[0])?0xff382619:0xff171717,18));pad(chip,14,0,14,0);LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-2,dp(38));cp.rightMargin=dp(8);chips.addView(chip,cp);chip.setOnClickListener(v->{selectSport(sport[0]);showDestination("discover");});}
   TextView resultsTitle=txt("MATCH RESULTS",10,ORANGE,true);LinearLayout.LayoutParams rt=new LinearLayout.LayoutParams(-1,-2);rt.topMargin=dp(20);wrap.addView(resultsTitle,rt);
   ScrollView scroll=new ScrollView(this);scroll.setVerticalScrollBarEnabled(false);content=col();pad(content,0,10,0,18);safeScrollAdd(scroll,content);wrap.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));matchesScroll=scroll;
-  Runnable refresh=()->{query=input.getText().toString().trim().toLowerCase(Locale.ROOT);content.removeAllViews();int n=0;for(JSONObject m:matches){String hay=(matchTitle(m)+" "+leagueName(m)+" "+team(m,"home")+" "+team(m,"away")).toLowerCase(Locale.ROOT);if(query.isEmpty()||hay.contains(query)){content.addView(matchCard(m));if(++n>=60)break;}}if(n==0){TextView empty=txt("No matches found. Try another team or competition.",12,MUTED,false);pad(empty,8,24,8,24);content.addView(empty);}scroll.post(this::loadVisibleBadges);};
+  Runnable refresh=()->{query=input.getText().toString().trim().toLowerCase(Locale.ROOT);refreshDiscoverResults();};
   input.addTextChangedListener(new TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int c,int a){}public void onTextChanged(CharSequence s,int st,int before,int count){refresh.run();}public void afterTextChanged(Editable e){}});refresh.run();
+ }
+ private void refreshDiscoverResults(){
+  if(!"discover".equals(destination)||content==null)return;content.removeAllViews();int n=0;
+  for(JSONObject m:matches){if(m==null)continue;String hay=(matchTitle(m)+" "+leagueName(m)+" "+team(m,"home")+" "+team(m,"away")).toLowerCase(Locale.ROOT);if(query.isEmpty()||hay.contains(query)){content.addView(matchCard(m));if(++n>=60)break;}}
+  if(n==0){TextView empty=txt("No matches found for "+sportLabel()+". Try another team or competition.",12,MUTED,false);pad(empty,8,24,8,24);content.addView(empty);}if(matchesScroll!=null)matchesScroll.post(this::loadVisibleBadges);
  }
  private void renderSchedulePage(FrameLayout page){
   LinearLayout wrap=col();pad(wrap,18,5,18,18);page.addView(wrap,new FrameLayout.LayoutParams(-1,-1));pruneStartedScheduledMatches();
@@ -294,16 +301,16 @@ public class MainActivity extends Activity {
   apiIo.execute(()->{
    try{
     String cached=appPrefs.getString("matches_json_"+sport,"");
-    if(!cached.isEmpty()){try{JSONArray cachedArray=new JSONArray(cached);ArrayList<JSONObject> cachedMatches=new ArrayList<>();for(int i=0;i<cachedArray.length();i++)cachedMatches.add(cachedArray.getJSONObject(i));runOnUiThread(()->{if(generation==matchesGeneration&&matches.isEmpty()){matches.clear();matches.addAll(cachedMatches);selectDefaultTabForMatches();renderLeagues();render();}});}catch(Exception ignored){}}
+    if(!cached.isEmpty()){try{JSONArray cachedArray=new JSONArray(cached);ArrayList<JSONObject> cachedMatches=new ArrayList<>();for(int i=0;i<cachedArray.length();i++)cachedMatches.add(cachedArray.getJSONObject(i));runOnUiThread(()->{if(generation==matchesGeneration&&matches.isEmpty()){matches.clear();matches.addAll(cachedMatches);selectDefaultTabForMatches();renderLeagues();if("discover".equals(destination))refreshDiscoverResults();else render();}});}catch(Exception ignored){}}
     JSONObject p=request("/api/public/football-streams?mode=matches&sport="+URLEncoder.encode(sport,"UTF-8"));
     JSONArray a=p.optJSONArray("data");if(!p.optBoolean("success")||a==null)throw new Exception("Unexpected match response");
     ArrayList<JSONObject> fresh=new ArrayList<>();for(int i=0;i<a.length();i++)fresh.add(a.getJSONObject(i));
     appPrefs.edit().putString("matches_json_"+sport,a.toString()).putLong("matches_cached_at_"+sport,System.currentTimeMillis()).apply();
-    runOnUiThread(()->{if(generation!=matchesGeneration)return;matchesLoading.set(false);matches.clear();matches.addAll(fresh);selectDefaultTabForMatches();renderLeagues();render();openPendingMatchIfAvailable();hideStartupSplash();});
+    runOnUiThread(()->{if(generation!=matchesGeneration)return;matchesLoading.set(false);matches.clear();matches.addAll(fresh);selectDefaultTabForMatches();renderLeagues();if("discover".equals(destination))refreshDiscoverResults();else render();openPendingMatchIfAvailable();hideStartupSplash();});
    }catch(Exception e){
     recordBug("MATCH_LOAD_"+sport,e,null);String cached=appPrefs.getString("matches_json_"+sport,"");ArrayList<JSONObject> fallback=new ArrayList<>();
     try{JSONArray a=new JSONArray(cached);for(int i=0;i<a.length();i++)fallback.add(a.getJSONObject(i));}catch(Exception ignored){}
-    runOnUiThread(()->{if(generation!=matchesGeneration)return;matchesLoading.set(false);hideStartupSplash();if(!fallback.isEmpty()){matches.clear();matches.addAll(fallback);selectDefaultTabForMatches();renderLeagues();render();openPendingMatchIfAvailable();Toast.makeText(this,"Showing saved "+sport+" matches. Refresh when connected.",Toast.LENGTH_SHORT).show();}else if(content!=null){content.removeAllViews();TextView err=txt("Unable to load "+sport+" matches. Tap to retry.",14,Color.WHITE,false);pad(err,12,25,12,25);err.setOnClickListener(v->load());content.addView(err);}});
+    runOnUiThread(()->{if(generation!=matchesGeneration)return;matchesLoading.set(false);hideStartupSplash();if(!fallback.isEmpty()){matches.clear();matches.addAll(fallback);selectDefaultTabForMatches();renderLeagues();if("discover".equals(destination))refreshDiscoverResults();else render();openPendingMatchIfAvailable();Toast.makeText(this,"Showing saved "+sport+" matches. Refresh when connected.",Toast.LENGTH_SHORT).show();}else if(content!=null){content.removeAllViews();TextView err=txt("Unable to load "+sport+" matches. Tap to retry.",14,Color.WHITE,false);pad(err,12,25,12,25);err.setOnClickListener(v->load());content.addView(err);}});
    }
   });
  }
