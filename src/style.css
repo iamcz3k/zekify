@@ -54,3 +54,28 @@ html:has(.immersive-player),body:has(.immersive-player),#root:has(.immersive-pla
 /* Native-app interaction: disable web text selection and long-press menus */
 html,body,#root,.app-shell{ -webkit-user-select:none!important; user-select:none!important; -webkit-touch-callout:none!important; }
 .app-shell{overscroll-behavior:none}
+
+
+/* Zekify updates subscription and profile */
+.profile-entry{width:100%;display:flex;align-items:center;gap:12px;margin:0 0 18px;padding:13px;background:#141414;border:1px solid #ff8a3d38;border-radius:12px;color:#f4f5f6;text-align:left}
+.profile-entry-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:10px;background:#ff8a3d1b;color:#ff9b5d}
+.profile-entry>span:nth-child(2){display:grid;gap:3px;flex:1}.profile-entry strong{font-size:13px}.profile-entry small{font-size:10px;color:#9299a3}.profile-entry>b{font-size:22px;color:#ff9b5d;font-weight:400}
+.updates-overlay{position:fixed;inset:0;z-index:12000;display:grid;place-items:center;padding:20px;background:#000d;backdrop-filter:blur(8px)}
+.updates-card{position:relative;width:min(100%,420px);max-height:calc(100dvh - 40px);overflow:auto;padding:28px 22px 22px;border:1px solid #ffffff20;border-radius:20px;background:linear-gradient(155deg,#191919,#090909 65%);box-shadow:0 24px 90px #000c}
+.updates-close{position:absolute;top:14px;right:14px;display:grid;place-items:center;width:34px;height:34px;border:1px solid #ffffff20;border-radius:9px;background:#111;color:#bbb}
+.updates-symbol{display:grid;place-items:center;width:48px;height:48px;margin-bottom:18px;border:1px solid #ff8a3d55;border-radius:14px;background:#ff8a3d18;color:#ff9b5d}
+.updates-card h2{margin:9px 0 8px;font:700 25px/1.15 'Space Grotesk';letter-spacing:-.5px;color:#fff}
+.updates-card>p{margin:0 0 18px;color:#a4a7ad;font-size:12px;line-height:1.6}
+.updates-label{display:block;margin:16px 0 7px;color:#ddd;font-size:11px;font-weight:700}
+.updates-input{display:block;width:100%;height:48px;padding:0 13px;border:1px solid #ffffff26;border-radius:10px;outline:0;background:#080808;color:#fff;font:500 13px 'DM Sans';user-select:text;-webkit-user-select:text}
+.updates-input:focus{border-color:#ff8a3d;box-shadow:0 0 0 2px #ff8a3d22}
+.updates-privacy{margin:11px 0 16px!important;color:#777f89!important;font-size:10px!important;line-height:1.55!important}
+.updates-submit{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:46px;border:0;border-radius:10px;background:#ff8a3d;color:#170d06;font:800 13px 'DM Sans'}
+.updates-submit:disabled,.updates-unsubscribe:disabled{opacity:.55;cursor:wait}
+.updates-later,.updates-unsubscribe{display:block;width:100%;margin-top:10px;padding:10px;border:1px solid #ffffff1c;border-radius:9px;background:transparent;color:#a4a7ad;font:600 11px 'DM Sans'}
+.updates-unsubscribe{border-color:#ff625533;color:#ff8a80}
+.updates-message{margin:10px 0!important;color:#9be1b0!important;font-size:11px!important}
+.updates-message.error{color:#ff8f86!important}
+.updates-status-row{display:flex;align-items:center;gap:7px;margin:14px 0 4px;padding:10px 12px;border:1px solid #ffffff14;border-radius:9px;background:#101010;color:#ffb27e;font-size:11px;font-weight:700}
+.spin{animation:updates-spin 1s linear infinite}@keyframes updates-spin{to{transform:rotate(360deg)}}
+@media(max-width:420px){.updates-card{padding:25px 18px 18px}.updates-card h2{font-size:23px}}
