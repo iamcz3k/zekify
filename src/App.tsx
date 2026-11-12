@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Hls from "hls.js";
 import { App as CapacitorApp } from "@capacitor/app";
-import { ArrowLeft, Expand, Menu, Pause, Play, RefreshCw, Sun, Volume2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Expand, LoaderCircle, Mail, Menu, Pause, Play, RefreshCw, Sun, UserRound, Volume2, X } from "lucide-react";
 import { ScreenOrientation } from "@capacitor/screen-orientation";
 const API = (import.meta.env.VITE_STREAM_API_BASE || "https://laczekstream.qzz.io").replace(/\/$/, "");
+const UPDATES_API = (import.meta.env.VITE_UPDATES_API_BASE || "https://zekify-updates-api.laczekstream.workers.dev").replace(/\/$/, "");
 type Team = { name?: string; badge?: string };
 type Source = { id?: string; streamNo?: number; source?: string; language?: string; hd?: boolean; embedUrl?: string };
 type Match = { id: string; title?: string; league?: string; date?: number; status: "live" | "upcoming"; available?: boolean; teams?: {home?:Team;away?:Team}; sources?: Source[] };
@@ -32,10 +33,53 @@ export default function App() {
  const [selected,setSelected]=useState<Match|null>(null),[detail,setDetail]=useState<Match|null>(null);
  const [playing,setPlaying]=useState(false),[sourceIndex,setSourceIndex]=useState(0),[streamError,setStreamError]=useState("");
  const [retry,setRetry]=useState(0),[fillMode,setFillMode]=useState(true),[menuOpen,setMenuOpen]=useState(false),[controlsVisible,setControlsVisible]=useState(true),[isPaused,setIsPaused]=useState(false);
+ const [profileOpen,setProfileOpen]=useState(false),[showUpdatesPrompt,setShowUpdatesPrompt]=useState(false);
+ const [updatesEmail,setUpdatesEmail]=useState(()=>localStorage.getItem("zekify-updates-email")||"");
+ const [savedUpdatesEmail,setSavedUpdatesEmail]=useState(()=>localStorage.getItem("zekify-updates-email")||"");
+ const [updatesStatus,setUpdatesStatus]=useState<"idle"|"loading"|"subscribed"|"not-subscribed"|"error">("idle");
+ const [updatesMessage,setUpdatesMessage]=useState(""),[updatesBusy,setUpdatesBusy]=useState(false);
  const [gestureOverlay,setGestureOverlay]=useState<"brightness"|"volume"|null>(null),[brightness,setBrightness]=useState(0.7),[volume,setVolume]=useState(0.7);
  const gestureStart=useRef<{x:number;y:number}|null>(null);
  const videoWrap=useRef<HTMLDivElement>(null),videoRef=useRef<HTMLVideoElement>(null);
  const timezone=Intl.DateTimeFormat().resolvedOptions().timeZone||"device local time";
+ useEffect(()=>{if(localStorage.getItem("zekify-updates-prompt-seen")==="1"||localStorage.getItem("zekify-updates-email"))return;const timer=window.setTimeout(()=>setShowUpdatesPrompt(true),2200);return()=>window.clearTimeout(timer);},[]);
+ async function updatesRequest(path:string,body?:Record<string,string>){
+  const response=await fetch(UPDATES_API+path,{method:body?"POST":"GET",headers:body?{"Content-Type":"application/json"}:undefined,body:body?JSON.stringify(body):undefined});
+  const payload=await response.json().catch(()=>({}));
+  if(!response.ok||!payload.success)throw new Error(payload.message||"Could not update your subscription. Try again.");
+  return payload as {success:boolean;subscribed?:boolean;message?:string};
+ }
+ async function checkUpdatesStatus(email:string){
+  if(!email){setUpdatesStatus("not-subscribed");return;}
+  setUpdatesStatus("loading");setUpdatesMessage("");
+  try{const result=await updatesRequest("/status?email="+encodeURIComponent(email));setUpdatesStatus(result.subscribed?"subscribed":"not-subscribed");}
+  catch(e){setUpdatesStatus("error");setUpdatesMessage(e instanceof Error?e.message:"Could not check subscription status.");}
+ }
+ function openProfile(){
+  setMenuOpen(false);setProfileOpen(true);setUpdatesEmail(savedUpdatesEmail);setUpdatesMessage("");
+  if(savedUpdatesEmail)void checkUpdatesStatus(savedUpdatesEmail);else setUpdatesStatus("not-subscribed");
+ }
+ function dismissUpdatesPrompt(){localStorage.setItem("zekify-updates-prompt-seen","1");setShowUpdatesPrompt(false);}
+ async function subscribeUpdates(){
+  const email=updatesEmail.trim().toLowerCase();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){setUpdatesStatus("error");setUpdatesMessage("Enter a valid email address.");return;}
+  setUpdatesBusy(true);setUpdatesMessage("");
+  try{
+   const result=await updatesRequest("/subscribe",{email,oldEmail:savedUpdatesEmail&&savedUpdatesEmail!==email?savedUpdatesEmail:""});
+   localStorage.setItem("zekify-updates-email",email);localStorage.setItem("zekify-updates-prompt-seen","1");
+   setSavedUpdatesEmail(email);setUpdatesEmail(email);setUpdatesStatus("subscribed");setUpdatesMessage(result.message||"You're subscribed to Zekify updates.");setShowUpdatesPrompt(false);
+  }catch(e){setUpdatesStatus("error");setUpdatesMessage(e instanceof Error?e.message:"Subscription failed. Please try again.");}
+  finally{setUpdatesBusy(false);}
+ }
+ async function unsubscribeUpdates(){
+  if(!savedUpdatesEmail)return;
+  setUpdatesBusy(true);setUpdatesMessage("");
+  try{
+   await updatesRequest("/unsubscribe",{email:savedUpdatesEmail});
+   localStorage.removeItem("zekify-updates-email");setSavedUpdatesEmail("");setUpdatesEmail("");setUpdatesStatus("not-subscribed");setUpdatesMessage("You have been unsubscribed from Zekify updates.");
+  }catch(e){setUpdatesStatus("error");setUpdatesMessage(e instanceof Error?e.message:"Could not unsubscribe. Please try again.");}
+  finally{setUpdatesBusy(false);}
+ }
  async function load(){
   setLoading(true);setError("");
   try{
@@ -124,7 +168,7 @@ export default function App() {
  const home=detail?.teams?.home??selected?.teams?.home,away=detail?.teams?.away??selected?.teams?.away;
  return <main className="app-shell" onContextMenu={e=>e.preventDefault()}>
   {!playing&&<header className="topbar"><div className="brand"><Ball/><span>ZEKIFY</span></div><div className="header-actions"><span className="live-dot">FOOTBALL</span><button className="menu-btn" aria-label="Open menu" onClick={()=>setMenuOpen(true)}><Menu size={17}/> Menu</button></div></header>}
-  {menuOpen&&<div className="menu-overlay" onClick={()=>setMenuOpen(false)}><aside className="menu-drawer" onClick={e=>e.stopPropagation()}><div className="drawer-head"><div className="brand"><Ball/> ZEKIFY</div><button className="close-menu" aria-label="Close menu" onClick={()=>setMenuOpen(false)}>×</button></div><div className="owner-card"><span className="eyebrow">THE CREATOR</span><h2>Developed by<br/><em>TITUS LACZEK</em></h2><p>Made for the game. Built with passion.</p></div><div className="social-links"><a href="https://x.com/iam_czek" target="_blank" rel="noreferrer"><span><BrandIcon kind="x"/></span> X / Twitter <b>↗</b></a><a href="https://www.tiktok.com/@iamczek" target="_blank" rel="noreferrer"><span><BrandIcon kind="tiktok"/></span> TikTok <b>↗</b></a><a href="https://www.instagram.com/iamczek" target="_blank" rel="noreferrer"><span><BrandIcon kind="instagram"/></span> Instagram <b>↗</b></a><a href="mailto:laczekrsa@proton.me"><span><BrandIcon kind="mail"/></span> Email <b>↗</b></a></div><p className="drawer-foot">ZEKIFY · FOOTBALL EVERYWHERE</p></aside></div>}
+  {menuOpen&&<div className="menu-overlay" onClick={()=>setMenuOpen(false)}><aside className="menu-drawer" onClick={e=>e.stopPropagation()}><div className="drawer-head"><div className="brand"><Ball/> ZEKIFY</div><button className="close-menu" aria-label="Close menu" onClick={()=>setMenuOpen(false)}>×</button></div><div className="owner-card"><span className="eyebrow">THE CREATOR</span><h2>Developed by<br/><em>TITUS LACZEK</em></h2><p>Made for the game. Built with passion.</p></div><button className="profile-entry" onClick={openProfile}><span className="profile-entry-icon"><UserRound size={19}/></span><span><strong>Profile & Updates</strong><small>Manage your email announcements</small></span><b>›</b></button><div className="social-links"><a href="https://x.com/iam_czek" target="_blank" rel="noreferrer"><span><BrandIcon kind="x"/></span> X / Twitter <b>↗</b></a><a href="https://www.tiktok.com/@iamczek" target="_blank" rel="noreferrer"><span><BrandIcon kind="tiktok"/></span> TikTok <b>↗</b></a><a href="https://www.instagram.com/iamczek" target="_blank" rel="noreferrer"><span><BrandIcon kind="instagram"/></span> Instagram <b>↗</b></a><a href="mailto:laczekrsa@proton.me"><span><BrandIcon kind="mail"/></span> Email <b>↗</b></a></div><p className="drawer-foot">ZEKIFY · FOOTBALL EVERYWHERE</p></aside></div>}
   {selected&&!playing?<section className="detail-page">
    <button className="back" onClick={backToMatches}><ArrowLeft size={16}/> Back to matches</button>
    <div className="detail-hero"><span className="eyebrow">{detail?.league??selected.league??"FOOTBALL"}</span><div className="detail-teams"><div><TeamBadge team={home} size="large"/><strong>{home?.name??selected.title??"Home"}</strong></div><span className="detail-vs">VS</span><div><TeamBadge team={away} size="large"/><strong>{away?.name??"Away"}</strong></div></div><p>{localTime(detail?.date??selected.date)}</p><span className={selected.status==="live"?"detail-status live":"detail-status"}>{selected.status==="live"?"LIVE NOW":"UPCOMING FIXTURE"}</span></div>
@@ -148,6 +192,8 @@ export default function App() {
     </button>)}</div>}
    </section>
   </>}
+  {showUpdatesPrompt&&!playing&&<div className="updates-overlay" role="dialog" aria-modal="true" aria-labelledby="updates-prompt-title"><section className="updates-card"><button className="updates-close" onClick={dismissUpdatesPrompt} aria-label="Close"><X size={18}/></button><div className="updates-symbol"><Mail size={24}/></div><span className="eyebrow">ZEKIFY UPDATES</span><h2 id="updates-prompt-title">Stay in the loop.</h2><p>Get app releases, changelogs and important service announcements straight to your inbox.</p><label className="updates-label" htmlFor="updates-prompt-email">Email address</label><input id="updates-prompt-email" className="updates-input" type="email" autoComplete="email" value={updatesEmail} onChange={e=>setUpdatesEmail(e.target.value)} placeholder="you@example.com"/><p className="updates-privacy">Only Zekify updates and service notices. No marketing spam. Unsubscribe anytime.</p>{updatesMessage&&<p className={updatesStatus==="error"?"updates-message error":"updates-message"}>{updatesMessage}</p>}<button className="updates-submit" onClick={()=>void subscribeUpdates()} disabled={updatesBusy}>{updatesBusy?<><LoaderCircle size={16} className="spin"/> Subscribing…</>: "Done · Subscribe"}</button><button className="updates-later" onClick={dismissUpdatesPrompt}>Maybe later</button></section></div>}
+  {profileOpen&&!playing&&<div className="updates-overlay" role="dialog" aria-modal="true" aria-labelledby="updates-profile-title" onClick={()=>setProfileOpen(false)}><section className="updates-card profile-card" onClick={e=>e.stopPropagation()}><button className="updates-close" onClick={()=>setProfileOpen(false)} aria-label="Close"><X size={18}/></button><div className="updates-symbol"><UserRound size={24}/></div><span className="eyebrow">YOUR PROFILE</span><h2 id="updates-profile-title">Updates & Announcements</h2><p>Choose the email address where Zekify should send app releases, changelogs and important service notices.</p><div className="updates-status-row">{updatesStatus==="loading"?<><LoaderCircle size={15} className="spin"/> Checking subscription…</>:updatesStatus==="subscribed"?<><CheckCircle2 size={16}/> Subscribed</>:updatesStatus==="error"?<><X size={16}/> Needs attention</>:<>○ Not subscribed</>}</div><label className="updates-label" htmlFor="updates-profile-email">Email address</label><input id="updates-profile-email" className="updates-input" type="email" autoComplete="email" value={updatesEmail} onChange={e=>setUpdatesEmail(e.target.value)} placeholder="you@example.com"/>{updatesMessage&&<p className={updatesStatus==="error"?"updates-message error":"updates-message"}>{updatesMessage}</p>}<button className="updates-submit" onClick={()=>void subscribeUpdates()} disabled={updatesBusy}>{updatesBusy?<><LoaderCircle size={16} className="spin"/> Saving…</>:savedUpdatesEmail?"Save email & subscription":"Subscribe to updates"}</button>{savedUpdatesEmail&&<button className="updates-unsubscribe" onClick={()=>void unsubscribeUpdates()} disabled={updatesBusy}>Unsubscribe</button>}<p className="updates-privacy">Your email is used only for Zekify updates. You can unsubscribe here at any time.</p></section></div>}
   {!playing&&<footer><Ball small/> ZEKIFY <span>·</span> MADE FOR THE GAME</footer>}
  </main>;
 }
