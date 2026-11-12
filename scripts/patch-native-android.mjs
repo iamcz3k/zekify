@@ -193,8 +193,8 @@ mainActivity = mainActivity.replace(
  'private Dialog startupDialog;\n private boolean updateCheckStarted=false;'
 );
 mainActivity = mainActivity.replace(
- 'private void hideStartupSplash(){if(startupDialog!=null&&startupDialog.isShowing()){startupDialog.dismiss();startupDialog=null;}}',
- 'private void hideStartupSplash(){if(startupDialog!=null&&startupDialog.isShowing()){startupDialog.dismiss();startupDialog=null;}if(!updateCheckStarted){updateCheckStarted=true;new Handler(Looper.getMainLooper()).postDelayed(()->checkForUpdates(false),900L);}}\n private void checkForUpdates(boolean manual){ZekifyUpdateManager.check(this,(update,error)->{if(isFinishing())return;if(update!=null){String notes=update.notes==null?"Bug fixes and improvements.":update.notes;if(notes.length()>900)notes=notes.substring(0,900)+"…";ZekifyUpdateManager.showRequiredUpdate(this,update);}else if(manual){Toast.makeText(this,error==null?"Zekify is up to date.":error,Toast.LENGTH_LONG).show();}});}'
+ 'private void hideStartupSplash(){if(startupDialog!=null&&startupDialog.isShowing()){startupDialog.dismiss();startupDialog=null;}queueUpdatesPrompt();}',
+ 'private void hideStartupSplash(){if(startupDialog!=null&&startupDialog.isShowing()){startupDialog.dismiss();startupDialog=null;}queueUpdatesPrompt();if(!updateCheckStarted){updateCheckStarted=true;new Handler(Looper.getMainLooper()).postDelayed(()->checkForUpdates(false),900L);}}\n private void checkForUpdates(boolean manual){ZekifyUpdateManager.check(this,(update,error)->{if(isFinishing())return;if(update!=null){String notes=update.notes==null?"Bug fixes and improvements.":update.notes;if(notes.length()>900)notes=notes.substring(0,900)+"…";ZekifyUpdateManager.showRequiredUpdate(this,update);}else if(manual){Toast.makeText(this,error==null?"Zekify is up to date.":error,Toast.LENGTH_LONG).show();}});}'
 );
 mainActivity = mainActivity.replace(
  'scheduled.setOnClickListener(v->{dialog.dismiss();showScheduledMatches();});',
