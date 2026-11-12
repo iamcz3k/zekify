@@ -72,7 +72,7 @@ public class MainActivity extends Activity {
  private void queueUpdatesPrompt(){
   if(updatesPromptQueued||appPrefs==null||appPrefs.getBoolean("updates_prompt_seen",false)||!appPrefs.getString("updates_email","").isEmpty())return;
   updatesPromptQueued=true;
-  new Handler(Looper.getMainLooper()).postDelayed(()->{if(!isFinishing()&&!isDestroyed())showUpdatesPrompt();},1100L);
+  new Handler(Looper.getMainLooper()).postDelayed(()->{if(!isFinishing()&&!isDestroyed())showUpdatesPrompt();},4200L);
  }
  private JSONObject requestUpdatesApi(String path,JSONObject body)throws Exception{
   HttpURLConnection connection=null;
@@ -91,7 +91,7 @@ public class MainActivity extends Activity {
  private void showUpdatesPrompt(){
   if(isFinishing()||isDestroyed()||appPrefs.getBoolean("updates_prompt_seen",false)||!appPrefs.getString("updates_email","").isEmpty())return;
   if(updatesPromptDialog!=null&&updatesPromptDialog.isShowing())return;
-  Dialog d=new Dialog(this);updatesPromptDialog=d;
+  Dialog d=new Dialog(this);updatesPromptDialog=d;d.setOnCancelListener(cancelled->appPrefs.edit().putBoolean("updates_prompt_seen",true).apply());
   LinearLayout panel=col();panel.setBackground(shape(0xff101010,22));pad(panel,20,20,20,18);
   LinearLayout head=row();head.addView(new Ball(this),new LinearLayout.LayoutParams(dp(34),dp(34)));LinearLayout words=col();LinearLayout.LayoutParams wp=new LinearLayout.LayoutParams(0,-2,1);wp.leftMargin=dp(10);head.addView(words,wp);words.addView(txt("ZEKIFY UPDATES",10,ORANGE,true));words.addView(txt("Stay in the loop.",21,Color.WHITE,true));NativeIcon close=new NativeIcon(this,"close",MUTED);head.addView(close,new LinearLayout.LayoutParams(dp(34),dp(34)));close.setOnClickListener(v->{appPrefs.edit().putBoolean("updates_prompt_seen",true).apply();d.dismiss();});panel.addView(head);
   TextView intro=txt("Get app releases, changelogs and important service announcements straight to your inbox.",11,MUTED,false);LinearLayout.LayoutParams introP=new LinearLayout.LayoutParams(-1,-2);introP.topMargin=dp(12);panel.addView(intro,introP);
