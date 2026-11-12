@@ -43,7 +43,7 @@ export default function App() {
  const videoWrap=useRef<HTMLDivElement>(null),videoRef=useRef<HTMLVideoElement>(null);
  const timezone=Intl.DateTimeFormat().resolvedOptions().timeZone||"device local time";
  useEffect(()=>{if(localStorage.getItem("zekify-updates-prompt-seen")==="1"||localStorage.getItem("zekify-updates-email"))return;const timer=window.setTimeout(()=>setShowUpdatesPrompt(true),2200);return()=>window.clearTimeout(timer);},[]);
- async function updatesRequest(path:string,body?:Record<string,string>){
+ async function updatesRequest(path:string,body?:Record<string,string|boolean>){
   const response=await fetch(UPDATES_API+path,{method:body?"POST":"GET",headers:body?{"Content-Type":"application/json"}:undefined,body:body?JSON.stringify(body):undefined});
   const payload=await response.json().catch(()=>({}));
   if(!response.ok||!payload.success)throw new Error(payload.message||"Could not update your subscription. Try again.");
@@ -65,7 +65,7 @@ export default function App() {
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){setUpdatesStatus("error");setUpdatesMessage("Enter a valid email address.");return;}
   setUpdatesBusy(true);setUpdatesMessage("");
   try{
-   const result=await updatesRequest("/subscribe",{email,oldEmail:savedUpdatesEmail&&savedUpdatesEmail!==email?savedUpdatesEmail:""});
+   const result=await updatesRequest("/subscribe",{email,oldEmail:savedUpdatesEmail&&savedUpdatesEmail!==email?savedUpdatesEmail:"",consent:true});
    localStorage.setItem("zekify-updates-email",email);localStorage.setItem("zekify-updates-prompt-seen","1");
    setSavedUpdatesEmail(email);setUpdatesEmail(email);setUpdatesStatus("subscribed");setUpdatesMessage(result.message||"You're subscribed to Zekify updates.");setShowUpdatesPrompt(false);
   }catch(e){setUpdatesStatus("error");setUpdatesMessage(e instanceof Error?e.message:"Subscription failed. Please try again.");}
