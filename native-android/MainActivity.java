@@ -30,6 +30,7 @@ import java.util.concurrent.*;
 
 public class MainActivity extends Activity {
  private static final String API="https://repo-seed-transplanter.lovable.app";
+ private static final String UPDATES_API="https://zekify-updates-api.laczekstream.workers.dev";
  private final ExecutorService apiIo=Executors.newFixedThreadPool(2);
  private final Handler inlineNetworkHandler=new Handler(Looper.getMainLooper());
  private ConnectivityManager connectivityManager;
@@ -52,7 +53,7 @@ public class MainActivity extends Activity {
  private EditText search;
  private String tab="live",league="All",query="",selectedSport="football";
  private TextView sportTitle; private LinearLayout sportRow; private int matchesGeneration=0; private String matchesError="";
- private JSONObject selected,detail; private LinearLayout sourceList; private WebView matchPreview; private int selectedSourceIndex=0; private JSONArray selectedSources; private FrameLayout inlineFrame; private PlayerView inlinePlayerView; private ExoPlayer inlinePlayer; private WebView inlineWebView; private TextView inlineStatus; private LinearLayout inlineSources; private boolean inlineLoading=false; private Dialog startupDialog; private boolean mainPipActive=false;
+ private JSONObject selected,detail; private LinearLayout sourceList; private WebView matchPreview; private int selectedSourceIndex=0; private JSONArray selectedSources; private FrameLayout inlineFrame; private PlayerView inlinePlayerView; private ExoPlayer inlinePlayer; private WebView inlineWebView; private TextView inlineStatus; private LinearLayout inlineSources; private boolean inlineLoading=false; private Dialog startupDialog; private boolean mainPipActive=false; private Dialog updatesPromptDialog; private boolean updatesPromptQueued=false;
  private final int ORANGE=Color.rgb(255,138,61),BG=Color.rgb(5,5,5),PANEL=Color.rgb(17,17,17),MUTED=Color.rgb(145,145,145);
  private String destination="home",settingsReturnDestination="profile",detailTab="overview";
  private String matchReturnDestination="home";
@@ -66,7 +67,71 @@ public class MainActivity extends Activity {
   ProgressBar progress=new ProgressBar(this);progress.setIndeterminate(true);progress.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(ORANGE));LinearLayout.LayoutParams pp=new LinearLayout.LayoutParams(dp(42),dp(42));pp.topMargin=dp(24);center.addView(progress,pp);
   startupDialog.setContentView(splash);startupDialog.setCancelable(false);startupDialog.show();Window w=startupDialog.getWindow();if(w!=null){w.setBackgroundDrawableResource(android.R.color.transparent);w.setLayout(-1,-1);w.setStatusBarColor(Color.BLACK);w.setNavigationBarColor(Color.BLACK);}
  }
- private void hideStartupSplash(){if(startupDialog!=null&&startupDialog.isShowing()){startupDialog.dismiss();startupDialog=null;}}
+ private void hideStartupSplash(){if(startupDialog!=null&&startupDialog.isShowing()){startupDialog.dismiss();startupDialog=null;}queueUpdatesPrompt();}
+
+ private void queueUpdatesPrompt(){
+  if(updatesPromptQueued||appPrefs==null||appPrefs.getBoolean("updates_prompt_seen",false)||!appPrefs.getString("updates_email","").isEmpty())return;
+  updatesPromptQueued=true;
+  new Handler(Looper.getMainLooper()).postDelayed(()->{if(!isFinishing()&&!isDestroyed())showUpdatesPrompt();},1100L);
+ }
+ private JSONObject requestUpdatesApi(String path,JSONObject body)throws Exception{
+  HttpURLConnection connection=null;
+  try{
+   URL url=new URL(UPDATES_API+path);connection=(HttpURLConnection)url.openConnection();
+   connection.setConnectTimeout(10000);connection.setReadTimeout(10000);connection.setUseCaches(false);
+   if(body!=null){connection.setRequestMethod("POST");connection.setDoOutput(true);connection.setRequestProperty("Content-Type","application/json; charset=utf-8");byte[] bytes=body.toString().getBytes("UTF-8");connection.setFixedLengthStreamingMode(bytes.length);try(OutputStream output=connection.getOutputStream()){output.write(bytes);}}
+   else connection.setRequestMethod("GET");
+   int status=connection.getResponseCode();InputStream stream=status>=200&&status<300?connection.getInputStream():connection.getErrorStream();
+   ByteArrayOutputStream output=new ByteArrayOutputStream();if(stream!=null){try(InputStream input=stream){byte[] buffer=new byte[4096];int count;while((count=input.read(buffer))!=-1)output.write(buffer,0,count);}}
+   JSONObject result=new JSONObject(output.toString("UTF-8"));
+   if(status<200||status>=300||!result.optBoolean("success",false))throw new IOException(result.optString("message","Email service is temporarily unavailable."));
+   return result;
+  }finally{if(connection!=null)connection.disconnect();}
+ }
+ private void showUpdatesPrompt(){
+  if(isFinishing()||isDestroyed()||appPrefs.getBoolean("updates_prompt_seen",false)||!appPrefs.getString("updates_email","").isEmpty())return;
+  if(updatesPromptDialog!=null&&updatesPromptDialog.isShowing())return;
+  Dialog d=new Dialog(this);updatesPromptDialog=d;
+  LinearLayout panel=col();panel.setBackground(shape(0xff101010,22));pad(panel,20,20,20,18);
+  LinearLayout head=row();head.addView(new Ball(this),new LinearLayout.LayoutParams(dp(34),dp(34)));LinearLayout words=col();LinearLayout.LayoutParams wp=new LinearLayout.LayoutParams(0,-2,1);wp.leftMargin=dp(10);head.addView(words,wp);words.addView(txt("ZEKIFY UPDATES",10,ORANGE,true));words.addView(txt("Stay in the loop.",21,Color.WHITE,true));NativeIcon close=new NativeIcon(this,"close",MUTED);head.addView(close,new LinearLayout.LayoutParams(dp(34),dp(34)));close.setOnClickListener(v->{appPrefs.edit().putBoolean("updates_prompt_seen",true).apply();d.dismiss();});panel.addView(head);
+  TextView intro=txt("Get app releases, changelogs and important service announcements straight to your inbox.",11,MUTED,false);LinearLayout.LayoutParams introP=new LinearLayout.LayoutParams(-1,-2);introP.topMargin=dp(12);panel.addView(intro,introP);
+  TextView label=txt("EMAIL ADDRESS",10,ORANGE,true);LinearLayout.LayoutParams labelP=new LinearLayout.LayoutParams(-1,-2);labelP.topMargin=dp(18);labelP.bottomMargin=dp(7);panel.addView(label,labelP);
+  EditText email=new EditText(this);email.setSingleLine(true);email.setTextSize(13);email.setTextColor(Color.WHITE);email.setHintTextColor(MUTED);email.setHint("you@example.com");email.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);email.setBackground(shape(PANEL,12));pad(email,13,0,13,0);panel.addView(email,new LinearLayout.LayoutParams(-1,dp(48)));
+  TextView privacy=txt("Only Zekify updates and service notices. No marketing spam. Unsubscribe anytime.",9,MUTED,false);LinearLayout.LayoutParams privacyP=new LinearLayout.LayoutParams(-1,-2);privacyP.topMargin=dp(10);panel.addView(privacy,privacyP);
+  TextView status=txt("",10,0xffff8f86,false);LinearLayout.LayoutParams statusP=new LinearLayout.LayoutParams(-1,-2);statusP.topMargin=dp(8);panel.addView(status,statusP);
+  Button subscribe=btn("Done · Subscribe",true);LinearLayout.LayoutParams subscribeP=new LinearLayout.LayoutParams(-1,dp(46));subscribeP.topMargin=dp(16);panel.addView(subscribe,subscribeP);subscribe.setOnClickListener(v->submitUpdatesSubscription(email,d,status));
+  Button later=btn("Maybe later",false);LinearLayout.LayoutParams laterP=new LinearLayout.LayoutParams(-1,dp(42));laterP.topMargin=dp(8);panel.addView(later,laterP);later.setOnClickListener(v->{appPrefs.edit().putBoolean("updates_prompt_seen",true).apply();d.dismiss();});
+  dialogWindow(d,panel,.92f,.68f);
+ }
+ private void submitUpdatesSubscription(EditText input,Dialog dialog,TextView status){
+  String email=input.getText().toString().trim().toLowerCase(Locale.ROOT);
+  if(!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()){status.setTextColor(0xffff8f86);status.setText("Enter a valid email address.");return;}
+  String oldEmail=appPrefs.getString("updates_email","");status.setTextColor(MUTED);status.setText("Subscribing…");
+  JSONObject body=new JSONObject();try{body.put("email",email);body.put("oldEmail",oldEmail.equals(email)?"":oldEmail);body.put("consent",true);}catch(JSONException ignored){}
+  apiIo.execute(()->{try{requestUpdatesApi("/subscribe",body);runOnUiThread(()->{appPrefs.edit().putString("updates_email",email).putBoolean("updates_prompt_seen",true).apply();status.setTextColor(0xff9be1b0);status.setText("You're subscribed to Zekify updates.");if(dialog!=null&&dialog.isShowing())dialog.dismiss();Toast.makeText(this,"You're subscribed to Zekify updates.",Toast.LENGTH_LONG).show();});}catch(Exception error){runOnUiThread(()->{if(status!=null){status.setTextColor(0xffff8f86);status.setText(error.getMessage()==null?"Subscription failed. Try again.":error.getMessage());}});}});
+ }
+ private void checkUpdatesStatus(String email,TextView status){
+  if(email==null||email.isEmpty()){status.setText("Not subscribed yet.");return;}
+  status.setText("Checking subscription…");
+  apiIo.execute(()->{try{JSONObject result=requestUpdatesApi("/status?email="+java.net.URLEncoder.encode(email,"UTF-8"),null);boolean active=result.optBoolean("subscribed",false);runOnUiThread(()->{if(status!=null)status.setText(active?"Subscribed · "+email:"Not subscribed · "+email);});}catch(Exception error){runOnUiThread(()->{if(status!=null)status.setText("Could not check subscription status. Open again when connected.");});}});
+ }
+ private void unsubscribeUpdates(String email,Dialog dialog,TextView status){
+  if(email==null||email.isEmpty())return;status.setText("Unsubscribing…");JSONObject body=new JSONObject();try{body.put("email",email);}catch(JSONException ignored){}
+  apiIo.execute(()->{try{requestUpdatesApi("/unsubscribe",body);runOnUiThread(()->{appPrefs.edit().remove("updates_email").apply();if(status!=null)status.setText("You are unsubscribed from Zekify updates.");Toast.makeText(this,"Unsubscribed from Zekify updates.",Toast.LENGTH_LONG).show();if(dialog!=null&&dialog.isShowing())dialog.dismiss();});}catch(Exception error){runOnUiThread(()->{if(status!=null)status.setText(error.getMessage()==null?"Could not unsubscribe. Try again.":error.getMessage());});}});
+ }
+ private void showUpdatesProfile(){
+  Dialog d=new Dialog(this);String saved=appPrefs.getString("updates_email","");LinearLayout panel=col();panel.setBackground(shape(0xff101010,22));pad(panel,20,18,20,18);
+  LinearLayout head=row();head.addView(txt("UPDATES & ANNOUNCEMENTS",14,Color.WHITE,true),new LinearLayout.LayoutParams(0,-2,1));NativeIcon close=new NativeIcon(this,"close",MUTED);head.addView(close,new LinearLayout.LayoutParams(dp(34),dp(34)));close.setOnClickListener(v->d.dismiss());panel.addView(head);
+  TextView intro=txt("Manage the email address used for Zekify releases, changelogs and important service notices.",10,MUTED,false);LinearLayout.LayoutParams introP=new LinearLayout.LayoutParams(-1,-2);introP.topMargin=dp(7);panel.addView(intro,introP);
+  TextView status=txt(saved.isEmpty()?"Not subscribed yet.":"Checking subscription…",10,ORANGE,true);LinearLayout.LayoutParams statusP=new LinearLayout.LayoutParams(-1,-2);statusP.topMargin=dp(14);panel.addView(status,statusP);
+  TextView label=txt("EMAIL ADDRESS",10,ORANGE,true);LinearLayout.LayoutParams labelP=new LinearLayout.LayoutParams(-1,-2);labelP.topMargin=dp(16);labelP.bottomMargin=dp(7);panel.addView(label,labelP);
+  EditText email=new EditText(this);email.setSingleLine(true);email.setTextSize(13);email.setTextColor(Color.WHITE);email.setHintTextColor(MUTED);email.setHint("you@example.com");email.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);email.setBackground(shape(PANEL,12));pad(email,13,0,13,0);email.setText(saved);panel.addView(email,new LinearLayout.LayoutParams(-1,dp(48)));
+  Button save=btn(saved.isEmpty()?"Subscribe to updates":"Save email & subscription",true);LinearLayout.LayoutParams saveP=new LinearLayout.LayoutParams(-1,dp(46));saveP.topMargin=dp(14);panel.addView(save,saveP);save.setOnClickListener(v->submitUpdatesSubscription(email,d,status));
+  if(!saved.isEmpty()){Button unsubscribe=btn("Unsubscribe",false);LinearLayout.LayoutParams unP=new LinearLayout.LayoutParams(-1,dp(42));unP.topMargin=dp(8);panel.addView(unsubscribe,unP);unsubscribe.setOnClickListener(v->unsubscribeUpdates(saved,d,status));}
+  TextView privacy=txt("Your email is used only for Zekify updates. You can unsubscribe here at any time.",9,MUTED,false);LinearLayout.LayoutParams privacyP=new LinearLayout.LayoutParams(-1,-2);privacyP.topMargin=dp(12);panel.addView(privacy,privacyP);
+  dialogWindow(d,panel,.92f,.72f);checkUpdatesStatus(saved,status);
+ }
+
  private GradientDrawable shape(int c,int r){GradientDrawable d=new GradientDrawable();d.setColor(c);d.setCornerRadius(dp(Math.max(r,14)));d.setStroke(dp(1),Color.argb(c==Color.TRANSPARENT?12:28,255,255,255));return d;}
  private Drawable ripple(int c,int r){return new RippleDrawable(android.content.res.ColorStateList.valueOf(0x26ffffff),shape(c,r),null);}
  private TextView txt(String s,int z,int c,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextSize(z);t.setTextColor(c);t.setTypeface(Typeface.create("sans-serif",bold?Typeface.BOLD:Typeface.NORMAL));t.setIncludeFontPadding(true);t.setTextIsSelectable(false);return t;}
@@ -196,6 +261,8 @@ public class MainActivity extends Activity {
   wrap.addView(profileAction("Settings","Appearance, playback, data and app preferences","settings",()->{settingsReturnDestination="profile";showDestination("settings");}));
   wrap.addView(profileAction("Scheduled matches","Your saved kickoff reminders","calendar",()->showDestination("schedule")));
   wrap.addView(profileToggleAction("Floating player","Keep watching in a movable overlay","floating_player",false));
+  TextView updatesSection=txt("UPDATES",10,ORANGE,true);LinearLayout.LayoutParams updatesSectionP=new LinearLayout.LayoutParams(-1,-2);updatesSectionP.topMargin=dp(22);updatesSectionP.bottomMargin=dp(8);wrap.addView(updatesSection,updatesSectionP);
+  wrap.addView(profileAction("Updates & Announcements","Manage email updates, changelogs and service notices","mail",this::showUpdatesProfile));
   TextView tools=txt("APP TOOLS",10,ORANGE,true);LinearLayout.LayoutParams toolsP=new LinearLayout.LayoutParams(-1,-2);toolsP.topMargin=dp(22);toolsP.bottomMargin=dp(8);wrap.addView(tools,toolsP);
   wrap.addView(profileAction("LiveScore","Fixtures, live scores and match centre","calendar",()->startActivity(new Intent(this,LiveScoreActivity.class))));
   wrap.addView(profileAction("Network speed test","Measure ping, jitter, download and upload","activity",this::showSpeedTest));
