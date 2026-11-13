@@ -256,7 +256,9 @@ public class MainActivity extends Activity {
  private boolean hasTeamPair(JSONObject m){return !team(m,"home").isEmpty()&&!team(m,"away").isEmpty();}
  private boolean eventStyle(JSONObject m){String category=m==null?"":m.optString("category","");return category.equals("cycling")||category.equals("motor-sports")||category.equals("golf")||category.equals("darts")||!hasTeamPair(m);}
  private String matchTitle(JSONObject m){String title=firstNonEmpty(m,"eventName","title","name");if(!title.isEmpty())return title;String h=team(m,"home"),a=team(m,"away");return !h.isEmpty()&&!a.isEmpty()?h+" vs "+a:leagueName(m);}
- private String eventBadgeUrl(JSONObject m){String u=firstNonEmpty(m,"eventBadge","leagueLogo","leagueBadge","poster");if(u.startsWith("/"))u=API+u;return u;}
+ private String normalizeBadgeUrl(String value){if(value==null)return "";String u=value.trim();if(u.isEmpty()||"null".equalsIgnoreCase(u))return "";if(u.startsWith("//"))return "https:"+u;if(u.startsWith("data:image/"))return u;try{if(u.startsWith("/"))return new URL(new URL(API),u).toString();if(!u.matches("(?i)^https?://.*"))return "";return new URL(u).toString();}catch(Exception ignored){return "";}}
+ private String badgeFromObject(JSONObject object,String... keys){if(object==null)return "";for(String key:keys){Object raw=object.opt(key);if(raw instanceof String){String value=normalizeBadgeUrl((String)raw);if(!value.isEmpty())return value;}else if(raw instanceof JSONObject){JSONObject nested=(JSONObject)raw;String value=normalizeBadgeUrl(firstNonEmpty(nested,"url","src","image","logo","badge","original","large","medium"));if(!value.isEmpty())return value;}}return "";}
+ private String eventBadgeUrl(JSONObject m){String value=badgeFromObject(m,"eventBadge","event_badge","eventLogo","event_logo","leagueLogo","league_logo","leagueBadge","league_badge","poster","posterUrl","image","imageUrl","logo","badge");if(!value.isEmpty())return value;JSONObject event=m==null?null:m.optJSONObject("event"),competition=m==null?null:m.optJSONObject("competition"),leagueObject=m==null?null:m.optJSONObject("leagueData"),tournament=m==null?null:m.optJSONObject("tournament");value=badgeFromObject(event,"badge","logo","image","poster","thumbnail");if(!value.isEmpty())return value;value=badgeFromObject(competition,"badge","logo","image","poster","thumbnail");if(!value.isEmpty())return value;value=badgeFromObject(leagueObject,"badge","logo","image","poster");if(!value.isEmpty())return value;return badgeFromObject(tournament,"badge","logo","image","poster");}
  private String leagueName(JSONObject m){String s=m.optString("league","");return s.trim().isEmpty()?"Other competitions":s.trim();}
  private void renderLeagues(){if(leagueRow==null)return;leagueRow.removeAllViews();LinkedHashSet<String> ls=new LinkedHashSet<>();ls.add("All");for(JSONObject m:matches)ls.add(leagueName(m));for(String s:ls){Button b=btn(s,s.equals(league));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-2,dp(36));p.rightMargin=dp(7);leagueRow.addView(b,p);b.setOnClickListener(v->{league=s;renderLeagues();render();});}}
   private void render(){
@@ -355,18 +357,17 @@ public class MainActivity extends Activity {
   FrameLayout frame=new FrameLayout(this);frame.setBackground(shape(0xff252525,14));
   TextView fallback=txt(sportGlyph(m.optString("category",selectedSport)),22,ORANGE,true);fallback.setGravity(Gravity.CENTER);frame.addView(fallback,new FrameLayout.LayoutParams(-1,-1));
   String url=eventBadgeUrl(m);if(url.isEmpty()||!setting("show_badges",true))return frame;
-  frame.setTag(url);Bitmap cached;synchronized(badgeCache){cached=badgeCache.get(url);}if(cached!=null)showBadge(frame,cached,url);return frame;
+  frame.setTag(url);Bitmap cached;synchronized(badgeCache){cached=badgeCache.get(url);}if(cached!=null)showBadge(frame,cached,url);else if(url.startsWith("http"))requestBadge(frame,url);return frame;
  }
  private View teamBadge(JSONObject m,String side){
   FrameLayout frame=new FrameLayout(this);frame.setBackground(shape(0xff252525,50));frame.setElevation(dp(1));
   String name=team(m,side);TextView fallback=txt(name.isEmpty()?"•":name.substring(0,1).toUpperCase(Locale.ROOT),14,ORANGE,true);fallback.setGravity(Gravity.CENTER);frame.addView(fallback,new FrameLayout.LayoutParams(dp(34),dp(34)));
   JSONObject teams=m.optJSONObject("teams"),teamData=teams==null?null:teams.optJSONObject(side);
-  String url=teamData==null?"":teamData.optString("badge","");
+  String url=badgeFromObject(teamData,"badge","logo","image","crest","teamBadge","team_badge");
   if(url.isEmpty()||!setting("show_badges",true))return frame;
-  if(url.startsWith("/"))url=API+url;
   final String badgeUrl=url;frame.setTag(badgeUrl);
   Bitmap cached;synchronized(badgeCache){cached=badgeCache.get(badgeUrl);}
-  if(cached!=null)showBadge(frame,cached,badgeUrl);
+  if(cached!=null)showBadge(frame,cached,badgeUrl);else if(badgeUrl.startsWith("http"))requestBadge(frame,badgeUrl);
   return frame;
  }
  private void loadVisibleBadges(){
@@ -378,22 +379,21 @@ public class MainActivity extends Activity {
   if(view instanceof FrameLayout){Object tag=view.getTag();if(tag instanceof String){String url=(String)tag;if(url.startsWith("http"))requestBadge((FrameLayout)view,url);}}
   if(view instanceof android.view.ViewGroup){android.view.ViewGroup group=(android.view.ViewGroup)view;for(int i=0;i<group.getChildCount();i++)loadBadgesIn(group.getChildAt(i));}
  }
+ private Bitmap decodeBadgeBytes(byte[] bytes){
+  if(bytes==null||bytes.length==0)return null;Bitmap bitmap=BitmapFactory.decodeByteArray(bytes,0,bytes.length);if(bitmap!=null)return bitmap;
+  try(InputStream input=new ByteArrayInputStream(bytes)){SVG svg=SVG.getFromInputStream(input);android.graphics.Picture picture=svg.renderToPicture();int width=Math.max(1,Math.min(512,picture.getWidth())),height=Math.max(1,Math.min(512,picture.getHeight()));if(width<=1||height<=1)return null;Bitmap rendered=Bitmap.createBitmap(width,height,Bitmap.Config.ARGB_8888);new Canvas(rendered).drawPicture(picture,new Rect(0,0,width,height));return rendered;}catch(Exception ignored){return null;}
+ }
  private void requestBadge(FrameLayout frame,String badgeUrl){
-  if(frame==null||!badgeUrl.equals(frame.getTag()))return;
-  Bitmap cached;synchronized(badgeCache){cached=badgeCache.get(badgeUrl);}if(cached!=null){showBadge(frame,cached,badgeUrl);return;}
-  badgeWaiters.computeIfAbsent(badgeUrl,k->new java.util.concurrent.CopyOnWriteArrayList<>()).add(new java.lang.ref.WeakReference<>(frame));
-  if(!badgeRequests.add(badgeUrl))return;
-  imageIo.execute(()->{
-   Bitmap bitmap=null;HttpURLConnection connection=null;
-   try{
-    File badgeDir=getDir("badges",MODE_PRIVATE);File badgeFile=new File(badgeDir,Integer.toHexString(badgeUrl.hashCode())+".png");
-    if(badgeFile.exists())bitmap=BitmapFactory.decodeFile(badgeFile.getAbsolutePath());
-    if(bitmap==null){connection=(HttpURLConnection)new URL(badgeUrl).openConnection();connection.setConnectTimeout(5000);connection.setReadTimeout(7000);connection.setInstanceFollowRedirects(true);connection.setUseCaches(true);connection.setRequestProperty("User-Agent","Zekify/2.0 Android");int code=connection.getResponseCode();if(code>=200&&code<300){try(InputStream input=connection.getInputStream()){bitmap=BitmapFactory.decodeStream(input);}}}
-    if(bitmap!=null){if(setting("data_saver",false)){Bitmap scaled=Bitmap.createScaledBitmap(bitmap,48,48,true);if(scaled!=bitmap)bitmap=scaled;}synchronized(badgeCache){badgeCache.put(badgeUrl,bitmap);}if(!badgeFile.exists()){try(FileOutputStream out=new FileOutputStream(badgeFile)){bitmap.compress(Bitmap.CompressFormat.PNG,100,out);}catch(Exception ignored){}}}
-   }catch(Exception ignored){}
-   finally{if(connection!=null)connection.disconnect();badgeRequests.remove(badgeUrl);}
-   final Bitmap result=bitmap;java.util.List<java.lang.ref.WeakReference<FrameLayout>> waiting=badgeWaiters.remove(badgeUrl);
-   if(result!=null&&waiting!=null&&!isFinishing())runOnUiThread(()->{for(java.lang.ref.WeakReference<FrameLayout> ref:waiting){FrameLayout target=ref.get();if(target!=null)showBadge(target,result,badgeUrl);}});
+  if(frame==null||!badgeUrl.equals(frame.getTag()))return;Bitmap cached;synchronized(badgeCache){cached=badgeCache.get(badgeUrl);}if(cached!=null){showBadge(frame,cached,badgeUrl);return;}
+  badgeWaiters.computeIfAbsent(badgeUrl,k->new java.util.concurrent.CopyOnWriteArrayList<>()).add(new java.lang.ref.WeakReference<>(frame));if(!badgeRequests.add(badgeUrl))return;
+  imageIo.execute(()->{Bitmap bitmap=null;HttpURLConnection connection=null;try{
+   File badgeDir=getDir("badges",MODE_PRIVATE);File badgeFile=new File(badgeDir,Integer.toHexString(badgeUrl.hashCode())+".img");
+   if(!badgeUrl.startsWith("data:image/")&&badgeFile.exists()){try(InputStream in=new FileInputStream(badgeFile);ByteArrayOutputStream bytes=new ByteArrayOutputStream()){byte[] chunk=new byte[8192];int n;while((n=in.read(chunk))!=-1)bytes.write(chunk,0,n);bitmap=decodeBadgeBytes(bytes.toByteArray());}}
+   if(bitmap==null&&badgeUrl.startsWith("data:image/")){int comma=badgeUrl.indexOf(',');if(comma>0)bitmap=decodeBadgeBytes(android.util.Base64.decode(badgeUrl.substring(comma+1),android.util.Base64.DEFAULT));}
+   if(bitmap==null&&!badgeUrl.startsWith("data:image/")){connection=(HttpURLConnection)new URL(badgeUrl).openConnection();connection.setConnectTimeout(9000);connection.setReadTimeout(12000);connection.setInstanceFollowRedirects(true);connection.setUseCaches(true);connection.setRequestMethod("GET");connection.setRequestProperty("User-Agent","Mozilla/5.0 (Linux; Android) AppleWebKit/537.36 Zekify/2.0");connection.setRequestProperty("Accept","image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8");int code=connection.getResponseCode();int length=connection.getContentLength();if(code>=200&&code<300&&(length<=0||length<=5*1024*1024)){try(InputStream input=connection.getInputStream();ByteArrayOutputStream bytes=new ByteArrayOutputStream()){byte[] chunk=new byte[8192];int n,total=0;while((n=input.read(chunk))!=-1){total+=n;if(total>5*1024*1024)throw new IOException("Badge image too large");bytes.write(chunk,0,n);}bitmap=decodeBadgeBytes(bytes.toByteArray());}}}
+   if(bitmap!=null){if(setting("data_saver",false)){Bitmap scaled=Bitmap.createScaledBitmap(bitmap,48,48,true);if(scaled!=bitmap)bitmap=scaled;}synchronized(badgeCache){badgeCache.put(badgeUrl,bitmap);}if(!badgeUrl.startsWith("data:image/")&&!badgeFile.exists())try(FileOutputStream out=new FileOutputStream(badgeFile)){bitmap.compress(Bitmap.CompressFormat.PNG,100,out);}
+  }catch(Exception error){android.util.Log.w("Zekify","Badge load failed: "+badgeUrl,error);}finally{if(connection!=null)connection.disconnect();badgeRequests.remove(badgeUrl);}
+  final Bitmap result=bitmap;java.util.List<java.lang.ref.WeakReference<FrameLayout>> waiting=badgeWaiters.remove(badgeUrl);if(result!=null&&waiting!=null&&!isFinishing())runOnUiThread(()->{for(java.lang.ref.WeakReference<FrameLayout> ref:waiting){FrameLayout target=ref.get();if(target!=null)showBadge(target,result,badgeUrl);}});
   });
  }
  private void showBadge(FrameLayout frame,Bitmap bitmap,String expectedUrl){
