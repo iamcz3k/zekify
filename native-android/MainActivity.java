@@ -449,7 +449,7 @@ public class MainActivity extends Activity {
  private boolean eventStyle(JSONObject m){String category=m==null?"":m.optString("category","");return category.equals("cycling")||category.equals("motor-sports")||category.equals("golf")||category.equals("darts")||!hasTeamPair(m);}
  private String matchTitle(JSONObject m){String title=firstNonEmpty(m,"eventName","title","name");if(!title.isEmpty())return title;String h=team(m,"home"),a=team(m,"away");return !h.isEmpty()&&!a.isEmpty()?h+" vs "+a:leagueName(m);}
  private String normalizeBadgeUrl(String value){if(value==null)return "";String u=value.trim();if(u.isEmpty()||"null".equalsIgnoreCase(u))return "";if(u.startsWith("//"))return "https:"+u;if(u.startsWith("data:image/"))return u;try{if(u.startsWith("/"))return new URL(new URL(API),u).toString();if(!u.matches("(?i)^https?://.*"))return "";return new URL(u).toString();}catch(Exception ignored){return "";}}
- private String badgeFromObject(JSONObject object,String... keys){if(object==null)return "";for(String key:keys){Object raw=object.opt(key);if(raw instanceof String){String value=normalizeBadgeUrl((String)raw);if(!value.isEmpty())return value;}else if(raw instanceof JSONObject){JSONObject nested=(JSONObject)raw;String value=normalizeBadgeUrl(firstNonEmpty(nested,"url","src","image","logo","badge","original","large","medium"));if(!value.isEmpty())return value;}}return "";}
+ private String badgeFromObject(JSONObject object,String... keys){if(object==null)return "";for(String key:keys){Object raw=object.opt(key);if(raw instanceof String){String value=normalizeBadgeUrl((String)raw);if(!value.isEmpty())return value;}else if(raw instanceof JSONObject){JSONObject nested=(JSONObject)raw;String value=normalizeBadgeUrl(firstNonEmpty(nested,"url","src","image","imageUrl","image_url","logo","logoUrl","logo_url","badge","badgeUrl","badge_url","crest","crestUrl","crest_url","thumbnail","icon","href","original","large","medium"));if(!value.isEmpty())return value;}}return "";}
  private String eventBadgeUrl(JSONObject m){String value=badgeFromObject(m,"eventBadge","event_badge","eventLogo","event_logo","leagueLogo","league_logo","leagueBadge","league_badge","poster","posterUrl","image","imageUrl","logo","badge");if(!value.isEmpty())return value;JSONObject event=m==null?null:m.optJSONObject("event"),competition=m==null?null:m.optJSONObject("competition"),leagueObject=m==null?null:m.optJSONObject("leagueData"),tournament=m==null?null:m.optJSONObject("tournament");value=badgeFromObject(event,"badge","logo","image","poster","thumbnail");if(!value.isEmpty())return value;value=badgeFromObject(competition,"badge","logo","image","poster","thumbnail");if(!value.isEmpty())return value;value=badgeFromObject(leagueObject,"badge","logo","image","poster");if(!value.isEmpty())return value;return badgeFromObject(tournament,"badge","logo","image","poster");}
  private String leagueName(JSONObject m){String s=m.optString("league","");return s.trim().isEmpty()?"Other competitions":s.trim();}
  private void renderLeagues(){
@@ -532,11 +532,11 @@ private void addDetailRow(LinearLayout list,String label,String value){
   if(upcoming){TextView kickoff=txt(date(m.optLong("date",0)),9,MUTED,false);LinearLayout.LayoutParams kp=new LinearLayout.LayoutParams(-1,-2);kp.topMargin=dp(3);card.addView(kickoff,kp);}
   if(!eventStyle(m)){
    LinearLayout teams=row();pad(teams,0,12,0,11);
-   teams.addView(teamBadge(m,"home"));
+   FrameLayout homeBadge=teamBadge(m,"home");teams.addView(homeBadge,new LinearLayout.LayoutParams(dp(22),dp(22)));
    TextView home=marqueeTeamName(team(m,"home"));LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(0,dp(34),1);hp.leftMargin=dp(8);teams.addView(home,hp);
    TextView vs=txt("VS",9,ORANGE,true);vs.setGravity(Gravity.CENTER);teams.addView(vs);
    TextView away=marqueeTeamName(team(m,"away"));away.setGravity(Gravity.RIGHT);LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(0,dp(34),1);ap.rightMargin=dp(8);teams.addView(away,ap);
-   teams.addView(teamBadge(m,"away"));card.addView(teams);
+   FrameLayout awayBadge=teamBadge(m,"away");teams.addView(awayBadge,new LinearLayout.LayoutParams(dp(22),dp(22)));card.addView(teams);
   }else{
    LinearLayout event=row();pad(event,0,10,0,10);FrameLayout badge=eventBadge(m);event.addView(badge,new LinearLayout.LayoutParams(dp(40),dp(40)));
    LinearLayout eventText=col();LinearLayout.LayoutParams ep=new LinearLayout.LayoutParams(0,-2,1);ep.leftMargin=dp(10);event.addView(eventText,ep);
@@ -577,9 +577,9 @@ private void addDetailRow(LinearLayout list,String label,String value){
   String url=eventBadgeUrl(m);if(url.isEmpty()||!setting("show_badges",true))return frame;frame.setTag(url);Bitmap cached;synchronized(badgeCache){cached=badgeCache.get(url);}if(cached!=null)showBadge(frame,cached,url);else if(url.startsWith("http")||url.startsWith("data:image/"))requestBadge(frame,url);return frame;
  }
  private View teamBadge(JSONObject m,String side){
-  FrameLayout frame=new FrameLayout(this);GradientDrawable badgeShape=new GradientDrawable();badgeShape.setShape(GradientDrawable.OVAL);badgeShape.setColor(0xff252525);frame.setBackground(badgeShape);frame.setClipToOutline(true);frame.setElevation(dp(1));
-  String name=team(m,side);TextView fallback=txt(name.isEmpty()?"•":name.substring(0,1).toUpperCase(Locale.ROOT),14,ORANGE,true);fallback.setGravity(Gravity.CENTER);frame.addView(fallback,new FrameLayout.LayoutParams(dp(34),dp(34)));
-  JSONObject teams=m.optJSONObject("teams"),teamData=teams==null?null:teams.optJSONObject(side);String url=badgeFromObject(teamData,"badge","logo","image","crest","teamBadge","team_badge","teamLogo","team_logo");
+  FrameLayout frame=new FrameLayout(this);GradientDrawable badgeShape=new GradientDrawable();badgeShape.setShape(GradientDrawable.OVAL);badgeShape.setColor(0xff252525);frame.setBackground(badgeShape);frame.setClipToOutline(true);frame.setElevation(dp(0));
+  String name=team(m,side);TextView fallback=txt(name.isEmpty()?"•":name.substring(0,1).toUpperCase(Locale.ROOT),10,ORANGE,true);fallback.setGravity(Gravity.CENTER);frame.addView(fallback,new FrameLayout.LayoutParams(-1,-1));
+  JSONObject teams=m.optJSONObject("teams"),teamData=teams==null?null:teams.optJSONObject(side);String url=badgeFromObject(teamData,"badge","badgeUrl","badge_url","logo","logoUrl","logo_url","image","imageUrl","image_url","crest","crestUrl","crest_url","teamBadge","team_badge","teamLogo","team_logo","icon","thumbnail","flag");if(url.isEmpty()&&teamData!=null){url=badgeFromObject(teamData.optJSONObject("team"),"badge","logo","image","crest","icon");if(url.isEmpty())url=badgeFromObject(teamData.optJSONObject("club"),"badge","logo","image","crest","icon");}
   if(url.isEmpty()||!setting("show_badges",true))return frame;frame.setTag(url);Bitmap cached;synchronized(badgeCache){cached=badgeCache.get(url);}if(cached!=null)showBadge(frame,cached,url);else if(url.startsWith("http")||url.startsWith("data:image/"))requestBadge(frame,url);return frame;
  }
  private void loadVisibleBadges(){
