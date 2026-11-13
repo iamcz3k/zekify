@@ -343,12 +343,12 @@ public class MainActivity extends Activity {
   game.setContentView(frame);game.setCancelable(false);game.show();Window w=game.getWindow();if(w!=null){w.setLayout(-1,-1);w.setStatusBarColor(Color.BLACK);w.setNavigationBarColor(Color.BLACK);}
  }
  private static class ShootingGameView extends View{
-  private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);private final Random random=new Random();private final ArrayList<float[]> targets=new ArrayList<>();private int score=0;private long lastSpawn=0;private float aimX,aimY;
-  ShootingGameView(Context c){super(c);setLayerType(View.LAYER_TYPE_SOFTWARE,null);aimX=300;aimY=500;setOnTouchListener((v,e)->{if(e.getAction()==MotionEvent.ACTION_DOWN){aimX=e.getX();aimY=e.getY();for(int i=targets.size()-1;i>=0;i--){float[] a=targets.get(i);if(Math.hypot(a[0]-aimX,a[1]-aimY)<dp(34)){targets.remove(i);score++;break;}}invalidate();return true;}return true;});}
-  @Override protected void onDraw(Canvas c){super.onDraw(c);float w=getWidth(),h=getHeight();p.setColor(0xff0b1020);c.drawRect(0,0,w,h,p);p.setColor(0xff1c2a3c);p.setStrokeWidth(dp(1));for(int i=0;i<8;i++)c.drawLine(0,h*i/8f,w,h*i/8f,p);
-   long now=System.currentTimeMillis();if(now-lastSpawn>850&&targets.size()<7){targets.add(new float[]{dp(25)+random.nextFloat()*Math.max(1,w-dp(50)),h*.25f+random.nextFloat()*h*.55f,random.nextFloat()*6.28f});lastSpawn=now;}
-   for(float[] a:targets){a[2]+=.035f;p.setColor(0xffff7043);c.drawCircle(a[0],a[1],dp(18),p);p.setColor(Color.WHITE);c.drawCircle(a[0],a[1],dp(8),p);p.setColor(0xff171717);c.drawCircle(a[0],a[1],dp(3),p);}
-   p.setColor(Color.WHITE);p.setTextSize(dp(18));p.setTypeface(Typeface.DEFAULT_BOLD);c.drawText("SCORE  "+score,dp(22),h-dp(30),p);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(dp(2));c.drawCircle(aimX,aimY,dp(22),p);c.drawLine(aimX-dp(30),aimY,aimX+dp(30),aimY,p);c.drawLine(aimX,aimY-dp(30),aimX,aimY+dp(30),p);p.setStyle(Paint.Style.FILL);postInvalidateDelayed(40);
+  private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);private final Random random=new Random();private final ArrayList<float[]> targets=new ArrayList<>();private int score=0;private long lastSpawn=0;private float aimX,aimY;private float d(float n){return n*getResources().getDisplayMetrics().density;}
+  ShootingGameView(Context c){super(c);setLayerType(View.LAYER_TYPE_SOFTWARE,null);aimX=300;aimY=500;setOnTouchListener((v,e)->{if(e.getAction()==MotionEvent.ACTION_DOWN){aimX=e.getX();aimY=e.getY();for(int i=targets.size()-1;i>=0;i--){float[] a=targets.get(i);if(Math.hypot(a[0]-aimX,a[1]-aimY)<d(34)){targets.remove(i);score++;break;}}invalidate();return true;}return true;});}
+  @Override protected void onDraw(Canvas c){super.onDraw(c);float w=getWidth(),h=getHeight();p.setColor(0xff0b1020);c.drawRect(0,0,w,h,p);p.setColor(0xff1c2a3c);p.setStrokeWidth(d(1));for(int i=0;i<8;i++)c.drawLine(0,h*i/8f,w,h*i/8f,p);
+   long now=System.currentTimeMillis();if(now-lastSpawn>850&&targets.size()<7){targets.add(new float[]{d(25)+random.nextFloat()*Math.max(1,w-d(50)),h*.25f+random.nextFloat()*h*.55f,random.nextFloat()*6.28f});lastSpawn=now;}
+   for(float[] a:targets){a[2]+=.035f;p.setColor(0xffff7043);c.drawCircle(a[0],a[1],d(18),p);p.setColor(Color.WHITE);c.drawCircle(a[0],a[1],d(8),p);p.setColor(0xff171717);c.drawCircle(a[0],a[1],d(3),p);}
+   p.setColor(Color.WHITE);p.setTextSize(d(18));p.setTypeface(Typeface.DEFAULT_BOLD);c.drawText("SCORE  "+score,d(22),h-d(30),p);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(d(2));c.drawCircle(aimX,aimY,d(22),p);c.drawLine(aimX-d(30),aimY,aimX+d(30),aimY,p);c.drawLine(aimX,aimY-d(30),aimX,aimY+d(30),p);p.setStyle(Paint.Style.FILL);postInvalidateDelayed(40);
   }
  }
  private FrameLayout eventBadge(JSONObject m){
