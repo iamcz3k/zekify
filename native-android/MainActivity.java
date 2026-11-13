@@ -571,34 +571,7 @@ private void addDetailRow(LinearLayout list,String label,String value){
    p.setColor(Color.WHITE);p.setTextSize(d(18));p.setTypeface(Typeface.DEFAULT_BOLD);c.drawText("SCORE  "+score,d(22),h-d(30),p);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(d(2));c.drawCircle(aimX,aimY,d(22),p);c.drawLine(aimX-d(30),aimY,aimX+d(30),aimY,p);c.drawLine(aimX,aimY-d(30),aimX,aimY+d(30),p);p.setStyle(Paint.Style.FILL);postInvalidateDelayed(40);
   }
  }
-  private View matchCard(JSONObject m,boolean featured){
-   LinearLayout card=col();card.setBackground(ripple(featured?0xff1d1814:0xff151515,22));card.setElevation(dp(1));pad(card,12,9,12,8);
-   LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2);cp.bottomMargin=dp(6);card.setLayoutParams(cp);
-   boolean live=isLiveMatch(m);
-   LinearLayout meta=row();TextView leagueLabel=txt(leagueName(m),9,0xffc5b5a8,true);meta.addView(leagueLabel,new LinearLayout.LayoutParams(0,-2,1));
-   if(featured){TextView tag=txt("FEATURED",7,ORANGE,true);tag.setBackground(shape(0xff352419,12));pad(tag,6,3,6,3);meta.addView(tag);}
-   if(live){TextView state=txt("LIVE",7,0xffff7971,true);state.setBackground(shape(0xff3a1c1b,12));pad(state,6,3,6,3);meta.addView(state);}
-   TextView timer=txt("",9,live?0xffff817a:0xffc5b5a8,true);LinearLayout.LayoutParams timerP=new LinearLayout.LayoutParams(-2,-2);timerP.leftMargin=dp(6);meta.addView(timer,timerP);bindMatchTimer(timer,m.optLong("date",0),live);
-   if(!live){NativeIcon bell=new NativeIcon(this,isMatchScheduled(m)?"bell-on":"bell",isMatchScheduled(m)?ORANGE:MUTED);LinearLayout.LayoutParams bellP=new LinearLayout.LayoutParams(dp(24),dp(24));bellP.leftMargin=dp(3);meta.addView(bell,bellP);bell.setContentDescription(isMatchScheduled(m)?"Remove reminder":"Add reminder");bell.setOnClickListener(v->{toggleMatchReminder(m);bell.setIconColor(isMatchScheduled(m)?ORANGE:MUTED);});}
-   card.addView(meta);
-   TextView when=txt(date(m.optLong("date",0)),9,MUTED,false);LinearLayout.LayoutParams whenP=new LinearLayout.LayoutParams(-1,-2);whenP.topMargin=dp(2);card.addView(when,whenP);
-   if(!eventStyle(m)){
-    LinearLayout teams=row();pad(teams,0,7,0,7);teams.setGravity(Gravity.CENTER_VERTICAL);
-    teams.addView(teamBadge(m,"home"),new LinearLayout.LayoutParams(dp(30),dp(30)));
-    TextView home=txt(team(m,"home"),11,Color.WHITE,true);home.setMaxLines(1);home.setEllipsize(android.text.TextUtils.TruncateAt.END);LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(0,-2,1);hp.leftMargin=dp(7);teams.addView(home,hp);
-    TextView vs=txt("VS",8,ORANGE,true);vs.setBackground(shape(0xff302016,10));pad(vs,7,4,7,4);teams.addView(vs);
-    TextView away=txt(team(m,"away"),11,Color.WHITE,true);away.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);away.setMaxLines(1);away.setEllipsize(android.text.TextUtils.TruncateAt.END);LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(0,-2,1);ap.rightMargin=dp(7);teams.addView(away,ap);
-    teams.addView(teamBadge(m,"away"),new LinearLayout.LayoutParams(dp(30),dp(30)));card.addView(teams);
-   }else{
-    LinearLayout event=row();pad(event,0,7,0,7);event.addView(eventBadge(m),new LinearLayout.LayoutParams(dp(34),dp(34)));LinearLayout words=col();LinearLayout.LayoutParams wp=new LinearLayout.LayoutParams(0,-2,1);wp.leftMargin=dp(9);event.addView(words,wp);TextView eventTitle=txt(matchTitle(m),12,Color.WHITE,true);eventTitle.setMaxLines(1);eventTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);words.addView(eventTitle);String sub=firstNonEmpty(m,"eventSubtitle","league","category");if(!sub.isEmpty())words.addView(txt(sub,9,MUTED,false));card.addView(event);
-   }
-   View divider=new View(this);divider.setBackgroundColor(0x25ffffff);card.addView(divider,new LinearLayout.LayoutParams(-1,dp(1)));
-   LinearLayout action=row();pad(action,0,6,0,0);TextView label=txt(live?"OPEN LIVE MATCH":"VIEW MATCH CENTRE",8,live?ORANGE:0xffd0d0d0,true);label.setLetterSpacing(.04f);action.addView(label,new LinearLayout.LayoutParams(0,-2,1));NativeIcon next=new NativeIcon(this,"next",live?ORANGE:MUTED);action.addView(next,new LinearLayout.LayoutParams(dp(16),dp(16)));card.addView(action);
-   card.setOnClickListener(v->{if(setting("haptics",true))v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);selectMatch(m);});
-   if(!setting("reduce_motion",false)){card.setAlpha(0f);card.setTranslationY(dp(4));card.animate().alpha(1f).translationY(0f).setDuration(150L).start();}
-   return card;
-  }
-private FrameLayout eventBadge(JSONObject m){
+ private FrameLayout eventBadge(JSONObject m){
   FrameLayout frame=new FrameLayout(this);GradientDrawable badgeShape=new GradientDrawable();badgeShape.setShape(GradientDrawable.OVAL);badgeShape.setColor(0xff252525);frame.setBackground(badgeShape);frame.setClipToOutline(true);
   TextView fallback=txt(sportGlyph(m.optString("category",selectedSport)),22,ORANGE,true);fallback.setGravity(Gravity.CENTER);frame.addView(fallback,new FrameLayout.LayoutParams(-1,-1));
   String url=eventBadgeUrl(m);if(url.isEmpty()||!setting("show_badges",true))return frame;frame.setTag(url);Bitmap cached;synchronized(badgeCache){cached=badgeCache.get(url);}if(cached!=null)showBadge(frame,cached,url);else if(url.startsWith("http")||url.startsWith("data:image/"))requestBadge(frame,url);return frame;
@@ -751,6 +724,14 @@ private FrameLayout eventBadge(JSONObject m){
  private boolean hasNotificationPermission(){return Build.VERSION.SDK_INT<33||checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)==android.content.pm.PackageManager.PERMISSION_GRANTED;}
   private void requestNotificationPermission(){if(Build.VERSION.SDK_INT>=33&&!hasNotificationPermission())requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS},4102);}
   @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){super.onRequestPermissionsResult(requestCode,permissions,grantResults);if(requestCode==4102){if(grantResults.length>0&&grantResults[0]==android.content.pm.PackageManager.PERMISSION_GRANTED)Toast.makeText(this,"Notifications enabled. Tap the match bell again to schedule it.",Toast.LENGTH_LONG).show();else Toast.makeText(this,"Notifications are blocked. Enable them in Android app settings to receive match alerts.",Toast.LENGTH_LONG).show();}if(requestCode==4103){if(grantResults.length>0&&grantResults[0]==android.content.pm.PackageManager.PERMISSION_GRANTED)checkForUpdates(true);else Toast.makeText(this,"Allow notifications to receive Zekify update alerts.",Toast.LENGTH_LONG).show();}}
+ private void checkForUpdates(boolean showUpToDate){
+  ZekifyUpdateManager.check(this,(update,error)->{
+   if(isFinishing()||isDestroyed())return;
+   if(error!=null&&!error.trim().isEmpty()){Toast.makeText(this,"Update check failed: "+error,Toast.LENGTH_LONG).show();return;}
+   if(update!=null){ZekifyUpdateManager.showRequiredUpdate(this,update);return;}
+   if(showUpToDate)Toast.makeText(this,"You're using the latest Zekify version.",Toast.LENGTH_SHORT).show();
+  });
+ }
  private void toggleMatchReminder(JSONObject match){if(match==null||appPrefs==null)return;String id=match.optString("id","");long kickoff=match.optLong("date",0);if(id.isEmpty()||kickoff<=System.currentTimeMillis()){Toast.makeText(this,"Only upcoming matches can be scheduled.",Toast.LENGTH_SHORT).show();return;}Set<String> ids=getScheduledIds();if(ids.contains(id)){ids.remove(id);cancelReminder(id,15);cancelReminder(id,0);JSONObject records=getScheduledRecords();records.remove(id);appPrefs.edit().putString("scheduled_match_records",records.toString()).putStringSet(REMINDER_IDS,new HashSet<>(ids)).apply();Toast.makeText(this,"Match reminder removed.",Toast.LENGTH_SHORT).show();}else{if(!hasNotificationPermission()){requestNotificationPermission();Toast.makeText(this,"Allow notifications, then tap this bell again.",Toast.LENGTH_LONG).show();return;}boolean first=scheduleReminder(match,15,"reminder");boolean second=setting("kickoff_alert",true)&&scheduleReminder(match,0,"kickoff-check");if(!first&&!second){Toast.makeText(this,"Could not schedule this reminder. Check Android alarm and notification settings.",Toast.LENGTH_LONG).show();return;}ids.add(id);JSONObject records=getScheduledRecords();try{records.put(id,match);}catch(JSONException ignored){}appPrefs.edit().putString("scheduled_match_records",records.toString()).putStringSet(REMINDER_IDS,new HashSet<>(ids)).apply();Toast.makeText(this,"Match scheduled. Alerts set for 15 minutes before kickoff and kickoff.",Toast.LENGTH_LONG).show();}if(selected==null)render();}
  private boolean scheduleReminder(JSONObject match,int minutes,String kind){try{long kickoff=match.optLong("date",0);long at=minutes==0?kickoff:kickoff-minutes*60_000L;if(kickoff<=System.currentTimeMillis()||at<=System.currentTimeMillis())return false;Intent intent=new Intent(this,MatchReminderReceiver.class);intent.putExtra("matchId",match.optString("id"));intent.putExtra("matchTitle",matchTitle(match));intent.putExtra("kind",kind);int requestCode=match.optString("id").hashCode()*31+minutes;PendingIntent pending=PendingIntent.getBroadcast(this,requestCode,intent,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE);AlarmManager alarm=(AlarmManager)getSystemService(ALARM_SERVICE);if(alarm==null)return false;alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,at,pending);return true;}catch(RuntimeException error){return false;}}
  private void cancelReminder(String id,int minutes){Intent intent=new Intent(this,MatchReminderReceiver.class);int requestCode=id.hashCode()*31+minutes;PendingIntent pending=PendingIntent.getBroadcast(this,requestCode,intent,PendingIntent.FLAG_NO_CREATE|PendingIntent.FLAG_IMMUTABLE);if(pending!=null){AlarmManager alarm=(AlarmManager)getSystemService(ALARM_SERVICE);if(alarm!=null)alarm.cancel(pending);pending.cancel();}}
