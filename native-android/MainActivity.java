@@ -532,11 +532,11 @@ private void addDetailRow(LinearLayout list,String label,String value){
   if(upcoming){TextView kickoff=txt(date(m.optLong("date",0)),9,MUTED,false);LinearLayout.LayoutParams kp=new LinearLayout.LayoutParams(-1,-2);kp.topMargin=dp(3);card.addView(kickoff,kp);}
   if(!eventStyle(m)){
    LinearLayout teams=row();pad(teams,0,12,0,11);
-   FrameLayout homeBadge=teamBadge(m,"home");teams.addView(homeBadge,new LinearLayout.LayoutParams(dp(22),dp(22)));
+   View homeBadge=teamBadge(m,"home");teams.addView(homeBadge,new LinearLayout.LayoutParams(dp(22),dp(22)));
    TextView home=marqueeTeamName(team(m,"home"));LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(0,dp(34),1);hp.leftMargin=dp(8);teams.addView(home,hp);
    TextView vs=txt("VS",9,ORANGE,true);vs.setGravity(Gravity.CENTER);teams.addView(vs);
    TextView away=marqueeTeamName(team(m,"away"));away.setGravity(Gravity.RIGHT);LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(0,dp(34),1);ap.rightMargin=dp(8);teams.addView(away,ap);
-   FrameLayout awayBadge=teamBadge(m,"away");teams.addView(awayBadge,new LinearLayout.LayoutParams(dp(22),dp(22)));card.addView(teams);
+   View awayBadge=teamBadge(m,"away");teams.addView(awayBadge,new LinearLayout.LayoutParams(dp(22),dp(22)));card.addView(teams);
   }else{
    LinearLayout event=row();pad(event,0,10,0,10);FrameLayout badge=eventBadge(m);event.addView(badge,new LinearLayout.LayoutParams(dp(40),dp(40)));
    LinearLayout eventText=col();LinearLayout.LayoutParams ep=new LinearLayout.LayoutParams(0,-2,1);ep.leftMargin=dp(10);event.addView(eventText,ep);
