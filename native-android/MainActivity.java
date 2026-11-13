@@ -379,6 +379,7 @@ public class MainActivity extends Activity {
   if(view instanceof FrameLayout){Object tag=view.getTag();if(tag instanceof String){String url=(String)tag;if(url.startsWith("http")||url.startsWith("data:image/"))requestBadge((FrameLayout)view,url);}}
   if(view instanceof android.view.ViewGroup){android.view.ViewGroup group=(android.view.ViewGroup)view;for(int i=0;i<group.getChildCount();i++)loadBadgesIn(group.getChildAt(i));}
  }
+ // v3.5.0: resilient raster, SVG and inline-data badge decoding for event and team cards.
  private Bitmap decodeBadgeBytes(byte[] bytes){
   if(bytes==null||bytes.length==0)return null;Bitmap bitmap=BitmapFactory.decodeByteArray(bytes,0,bytes.length);if(bitmap!=null)return bitmap;
   try(InputStream input=new ByteArrayInputStream(bytes)){SVG svg=SVG.getFromInputStream(input);android.graphics.Picture picture=svg.renderToPicture();int width=Math.max(1,Math.min(512,picture.getWidth())),height=Math.max(1,Math.min(512,picture.getHeight()));if(width<=1||height<=1)return null;Bitmap rendered=Bitmap.createBitmap(width,height,Bitmap.Config.ARGB_8888);new Canvas(rendered).drawPicture(picture,new Rect(0,0,width,height));return rendered;}catch(Exception ignored){return null;}
