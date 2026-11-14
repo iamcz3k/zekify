@@ -123,5 +123,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          gh release view v3.5.4 --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 || gh release create v3.5.4 --repo "${GITHUB_REPOSITORY}" --title "Zekify v3.5.4" --notes "Offline access gate, paused offline match timers, cached visible team badges, restored clean match cards, and the new fighting arcade mode."
           gh release upload v3.5.4 Zekify-v3.5.4.apk Zekify-v3.5.4.apk.sha256 --repo "${GITHUB_REPOSITORY}" --clobber
           gh release edit v3.5.4 --repo "${GITHUB_REPOSITORY}" --title "Zekify v3.5.4" --notes "Restored Pixel-style v3.5.4 baseline with compact match cards, resilient event and team badges, and the hidden arcade easter egg."
