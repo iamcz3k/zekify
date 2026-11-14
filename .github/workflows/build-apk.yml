@@ -1,9 +1,9 @@
-# Zekify v3.5.5 signed production release build.
-name: Build and release Zekify v3.5.5
+# Zekify v3.5.6 signed production release build.
+name: Build and release Zekify v3.5.6
 on:
   push:
     branches:
-      - v3.5.5-offline-cache-fighter
+      - v3.5.6-offline-cache-fighter
   workflow_dispatch:
 permissions:
   contents: write
@@ -37,7 +37,7 @@ jobs:
           npm_config_fetch_retries: "3"
           npm_config_fetch_timeout: "120000"
         run: npm install --include=optional --no-audit --no-fund
-      - name: Confirm v3.5.5 source branch
+      - name: Confirm v3.5.6 source branch
         run: git log -1 --oneline
       - run: npm run build
       - run: npx cap add android
@@ -53,8 +53,8 @@ jobs:
           python3 -c "import xml.etree.ElementTree as ET; ET.parse('android/app/src/main/AndroidManifest.xml'); print('AndroidManifest.xml is valid XML')"
       - name: Set Android version
         run: |
-          sed -i 's/versionCode 1/versionCode 355/' android/app/build.gradle
-          sed -i 's/versionName "1.0"/versionName "3.5.5"/' android/app/build.gradle
+          sed -i 's/versionCode 1/versionCode 356/' android/app/build.gradle
+          sed -i 's/versionName "1.0"/versionName "3.5.6"/' android/app/build.gradle
           grep -E 'versionCode|versionName' android/app/build.gradle
       - name: Configure release signing
         env:
@@ -98,31 +98,31 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew assembleRelease
-          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.5.5.apk
+          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.5.6.apk
           cd ..
           rm -f android/zekify-release.jks
-          test -s Zekify-v3.5.5.apk
+          test -s Zekify-v3.5.6.apk
       - name: Generate update checksum
-        run: sha256sum Zekify-v3.5.5.apk > Zekify-v3.5.5.apk.sha256
+        run: sha256sum Zekify-v3.5.6.apk > Zekify-v3.5.6.apk.sha256
       - name: Verify APK signature
         run: |
           set -o pipefail
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.5.5.apk | tee signing-certificate.txt
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.5.6.apk | tee signing-certificate.txt
           CERT="$(awk '/Signer #1 certificate SHA-256 digest:/ {print $NF; exit}' signing-certificate.txt)"
           echo "Release signing certificate: $CERT"
           test "$CERT" = "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119" || (echo "Unexpected signing key. Refusing to publish an incompatible update." && exit 1)
       - uses: actions/upload-artifact@v4
         with:
-          name: zekify-v3.5.5-release-apk
+          name: zekify-v3.5.6-release-apk
           path: |
-            Zekify-v3.5.5.apk
-            Zekify-v3.5.5.apk.sha256
+            Zekify-v3.5.6.apk
+            Zekify-v3.5.6.apk.sha256
           if-no-files-found: error
 
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view v3.5.5 --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 || gh release create v3.5.5 --repo "${GITHUB_REPOSITORY}" --title "Zekify v3.5.5" --notes "Offline access gate with Zekify logo and settings shortcuts, aligned match names, centered LIVE/upcoming kickoff and date, centered timers, cached badges, and the fighting arcade mode."
-          gh release upload v3.5.5 Zekify-v3.5.5.apk Zekify-v3.5.5.apk.sha256 --repo "${GITHUB_REPOSITORY}" --clobber
-          gh release edit v3.5.5 --repo "${GITHUB_REPOSITORY}" --title "Zekify v3.5.5" --notes "Zekify v3.5.5: aligned team names, no VS/Watch Live labels, centered LIVE and kickoff details with timers, offline gate with app logo and working network settings shortcuts."
+          gh release view v3.5.6 --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 || gh release create v3.5.6 --repo "${GITHUB_REPOSITORY}" --title "Zekify v3.5.6" --notes "Offline access gate with Zekify logo and settings shortcuts, aligned match names, centered LIVE/upcoming kickoff and date, centered timers, cached badges, and the fighting arcade mode."
+          gh release upload v3.5.6 Zekify-v3.5.6.apk Zekify-v3.5.6.apk.sha256 --repo "${GITHUB_REPOSITORY}" --clobber
+          gh release edit v3.5.6 --repo "${GITHUB_REPOSITORY}" --title "Zekify v3.5.6" --notes "Zekify v3.5.6: aligned team names, no VS/Watch Live labels, centered LIVE and kickoff details with timers, offline gate with app logo and working network settings shortcuts."
