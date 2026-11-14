@@ -498,15 +498,17 @@ public class MainActivity extends Activity {
    sectionWords.addView(txt(tab.equals("live")?"LIVE MATCHES":"UPCOMING FIXTURES",10,ORANGE,true));
    TextView count=txt(tab.equals("live")?available+" live":matches.size()+" events",10,MUTED,true);section.addView(count);
    LinearLayout.LayoutParams sectionP=new LinearLayout.LayoutParams(-1,-2);sectionP.bottomMargin=dp(12);content.addView(section,sectionP);
-   int shown=0;
+   ArrayList<JSONObject> visibleMatches=new ArrayList<>();
    for(JSONObject match:matches){if(match==null)continue;try{
     String status=match.optString("status","upcoming").trim().toLowerCase(Locale.ROOT);
     if(status.equals("not started")||status.equals("scheduled")||status.equals("ns")||status.equals("tbd"))status="upcoming";
     if(status.equals("in play")||status.equals("1h")||status.equals("2h")||status.equals("live now")||status.equals("q1")||status.equals("q2")||status.equals("q3")||status.equals("q4"))status="live";
     if(!status.equals(tab)||(!league.equals("All")&&!league.equals(leagueName(match))))continue;
     String hay=(match.optString("title")+" "+matchTitle(match)+" "+leagueName(match)+" "+team(match,"home")+" "+team(match,"away")).toLowerCase(Locale.ROOT);
-    if(!hay.contains(query))continue;if(shown>=80)continue;content.addView(matchCard(match));shown++;
+    if(!hay.contains(query))continue;visibleMatches.add(match);
    }catch(RuntimeException cardError){android.util.Log.w("Zekify","Skipped malformed match card",cardError);}}
+   if("live".equals(tab))Collections.sort(visibleMatches,(a,b)->{int hotOrder=Integer.compare(hotScore(b),hotScore(a));return hotOrder!=0?hotOrder:Integer.compare(popularScore(b),popularScore(a));});
+   int shown=0;for(JSONObject match:visibleMatches){if(shown>=80)break;content.addView(matchCard(match));shown++;}
    if(shown==0){LinearLayout empty=col();empty.setGravity(Gravity.CENTER);empty.setBackground(shape(0xff151515,24));pad(empty,20,26,20,26);LinearLayout.LayoutParams ep=new LinearLayout.LayoutParams(-1,-2);ep.topMargin=dp(8);content.addView(empty,ep);TextView title=txt(tab.equals("live")?"No live matches right now":"No upcoming matches found",15,Color.WHITE,true);title.setGravity(Gravity.CENTER);empty.addView(title);TextView note=txt(tab.equals("live")?"When a match goes live, it will appear here.":"Try another competition or sport.",11,MUTED,false);note.setGravity(Gravity.CENTER);LinearLayout.LayoutParams np=new LinearLayout.LayoutParams(-1,-2);np.topMargin=dp(6);empty.addView(note,np);}
    if(matchesScroll!=null)matchesScroll.postDelayed(this::loadVisibleBadges,80L);
   }
@@ -540,7 +542,7 @@ private void addDetailRow(LinearLayout list,String label,String value){
   LinearLayout meta=row();meta.setGravity(Gravity.CENTER_VERTICAL);
   TextView leagueLabel=txt(leagueName(m).toUpperCase(Locale.ROOT),9,ORANGE,true);leagueLabel.setLetterSpacing(.08f);
   meta.addView(leagueLabel,new LinearLayout.LayoutParams(0,-2,1));
-  if(featured){TextView popular=txt("POPULAR",8,ORANGE,true);popular.setBackground(shape(0xff352316,30));pad(popular,8,4,8,4);meta.addView(popular);}
+  if(isHotMatch(m)){TextView hot=txt("HOT 🔥",9,0xffffa35c,true);hot.setBackground(shape(0xff352316,30));pad(hot,9,4,9,4);meta.addView(hot);}else if(featured){TextView popular=txt("POPULAR",8,ORANGE,true);popular.setBackground(shape(0xff252016,30));pad(popular,8,4,8,4);meta.addView(popular);}
   if(upcoming){NativeIcon bell=new NativeIcon(this,isMatchScheduled(m)?"bell-on":"bell",isMatchScheduled(m)?ORANGE:MUTED);bell.setContentDescription(isMatchScheduled(m)?"Remove match reminder":"Notify me about this match");LinearLayout.LayoutParams bellP=new LinearLayout.LayoutParams(dp(28),dp(28));bellP.leftMargin=dp(5);meta.addView(bell,bellP);bell.setOnClickListener(v->{toggleMatchReminder(m);bell.setIconColor(isMatchScheduled(m)?ORANGE:MUTED);});}
   card.addView(meta);
   if(!eventStyle(m)){
@@ -757,6 +759,12 @@ private void addDetailRow(LinearLayout list,String label,String value){
  private void openPendingMatchIfAvailable(){if(pendingMatchId==null||pendingMatchId.isEmpty())return;for(JSONObject match:matches){if(pendingMatchId.equals(match.optString("id"))){pendingMatchId="";selectMatch(match);return;}}JSONObject saved=getScheduledRecords().optJSONObject(pendingMatchId);if(saved!=null){pendingMatchId="";selectMatch(saved);return;}}
  @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);if("com.v3x.zekify.OPEN_UPDATE".equals(intent.getAction())){checkForUpdates(true);return;}String id=intent.getStringExtra("matchId");if(id!=null&&!id.isEmpty()){pendingMatchId=id;openPendingMatchIfAvailable();}}
  private int popularScore(JSONObject match){if(match==null)return 0;if(match.optBoolean("popular")||match.optBoolean("isPopular")||match.optBoolean("featured")||match.optBoolean("trending"))return 1000;int score=Math.max(match.optInt("popularity",0),match.optInt("popularScore",0));score=Math.max(score,match.optInt("viewers",0));score=Math.max(score,match.optInt("watchers",0));score=Math.max(score,match.optInt("views",0));return Math.max(0,score);}
+ private int hotScore(JSONObject match){if(match==null||!isLiveMatch(match))return 0;String home=team(match,"home").toLowerCase(Locale.ROOT),away=team(match,"away").toLowerCase(Locale.ROOT),leagueText=leagueName(match).toLowerCase(Locale.ROOT),all=(home+" "+away+" "+matchTitle(match)+" "+leagueText).toLowerCase(Locale.ROOT);int score=0;
+ String[] clubs={"real madrid","barcelona","manchester united","manchester city","liverpool","arsenal","chelsea","tottenham","bayern munich","borussia dortmund","paris saint-germain","psg","juventus","inter milan","ac milan","napoli","atletico madrid","ajax","benfica","porto","sporting cp","al ahly","zamalek","wydad","raja casablanca","mamelodi sundowns","orlando pirates","kaizer chiefs","esperance","tp mazembe","simba sc","young africans","gor mahia","viper sc"};
+ String[] countries={"argentina","brazil","portugal","france","england","spain","germany","italy","netherlands","belgium","croatia","morocco","senegal","nigeria","egypt","ivory coast","ghana","cameroon","algeria","south africa","tunisia","dr congo","uganda","uruguay","colombia","mexico","united states","usa","japan","south korea"};
+ String[] competitions={"uefa champions league","champions league","europa league","conference league","premier league","la liga","laliga","serie a","bundesliga","ligue 1","fa cup","copa del rey","copa libertadores","afcon","africa cup of nations","world cup","world cup qualifiers","euro","copa america","club world cup","caf champions league","caf confederation cup"};
+ for(String name:clubs)if(home.contains(name)||away.contains(name))score+=35;for(String country:countries)if(home.equals(country)||away.equals(country)||all.contains(country))score+=24;for(String competition:competitions)if(leagueText.contains(competition)||all.contains(competition))score+=30;if(match.optBoolean("popular")||match.optBoolean("isPopular")||match.optBoolean("featured")||match.optBoolean("trending"))score+=25;score+=Math.min(20,Math.max(0,popularScore(match))/100);return score;}
+ private boolean isHotMatch(JSONObject match){return hotScore(match)>0;}
  private Set<String> getScheduledIds(){Set<String> stored=appPrefs==null?null:appPrefs.getStringSet(REMINDER_IDS,Collections.emptySet());return stored==null?new HashSet<>():new HashSet<>(stored);}
  private boolean isMatchScheduled(JSONObject match){return match!=null&&getScheduledIds().contains(match.optString("id"));}
  private void createReminderChannel(){if(Build.VERSION.SDK_INT>=26){NotificationManager manager=getSystemService(NotificationManager.class);if(manager!=null){NotificationChannel channel=new NotificationChannel("zekify_match_reminders_v2","Match reminders",NotificationManager.IMPORTANCE_HIGH);channel.setDescription("Kickoff reminders for matches selected in Zekify");channel.setSound(android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION),new android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION).setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION).build());channel.enableVibration(true);manager.createNotificationChannel(channel);}}}
