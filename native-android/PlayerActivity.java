@@ -425,9 +425,9 @@ public class PlayerActivity extends Activity {
 
         timelinePanel = new LinearLayout(this);
         timelinePanel.setOrientation(LinearLayout.VERTICAL);
-        timelinePanel.setPadding(dp(14), dp(8), dp(14), dp(8));
-        timelinePanel.setBackground(panel(0xd9101010, 16));
-        timelinePanel.setElevation(dp(7));
+        timelinePanel.setPadding(0, 0, 0, 0);
+        timelinePanel.setBackgroundColor(Color.TRANSPARENT);
+        timelinePanel.setElevation(0f);
         LinearLayout timelineLabels = new LinearLayout(this);
         timelineLabels.setOrientation(LinearLayout.HORIZONTAL);
         timelineLabels.setGravity(Gravity.CENTER_VERTICAL);
@@ -436,15 +436,7 @@ public class PlayerActivity extends Activity {
         timelineCurrent.setTextSize(11);
         timelineCurrent.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         timelineLabels.addView(timelineCurrent, new LinearLayout.LayoutParams(0, -2, 1f));
-        timelineLive = new TextView(this);
-        timelineLive.setText("LIVE");
-        timelineLive.setTextColor(0xffff8a3d);
-        timelineLive.setTextSize(10);
-        timelineLive.setPadding(dp(8), dp(5), dp(8), dp(5));
-        timelineLive.setBackground(panel(0x332b8a3d, 12));
-        timelineLive.setOnClickListener(v -> { if (player != null && player.isCurrentMediaItemLive()) { player.seekToDefaultPosition(); updateTimeline(); scheduleControlsHide(); } });
-        timelineLive.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        timelineLabels.addView(timelineLive);
+        timelineLive = null;
         timelineDuration = new TextView(this);
         timelineDuration.setTextColor(0xffc2c2c2);
         timelineDuration.setTextSize(11);
@@ -455,10 +447,11 @@ public class PlayerActivity extends Activity {
         timelinePanel.addView(timelineLabels, new LinearLayout.LayoutParams(-1, -2));
         timelineSeek = new SeekBar(this);
         timelineSeek.setMax(1000);
-        timelineSeek.setPadding(0, dp(2), 0, dp(2));
+        timelineSeek.setPadding(0, 0, 0, 0);
         timelineSeek.setProgressTintList(android.content.res.ColorStateList.valueOf(0xffff8a3d));
+        timelineSeek.setSecondaryProgressTintList(android.content.res.ColorStateList.valueOf(0xffb8b8b8));
         timelineSeek.setThumbTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
-        timelineSeek.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(0xff555555));
+        timelineSeek.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(0xff666666));
         timelineSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 if (fromUser && timelineUserSeeking && player != null) {
@@ -988,12 +981,10 @@ public class PlayerActivity extends Activity {
         if (!controlsVisible) { timelinePanel.setVisibility(View.GONE); return; }
         if (timelinePanel.getVisibility() != View.VISIBLE) timelinePanel.setVisibility(View.VISIBLE);
         long position = Math.max(0L, Math.min(duration, player.getCurrentPosition()));
+        long buffered = Math.max(position, Math.min(duration, player.getBufferedPosition()));
+        timelineSeek.setSecondaryProgress((int)Math.max(0L, Math.min(1000L, buffered * 1000L / duration)));
         if (!timelineUserSeeking) { timelineSeek.setProgress((int)Math.max(0L, Math.min(1000L, position * 1000L / duration))); timelineCurrent.setText(formatTimelineTime(position)); }
         timelineDuration.setText(formatTimelineTime(duration));
-        boolean live = player.isCurrentMediaItemLive();
-        boolean atLiveEdge = live && duration - position < 15000L;
-        timelineLive.setText(atLiveEdge ? "LIVE" : (live ? "GO LIVE" : "DVR"));
-        timelineLive.setTextColor(atLiveEdge || live ? 0xffff8a3d : 0xffc2c2c2);
     }
     private void setControlsVisible(boolean visible) {
         controlsVisible = visible;
