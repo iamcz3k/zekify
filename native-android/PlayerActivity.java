@@ -982,7 +982,7 @@ public class PlayerActivity extends Activity {
 
     private void updateTimeline() {
         if (timelinePanel == null || timelineSeek == null) return;
-        boolean supported = player != null && playerView != null && playerView.getVisibility() == View.VISIBLE && player.getPlaybackState() != Player.STATE_IDLE && player.isCurrentMediaItemSeekable();
+        boolean supported = player != null && playerView != null && playerView.getVisibility() == View.VISIBLE && player.getPlaybackState() != Player.STATE_IDLE && player.isCurrentMediaItemLive() && player.isCurrentMediaItemSeekable();
         long duration = supported ? player.getDuration() : 0L;
         if (!supported || duration <= 0L || duration == androidx.media3.common.C.TIME_UNSET) { timelinePanel.setVisibility(View.GONE); return; }
         if (!controlsVisible) { timelinePanel.setVisibility(View.GONE); return; }
