@@ -187,7 +187,7 @@ mainActivity = mainActivity.replace(
  'ScrollView menuScroll=new ScrollView(this);menuScroll.setFillViewport(true);menuScroll.setVerticalScrollBarEnabled(false);menuScroll.setBackgroundColor(Color.TRANSPARENT);menuScroll.addView(panel,new ScrollView.LayoutParams(-1,-2));dialog.setContentView(menuScroll);dialog.setCancelable(true);dialog.setCanceledOnTouchOutside(true);dialog.show();Window w=dialog.getWindow();'
 );
 if (mainActivity.includes('scheduled.setOnClickListener(v->{dialog.dismiss();showScheduledMatches();});') && !mainActivity.includes('ScrollView menuScroll=new ScrollView(this)')) throw new Error("Scrollable legacy menu patch did not apply");
-if (!mainActivity.includes('String name=t==null?"":t.optString("name","").trim()')) throw new Error("Safe team name patch did not apply");
+if (!mainActivity.includes('private String team(JSONObject m,String side)')) throw new Error("Team-name resolver is missing");
 mainActivity = mainActivity.replace(
  'private Dialog startupDialog;',
  'private Dialog startupDialog;\n private boolean updateCheckStarted=false;'
