@@ -1,9 +1,9 @@
-# Zekify v3.5.3 signed production release build.
-name: Build and release Zekify v3.5.3
+# Zekify v3.5.4 signed production release build.
+name: Build and release Zekify v3.5.4
 on:
   push:
     branches:
-      - restore-v3.5.3-pixel-ui
+      - v3.5.4-offline-cache-fighter
   workflow_dispatch:
 permissions:
   contents: write
@@ -51,8 +51,8 @@ jobs:
           python3 -c "import xml.etree.ElementTree as ET; ET.parse('android/app/src/main/AndroidManifest.xml'); print('AndroidManifest.xml is valid XML')"
       - name: Set Android version
         run: |
-          sed -i 's/versionCode 1/versionCode 353/' android/app/build.gradle
-          sed -i 's/versionName "1.0"/versionName "3.5.3"/' android/app/build.gradle
+          sed -i 's/versionCode 1/versionCode 354/' android/app/build.gradle
+          sed -i 's/versionName "1.0"/versionName "3.5.4"/' android/app/build.gradle
           grep -E 'versionCode|versionName' android/app/build.gradle
       - name: Configure release signing
         env:
@@ -96,30 +96,30 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew assembleRelease
-          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.5.3.apk
+          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.5.4.apk
           cd ..
           rm -f android/zekify-release.jks
-          test -s Zekify-v3.5.3.apk
+          test -s Zekify-v3.5.4.apk
       - name: Generate update checksum
-        run: sha256sum Zekify-v3.5.3.apk > Zekify-v3.5.3.apk.sha256
+        run: sha256sum Zekify-v3.5.4.apk > Zekify-v3.5.4.apk.sha256
       - name: Verify APK signature
         run: |
           set -o pipefail
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.5.3.apk | tee signing-certificate.txt
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.5.4.apk | tee signing-certificate.txt
           CERT="$(awk '/Signer #1 certificate SHA-256 digest:/ {print $NF; exit}' signing-certificate.txt)"
           echo "Release signing certificate: $CERT"
           test "$CERT" = "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119" || (echo "Unexpected signing key. Refusing to publish an incompatible update." && exit 1)
       - uses: actions/upload-artifact@v4
         with:
-          name: zekify-v3.5.3-release-apk
+          name: zekify-v3.5.4-release-apk
           path: |
-            Zekify-v3.5.3.apk
-            Zekify-v3.5.3.apk.sha256
+            Zekify-v3.5.4.apk
+            Zekify-v3.5.4.apk.sha256
           if-no-files-found: error
 
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release upload v3.5.3 Zekify-v3.5.3.apk Zekify-v3.5.3.apk.sha256 --repo "${GITHUB_REPOSITORY}" --clobber
-          gh release edit v3.5.3 --repo "${GITHUB_REPOSITORY}" --title "Zekify v3.5.3" --notes "Restored Pixel-style v3.5.3 baseline with compact match cards, resilient event and team badges, and the hidden arcade easter egg."
+          gh release upload v3.5.4 Zekify-v3.5.4.apk Zekify-v3.5.4.apk.sha256 --repo "${GITHUB_REPOSITORY}" --clobber
+          gh release edit v3.5.4 --repo "${GITHUB_REPOSITORY}" --title "Zekify v3.5.4" --notes "Restored Pixel-style v3.5.4 baseline with compact match cards, resilient event and team badges, and the hidden arcade easter egg."
