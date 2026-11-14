@@ -534,38 +534,35 @@ private void addDetailRow(LinearLayout list,String label,String value){
   private View matchCard(JSONObject m){return matchCard(m,false);}
  private View matchCard(JSONObject m,boolean featured){
   boolean live=isLiveMatch(m),finished=isFinishedMatch(m),upcoming=!live&&!finished;
-  LinearLayout card=col();
-  card.setBackground(shape(0xff111111,16));card.setElevation(0f);
-  pad(card,12,10,12,9);
+  LinearLayout card=col();card.setBackground(shape(0xff111111,16));card.setElevation(0f);pad(card,12,10,12,10);
   LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2);cp.bottomMargin=dp(8);card.setLayoutParams(cp);
-  LinearLayout meta=row();
+  LinearLayout meta=row();meta.setGravity(Gravity.CENTER_VERTICAL);
   TextView leagueLabel=txt(leagueName(m).toUpperCase(Locale.ROOT),9,ORANGE,true);leagueLabel.setLetterSpacing(.08f);
   meta.addView(leagueLabel,new LinearLayout.LayoutParams(0,-2,1));
   if(featured){TextView popular=txt("POPULAR",8,ORANGE,true);popular.setBackground(shape(0xff352316,30));pad(popular,8,4,8,4);meta.addView(popular);}
-  if(live){View dot=new View(this);GradientDrawable dotBg=new GradientDrawable();dotBg.setColor(0xffff625f);dotBg.setCornerRadius(dp(8));dot.setBackground(dotBg);LinearLayout.LayoutParams dotP=new LinearLayout.LayoutParams(dp(6),dp(6));dotP.rightMargin=dp(5);meta.addView(dot,dotP);}
-  TextView status=txt(live?matchElapsed(m):finished?"FT":timerText(m.optLong("date",0),false),9,live?0xffff7168:finished?MUTED:ORANGE,true);meta.addView(status);bindCompactStatus(status,m,live,finished);
   if(upcoming){NativeIcon bell=new NativeIcon(this,isMatchScheduled(m)?"bell-on":"bell",isMatchScheduled(m)?ORANGE:MUTED);bell.setContentDescription(isMatchScheduled(m)?"Remove match reminder":"Notify me about this match");LinearLayout.LayoutParams bellP=new LinearLayout.LayoutParams(dp(28),dp(28));bellP.leftMargin=dp(5);meta.addView(bell,bellP);bell.setOnClickListener(v->{toggleMatchReminder(m);bell.setIconColor(isMatchScheduled(m)?ORANGE:MUTED);});}
   card.addView(meta);
-  if(upcoming){TextView kickoff=txt(date(m.optLong("date",0)),9,MUTED,false);LinearLayout.LayoutParams kp=new LinearLayout.LayoutParams(-1,-2);kp.topMargin=dp(3);card.addView(kickoff,kp);}
   if(!eventStyle(m)){
-   LinearLayout teams=row();pad(teams,0,12,0,11);
+   LinearLayout teams=row();teams.setGravity(Gravity.CENTER_VERTICAL);pad(teams,0,13,0,10);
    View homeBadge=teamBadge(m,"home");teams.addView(homeBadge,new LinearLayout.LayoutParams(dp(22),dp(22)));
-   TextView home=marqueeTeamName(team(m,"home"));LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(0,dp(34),1);hp.leftMargin=dp(8);teams.addView(home,hp);
-   TextView vs=txt("VS",9,ORANGE,true);vs.setGravity(Gravity.CENTER);teams.addView(vs);
-   TextView away=marqueeTeamName(team(m,"away"));away.setGravity(Gravity.RIGHT);LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(0,dp(34),1);ap.rightMargin=dp(8);teams.addView(away,ap);
+   TextView home=txt(team(m,"home"),11,Color.WHITE,true);home.setSingleLine(true);home.setEllipsize(TextUtils.TruncateAt.END);home.setGravity(Gravity.CENTER_VERTICAL|Gravity.LEFT);
+   LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(0,dp(34),1f);hp.leftMargin=dp(5);teams.addView(home,hp);
+   LinearLayout centre=col();centre.setGravity(Gravity.CENTER);LinearLayout.LayoutParams centreP=new LinearLayout.LayoutParams(dp(76),dp(42));teams.addView(centre,centreP);
+   TextView centreLabel=txt(live?"LIVE":finished?"FT":new java.text.SimpleDateFormat("h:mm a",Locale.getDefault()).format(new Date(Math.max(0,m.optLong("date",0)))),live?9:12,live?0xffff7168:finished?MUTED:0xff55c7ff,true);centreLabel.setGravity(Gravity.CENTER);centreLabel.setSingleLine(true);centre.addView(centreLabel);
+   if(upcoming){TextView matchDate=txt(m.optLong("date",0)>0?new java.text.SimpleDateFormat("dd/MM/yyyy",Locale.getDefault()).format(new Date(m.optLong("date",0))):"Date TBC",8,MUTED,false);matchDate.setGravity(Gravity.CENTER);LinearLayout.LayoutParams dateP=new LinearLayout.LayoutParams(-1,-2);dateP.topMargin=dp(2);centre.addView(matchDate,dateP);}
+   TextView away=txt(team(m,"away"),11,Color.WHITE,true);away.setSingleLine(true);away.setEllipsize(TextUtils.TruncateAt.END);away.setGravity(Gravity.CENTER_VERTICAL|Gravity.RIGHT);
+   LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(0,dp(34),1f);ap.rightMargin=dp(5);teams.addView(away,ap);
    View awayBadge=teamBadge(m,"away");teams.addView(awayBadge,new LinearLayout.LayoutParams(dp(22),dp(22)));card.addView(teams);
   }else{
-   LinearLayout event=row();pad(event,0,10,0,10);FrameLayout badge=eventBadge(m);event.addView(badge,new LinearLayout.LayoutParams(dp(40),dp(40)));
-   LinearLayout eventText=col();LinearLayout.LayoutParams ep=new LinearLayout.LayoutParams(0,-2,1);ep.leftMargin=dp(10);event.addView(eventText,ep);
-   TextView eventName=txt(matchTitle(m),13,Color.WHITE,true);eventName.setSingleLine(true);eventName.setEllipsize(TextUtils.TruncateAt.END);eventText.addView(eventName);
+   LinearLayout event=row();event.setGravity(Gravity.CENTER_VERTICAL);pad(event,0,12,0,10);FrameLayout badge=eventBadge(m);event.addView(badge,new LinearLayout.LayoutParams(dp(40),dp(40)));
+   LinearLayout eventText=col();eventText.setGravity(Gravity.CENTER_VERTICAL);LinearLayout.LayoutParams ep=new LinearLayout.LayoutParams(0,-2,1);ep.leftMargin=dp(10);event.addView(eventText,ep);
+   TextView eventName=txt(matchTitle(m),12,Color.WHITE,true);eventName.setSingleLine(true);eventName.setEllipsize(TextUtils.TruncateAt.END);eventText.addView(eventName);
    String sub=firstNonEmpty(m,"eventSubtitle","league","category");if(!sub.isEmpty()){TextView subtitle=txt(sub,9,MUTED,false);LinearLayout.LayoutParams subp=new LinearLayout.LayoutParams(-1,-2);subp.topMargin=dp(3);eventText.addView(subtitle,subp);}
    card.addView(event);
   }
-  View sep=new View(this);sep.setBackgroundColor(0x25ffffff);card.addView(sep,new LinearLayout.LayoutParams(-1,dp(1)));
-  LinearLayout foot=row();pad(foot,0,8,0,0);
-  if(live){TextView watch=txt("Watch Live",10,Color.WHITE,true);watch.setGravity(Gravity.CENTER);watch.setBackground(shape(0xffe53935,9));pad(watch,12,7,12,7);foot.addView(watch);watch.setOnClickListener(v->selectMatch(m));}
-  else{foot.addView(txt(finished?"Match finished":"Match details",9,MUTED,false),new LinearLayout.LayoutParams(0,-2,1));foot.addView(new NativeIcon(this,"next",ORANGE),new LinearLayout.LayoutParams(dp(17),dp(17)));}
-  card.addView(foot);
+  LinearLayout timerRow=row();timerRow.setGravity(Gravity.CENTER);LinearLayout.LayoutParams timerRowP=new LinearLayout.LayoutParams(-1,-2);timerRowP.topMargin=dp(1);card.addView(timerRow,timerRowP);
+  TextView timer=txt(finished?"Match finished":live?matchElapsed(m):"Match starting in "+timerText(m.optLong("date",0),false),10,live?0xffffaaa5:finished?MUTED:Color.WHITE,true);
+  timer.setGravity(Gravity.CENTER);timer.setBackground(shape(0xff090d16,18));pad(timer,13,6,13,6);timerRow.addView(timer);bindCompactStatus(timer,m,live,finished);
   card.setOnClickListener(v->{if(setting("haptics",true))v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);selectMatch(m);});
   if(!setting("reduce_motion",false)){card.setAlpha(0f);card.setScaleY(.985f);card.animate().alpha(1f).scaleY(1f).setDuration(160L).start();}
   return card;
