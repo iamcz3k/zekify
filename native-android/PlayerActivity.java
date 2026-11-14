@@ -69,6 +69,12 @@ public class PlayerActivity extends Activity {
     private FrameLayout root;
     private LinearLayout toolbar;
     private TextView status;
+    private LinearLayout timelinePanel;
+    private SeekBar timelineSeek;
+    private TextView timelineCurrent, timelineDuration, timelineLive;
+    private boolean timelineUserSeeking=false;
+    private final Handler timelineHandler=new Handler(Looper.getMainLooper());
+    private final Runnable timelineTicker=new Runnable(){@Override public void run(){updateTimeline();if(!isFinishing())timelineHandler.postDelayed(this,500L);}};
     private final Runnable webLoadWatchdog = () -> {
         if (webView != null && webView.getVisibility() == View.VISIBLE && !webPageCommitted && !isFinishing()) {
             webLoadFailed = true;
@@ -417,6 +423,62 @@ public class PlayerActivity extends Activity {
             }
         }
 
+        timelinePanel = new LinearLayout(this);
+        timelinePanel.setOrientation(LinearLayout.VERTICAL);
+        timelinePanel.setPadding(dp(14), dp(8), dp(14), dp(8));
+        timelinePanel.setBackground(panel(0xd9101010, 16));
+        timelinePanel.setElevation(dp(7));
+        LinearLayout timelineLabels = new LinearLayout(this);
+        timelineLabels.setOrientation(LinearLayout.HORIZONTAL);
+        timelineLabels.setGravity(Gravity.CENTER_VERTICAL);
+        timelineCurrent = new TextView(this);
+        timelineCurrent.setTextColor(Color.WHITE);
+        timelineCurrent.setTextSize(11);
+        timelineCurrent.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        timelineLabels.addView(timelineCurrent, new LinearLayout.LayoutParams(0, -2, 1f));
+        timelineLive = new TextView(this);
+        timelineLive.setText("LIVE");
+        timelineLive.setTextColor(0xffff8a3d);
+        timelineLive.setTextSize(10);
+        timelineLive.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        timelineLabels.addView(timelineLive);
+        timelineDuration = new TextView(this);
+        timelineDuration.setTextColor(0xffc2c2c2);
+        timelineDuration.setTextSize(11);
+        timelineDuration.setGravity(Gravity.RIGHT);
+        LinearLayout.LayoutParams durationParams = new LinearLayout.LayoutParams(-2, -2);
+        durationParams.leftMargin = dp(10);
+        timelineLabels.addView(timelineDuration, durationParams);
+        timelinePanel.addView(timelineLabels, new LinearLayout.LayoutParams(-1, -2));
+        timelineSeek = new SeekBar(this);
+        timelineSeek.setMax(1000);
+        timelineSeek.setPadding(0, dp(2), 0, dp(2));
+        timelineSeek.setProgressTintList(android.content.res.ColorStateList.valueOf(0xffff8a3d));
+        timelineSeek.setThumbTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
+        timelineSeek.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(0xff555555));
+        timelineSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (fromUser && timelineUserSeeking && player != null) {
+                    long duration = player.getDuration();
+                    if (duration > 0 && duration != androidx.media3.common.C.TIME_UNSET) timelineCurrent.setText(formatTimelineTime(duration * progress / 1000L));
+                }
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) { timelineUserSeeking = true; }
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {
+                timelineUserSeeking = false;
+                if (player != null && player.isCurrentMediaItemSeekable()) {
+                    long duration = player.getDuration();
+                    if (duration > 0 && duration != androidx.media3.common.C.TIME_UNSET) player.seekTo(Math.max(0L, Math.min(duration, duration * seekBar.getProgress() / 1000L)));
+                    updateTimeline();
+                }
+                scheduleControlsHide();
+            }
+        });
+        timelinePanel.addView(timelineSeek, new LinearLayout.LayoutParams(-1, dp(28)));
+        FrameLayout.LayoutParams timelineParams = new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM);
+        timelineParams.setMargins(dp(18), 0, dp(18), dp(22));
+        root.addView(timelinePanel, timelineParams);
+        timelinePanel.setVisibility(View.GONE);
         FrameLayout.LayoutParams statusParams = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
         statusParams.setMargins(dp(16), 0, dp(16), dp(24));
         root.addView(status, statusParams);
@@ -483,6 +545,8 @@ public class PlayerActivity extends Activity {
             toolbar.setVisibility(View.GONE);
         }
         root.setOnClickListener(v -> toggleControls());
+        timelineHandler.removeCallbacks(timelineTicker);
+        timelineHandler.post(timelineTicker);
         setContentView(root);
         scheduleControlsHide();
     }
@@ -808,6 +872,7 @@ public class PlayerActivity extends Activity {
             }
         }
 
+        if (timelinePanel != null) timelinePanel.setVisibility(direct ? View.VISIBLE : View.GONE);
         if (direct) playDirectMedia(source, url);
         else playEmbeddedPage(url);
     }
@@ -904,6 +969,27 @@ public class PlayerActivity extends Activity {
             .show();
     }
 
+    private String formatTimelineTime(long millis) {
+        long seconds = Math.max(0L, millis / 1000L);
+        long hours = seconds / 3600L;
+        long minutes = (seconds % 3600L) / 60L;
+        long remainder = seconds % 60L;
+        return hours > 0 ? String.format(Locale.getDefault(), "%d:%02d:%02d", hours, minutes, remainder) : String.format(Locale.getDefault(), "%d:%02d", minutes, remainder);
+    }
+
+    private void updateTimeline() {
+        if (timelinePanel == null || timelineSeek == null) return;
+        boolean supported = player != null && playerView != null && playerView.getVisibility() == View.VISIBLE && player.getPlaybackState() != Player.STATE_IDLE && player.isCurrentMediaItemSeekable();
+        long duration = supported ? player.getDuration() : 0L;
+        if (!supported || duration <= 0L || duration == androidx.media3.common.C.TIME_UNSET) { timelinePanel.setVisibility(View.GONE); return; }
+        if (timelinePanel.getVisibility() != View.VISIBLE) timelinePanel.setVisibility(View.VISIBLE);
+        long position = Math.max(0L, Math.min(duration, player.getCurrentPosition()));
+        if (!timelineUserSeeking) { timelineSeek.setProgress((int)Math.max(0L, Math.min(1000L, position * 1000L / duration))); timelineCurrent.setText(formatTimelineTime(position)); }
+        timelineDuration.setText(formatTimelineTime(duration));
+        boolean live = player.isCurrentMediaItemLive();
+        timelineLive.setText(live && duration - position < 15000L ? "LIVE" : "DVR");
+        timelineLive.setTextColor(live && duration - position < 15000L ? 0xffff8a3d : 0xffc2c2c2);
+    }
     private void setControlsVisible(boolean visible) {
         controlsVisible = visible;
         if (toolbar != null) {
@@ -919,6 +1005,7 @@ public class PlayerActivity extends Activity {
                 }).start();
             }
         }
+        if (timelinePanel != null) timelinePanel.setVisibility(visible && player != null && playerView != null && playerView.getVisibility() == View.VISIBLE ? View.VISIBLE : View.GONE);
         if (visible) scheduleControlsHide();
         else controlsHandler.removeCallbacks(hideControlsTask);
     }
@@ -1221,6 +1308,7 @@ public class PlayerActivity extends Activity {
     @Override
     protected void onDestroy() {
         webLoadHandler.removeCallbacksAndMessages(null);
+        timelineHandler.removeCallbacksAndMessages(null);
         if (connectivityManager != null && networkCallback != null) {
             try { connectivityManager.unregisterNetworkCallback(networkCallback); } catch (RuntimeException ignored) {}
             networkCallback = null;
