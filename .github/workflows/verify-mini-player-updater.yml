@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -36,6 +38,10 @@ jobs:
       - run: npx cap add android
       - run: npm run assets:generate
       - run: npx cap sync android
+      - name: Prove fullscreen implementation is unchanged
+        run: |
+          git diff --exit-code d05b7577a753fe91394684ddc5205b380571e764...HEAD -- native-android/PlayerActivity.java scripts/fix-player-playback-state.mjs
+          echo "Fullscreen player and its compatibility patch are byte-for-byte unchanged from the 8:45 PM recovery checkpoint."
       - name: Apply native Android source
         run: node scripts/patch-native-android.mjs
       - name: Apply native playback compatibility patch
