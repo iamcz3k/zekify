@@ -728,7 +728,9 @@ public class PlayerActivity extends Activity {
         toast.addView(label, labelParams);
         root.addView(toast, new FrameLayout.LayoutParams(-2, -2, Gravity.CENTER));
         toast.bringToFront();
-        controlsHandler.postDelayed(() -> { if (toast.getParent() == root) root.removeView(toast); }, 1300L);
+        toast.setClickable(false);
+        toast.setFocusable(false);
+        controlsHandler.postDelayed(() -> { if (toast.getParent() == root) root.removeView(toast); }, locked ? 5000L : 1300L);
     }
 
     private void unlockScreen() {
