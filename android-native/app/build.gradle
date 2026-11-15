@@ -1,0 +1,29 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'com.v3x.zekify'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'com.v3x.zekify'
+        minSdk 23
+        targetSdk 35
+        versionCode 356
+        versionName '3.5.6'
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    buildTypes {
+        debug { applicationIdSuffix ''; versionNameSuffix '-native-dev' }
+        release { minifyEnabled false }
+    }
+}
+dependencies {
+    implementation 'androidx.core:core:1.15.0'
+    implementation 'androidx.media3:media3-common:1.5.1'
+    implementation 'androidx.media3:media3-datasource:1.5.1'
+    implementation 'androidx.media3:media3-exoplayer:1.5.1'
+    implementation 'androidx.media3:media3-exoplayer-hls:1.5.1'
+    implementation 'androidx.media3:media3-ui:1.5.1'
+    implementation 'com.caverock:androidsvg-aar:1.4'
+}
