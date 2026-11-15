@@ -1,0 +1,26 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
+    <application android:allowBackup="false" android:label="Zekify" android:icon="@android:drawable/ic_media_play" android:theme="@android:style/Theme.Material.NoActionBar" android:usesCleartextTraffic="true" android:supportsRtl="true">
+        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTop" android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden" android:resizeableActivity="true" android:supportsPictureInPicture="true">
+            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+        </activity>
+        <activity android:name=".PlayerActivity" android:exported="false" android:screenOrientation="sensorLandscape" android:resizeableActivity="true" android:supportsPictureInPicture="true" android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden"/>
+        <activity android:name=".LiveScoreActivity" android:exported="false"/>
+        <activity android:name=".HelpActivity" android:exported="false"/>
+        <activity android:name=".UpdateHistoryActivity" android:exported="false"/>
+        <service android:name=".FloatingPlayerService" android:exported="false" android:foregroundServiceType="mediaPlayback"/>
+        <receiver android:name=".MatchReminderReceiver" android:exported="false"/>
+        <receiver android:name=".MatchReminderBootReceiver" android:exported="false">
+            <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED"/><action android:name="android.intent.action.MY_PACKAGE_REPLACED"/></intent-filter>
+        </receiver>
+        <provider android:name="androidx.core.content.FileProvider" android:authorities="com.v3x.zekify.fileprovider" android:exported="false" android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths"/>
+        </provider>
+    </application>
+</manifest>
