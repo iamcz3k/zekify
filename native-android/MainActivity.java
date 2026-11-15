@@ -290,6 +290,7 @@ public class MainActivity extends Activity {
   wrap.addView(profileAction("LiveScore","Fixtures, live scores and match centre","calendar",()->startActivity(new Intent(this,LiveScoreActivity.class))));
   wrap.addView(profileAction("Network speed test","Measure ping, jitter, download and upload","activity",this::showSpeedTest));
   wrap.addView(profileAction("Bug reports","View and share saved error reports","bug",this::showBugReports));
+  wrap.addView(profileAction("Offline Help & Tips","A visual guide to matches, streaming and troubleshooting","help",()->startActivity(new Intent(this,HelpActivity.class))));
   wrap.addView(profileAction("Share Zekify","Share the installed app APK","share",this::shareInstalledApk));
   wrap.addView(profileAction("Update Logs","Browse every published Zekify version","activity",()->startActivity(new Intent(this,UpdateHistoryActivity.class))));
   wrap.addView(profileAction("Check for updates","Check for the latest Zekify version","refresh",()->checkForUpdates(true)));
