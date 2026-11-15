@@ -44,3 +44,5 @@ jobs:
             Recovery release: the APK asset is the exact signed binary artifact from the 9:00 PM checkpoint build (workflow run 43762281591), republished here as the latest release asset. The APK itself retains its original embedded app version metadata.
 
 # Re-run restoration from the exact signed 21:32 artifact.
+
+# Trigger exact 9pm checkpoint restore.
