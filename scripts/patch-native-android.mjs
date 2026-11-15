@@ -121,6 +121,7 @@ if (manifest.includes('android:name=".MainActivity"') && manifest.includes('andr
 await writeFile(manifestPath,manifest);
 const gradlePath="android/app/build.gradle";
 let gradle=await readFile(gradlePath,"utf8");
+if(!gradle.includes("androidx.window:window:1.3.0")) gradle=gradle.replace(/dependencies\s*\{/, 'dependencies {\n    implementation "androidx.window:window:1.3.0"');
 if(!gradle.includes("androidx.media3:media3-exoplayer")) {
  gradle=gradle.replace(/dependencies\s*\{/, 'dependencies {\n    implementation "androidx.media3:media3-exoplayer:1.5.1"\n    implementation "androidx.media3:media3-exoplayer-hls:1.5.1"\n    implementation "androidx.media3:media3-ui:1.5.1"');
 }
