@@ -84,6 +84,7 @@ public class PlayerActivity extends Activity {
     };
     private int resizeMode = 1; // 0=Fit, 1=Fill, 2=Zoom; default Fill
     private View resizeButton;
+    private View playerScrim;
     private View stretchButton;
     private boolean stretchEnabled = true;
     private View gestureIndicator;
@@ -427,6 +428,15 @@ public class PlayerActivity extends Activity {
             }
         }
 
+        // Dim the video surface while fullscreen player controls are visible.
+        // Keep this layer below the toolbar and seek bar so controls remain crisp and interactive.
+        playerScrim = new View(this);
+        playerScrim.setBackgroundColor(0x66000000);
+        playerScrim.setClickable(false);
+        playerScrim.setFocusable(false);
+        playerScrim.setVisibility(View.GONE);
+        root.addView(playerScrim, new FrameLayout.LayoutParams(-1, -1));
+
         timelinePanel = new LinearLayout(this);
         timelinePanel.setOrientation(LinearLayout.VERTICAL);
         timelinePanel.setPadding(0, 0, 0, 0);
@@ -730,7 +740,7 @@ public class PlayerActivity extends Activity {
         toast.bringToFront();
         toast.setClickable(false);
         toast.setFocusable(false);
-        controlsHandler.postDelayed(() -> { if (toast.getParent() == root) root.removeView(toast); }, locked ? 5000L : 1300L);
+        controlsHandler.postDelayed(() -> { if (toast.getParent() == root) root.removeView(toast); }, 2000L);
     }
 
     private void unlockScreen() {
@@ -747,7 +757,7 @@ public class PlayerActivity extends Activity {
         unlockButton.setVisibility(View.VISIBLE);
         unlockButton.bringToFront();
         controlsHandler.removeCallbacks(hideUnlockTask);
-        controlsHandler.postDelayed(hideUnlockTask, 5000L);
+        controlsHandler.postDelayed(hideUnlockTask, 2000L);
     }
 
     private void hideUnlockControl() {
@@ -1178,6 +1188,7 @@ public class PlayerActivity extends Activity {
     private void setControlsVisible(boolean visible) {
         if (screenLocked && visible) { toggleUnlockControl(); return; }
         controlsVisible = visible;
+        if (playerScrim != null) playerScrim.setVisibility(visible ? View.VISIBLE : View.GONE);
         if (toolbar != null) {
             toolbar.animate().cancel();
             if (visible) {
