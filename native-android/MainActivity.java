@@ -763,25 +763,58 @@ private void addDetailRow(LinearLayout list,String label,String value){
   if(value==null)return "";String n=value.toLowerCase(Locale.ROOT).replace("&","and").replaceAll("[^a-z0-9 ]"," ").replaceAll("\\s+"," ").trim();
   n=n.replaceAll("\\b(fc|cf|sc|afc|ac|club|football club|sporting club)\\b","").replaceAll("\\s+"," ").trim();return n;
  }
- private boolean isApprovedHotTeam(String value){
+ private boolean isAutomaticHotClub(String value){
   String n=normalizeHotTeam(value);
-  String[] approved={"real madrid","barcelona","atletico madrid","manchester united","manchester city","liverpool","arsenal","chelsea","tottenham hotspur","bayern munich","borussia dortmund","bayer leverkusen","paris saint germain","psg","juventus","inter milan","ac milan","napoli","roma","ajax","psv eindhoven","feyenoord","benfica","porto","sporting cp","celtic","rangers","galatasaray","fenerbahce","al ahly","mamelodi sundowns","esperance de tunis","flamengo","palmeiras","corinthians","sao paulo","boca juniors","river plate","al hilal saudi","al nassr","al ittihad","al ahli saudi"};
-  for(String team:approved)if(n.equals(normalizeHotTeam(team)))return true;
-  String[] national={"argentina","brazil","portugal","france","england","spain","germany","italy","netherlands","belgium","croatia","morocco","senegal","nigeria","egypt","ivory coast","ghana","cameroon","algeria","uruguay","colombia","mexico","united states","usa","japan","south korea","switzerland","austria","denmark","sweden","norway","poland","turkey","scotland","serbia","ukraine","czech republic","australia","canada"};
-  for(String country:national)if(n.equals(normalizeHotTeam(country)))return true;
+  String[] clubs={"real madrid","barcelona","atletico madrid","manchester united","manchester city","liverpool","arsenal","chelsea","tottenham hotspur","newcastle united","bayern munich","borussia dortmund","bayer leverkusen","paris saint germain","psg","juventus","inter milan","internazionale","ac milan","napoli","roma","ajax","psv eindhoven","feyenoord","benfica","porto","sporting cp","celtic","rangers","galatasaray","fenerbahce","al ahly","mamelodi sundowns","esperance de tunis","flamengo","palmeiras","corinthians","sao paulo","boca juniors","river plate","al hilal","al hilal saudi","al nassr","al ittihad","al ahli saudi","monterrey","club america","tigres uanl","inter miami"};
+  for(String club:clubs)if(n.equals(normalizeHotTeam(club)))return true;
+  return false;
+ }
+ private int nationalTeamWeight(String value){
+  String n=normalizeHotTeam(value);
+  String[] elite={"argentina","brazil","france","england","spain","germany","italy","portugal","netherlands"};
+  for(String country:elite)if(n.equals(normalizeHotTeam(country)))return 5;
+  String[] major={"morocco","egypt","nigeria","ghana","senegal","ivory coast","cote d ivoire","algeria","mexico","united states","usa","uruguay","colombia","belgium","croatia","japan","south korea","korea republic","turkey","scotland"};
+  for(String country:major)if(n.equals(normalizeHotTeam(country)))return 4;
+  String[] strong={"jamaica","south africa","cameroon","tunisia","dr congo","democratic republic of the congo","congo dr","congo","costa rica","canada","australia","switzerland","denmark","sweden","norway","poland","serbia","ukraine","czech republic","austria","wales","ecuador","chile","paraguay","peru","saudi arabia","qatar","iran","uzbekistan"};
+  for(String country:strong)if(n.equals(normalizeHotTeam(country)))return 3;
+  String[] emerging={"mali","burkina faso","zambia","zimbabwe","uganda","kenya","tanzania","angola","mozambique","cape verde","gabon","gambia","benin","togo","mauritania","libya","sudan","ethiopia","new zealand","honduras","panama","haiti","trinidad and tobago"};
+  for(String country:emerging)if(n.equals(normalizeHotTeam(country)))return 2;
+  return 0;
+ }
+ private boolean isMajorRivalry(JSONObject match){
+  String h=normalizeHotTeam(team(match,"home")),a=normalizeHotTeam(team(match,"away"));
+  String pair=h.compareTo(a)<=0?h+"|"+a:a+"|"+h;
+  String[] rivalries={"argentina|brazil","england|scotland","england|france","england|germany","france|germany","morocco|egypt","ghana|nigeria","ivory coast|senegal","cote d ivoire|senegal","jamaica|mexico","mexico|united states","mexico|usa","japan|south korea","south korea|korea republic","celtic|rangers","arsenal|tottenham hotspur","inter milan|ac milan","atletico madrid|real madrid","barcelona|real madrid","boca juniors|river plate","fenerbahce|galatasaray","al ahly|zamalek"};
+  for(String rivalry:rivalries)if(pair.equals(rivalry))return true;
+  return false;
+ }
+ private int nationalFixtureScore(JSONObject match){
+  return nationalTeamWeight(team(match,"home"))+nationalTeamWeight(team(match,"away"));
+ }
+ private boolean hasOtherMajorLiveFixture(JSONObject current){
+  String currentId=current==null?"":current.optString("id");
+  for(JSONObject other:matches){
+   if(other==null||!isLiveMatch(other)||currentId.equals(other.optString("id")))continue;
+   if(isAutomaticHotClub(team(other,"home"))||isAutomaticHotClub(team(other,"away"))||isMajorRivalry(other)||nationalFixtureScore(other)>=7)return true;
+  }
   return false;
  }
  private boolean isHighProfileCompetition(JSONObject match){
   String competition=leagueName(match).toLowerCase(Locale.ROOT).replaceAll("\\s+"," ").trim();
-  String[] major={"uefa champions league","champions league","uefa europa league","europa league","uefa conference league","conference league","premier league","la liga","laliga","bundesliga","serie a","ligue 1","copa libertadores","caf champions league","africa cup of nations","afcon","fifa world cup","world cup","uefa euro","european championship","copa america","fifa club world cup","club world cup","fa cup","copa del rey","dfb pokal","coppa italia","coupe de france"};
+  String[] major={"uefa champions league","champions league","uefa europa league","europa league","uefa conference league","conference league","premier league","la liga","laliga","bundesliga","serie a","ligue 1","copa libertadores","caf champions league","africa cup of nations","afcon","fifa world cup","world cup","uefa euro","european championship","copa america","fifa club world cup","club world cup","fa cup","copa del rey","dfb pokal","coppa italia","coupe de france","gold cup","concacaf nations league","world cup qualifiers","fifa world cup qualification","africa cup of nations qualification"};
   for(String name:major)if(competition.contains(name))return true;
   return false;
  }
  private int hotScore(JSONObject match){
-  if(match==null||!isLiveMatch(match)||!isHighProfileCompetition(match))return 0;
-  boolean home=isApprovedHotTeam(team(match,"home"));
-  boolean away=isApprovedHotTeam(team(match,"away"));
-  return home&&away?100:0;
+  if(match==null||!isLiveMatch(match))return 0;
+  boolean homeClub=isAutomaticHotClub(team(match,"home"));
+  boolean awayClub=isAutomaticHotClub(team(match,"away"));
+  if(homeClub||awayClub)return 100;
+  if(isMajorRivalry(match))return 95;
+  int nationalScore=nationalFixtureScore(match);
+  if(nationalScore>=7)return isHighProfileCompetition(match)?90:85;
+  if(nationalScore>=6&&!hasOtherMajorLiveFixture(match))return isHighProfileCompetition(match)?88:80;
+  return 0;
  }
  private boolean isHotMatch(JSONObject match){return hotScore(match)>0;}
  
