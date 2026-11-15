@@ -34,9 +34,10 @@ import androidx.media3.common.TrackGroup;
 import androidx.media3.ui.PlayerView;
 import androidx.media3.ui.AspectRatioFrameLayout;
 import androidx.window.layout.WindowInfoTracker;
+import androidx.window.java.layout.WindowInfoTrackerCallbackAdapter;
 import androidx.window.layout.WindowLayoutInfo;
 import androidx.window.layout.FoldingFeature;
-import java.util.function.Consumer;
+import androidx.core.util.Consumer;
 
 import org.json.*;
 
@@ -109,7 +110,7 @@ public class PlayerActivity extends Activity {
     private boolean muted = false;
     private View lockButton, muteButton, unlockButton;
     private final Runnable hideControlsTask = () -> setControlsVisible(false);
-    private WindowInfoTracker windowInfoTracker;
+    private WindowInfoTrackerCallbackAdapter windowInfoTracker;
     private android.graphics.Rect foldingFeatureBounds = new android.graphics.Rect();
     private int foldPaneWidth = -1;
     private int foldPaneGravity = Gravity.CENTER_HORIZONTAL;
@@ -184,7 +185,7 @@ public class PlayerActivity extends Activity {
     }
 
     private void registerWindowLayoutListener() {
-        try { windowInfoTracker = WindowInfoTracker.getOrCreate(this); windowInfoTracker.addWindowLayoutInfoListener(this, androidx.core.content.ContextCompat.getMainExecutor(this), windowLayoutListener); }
+        try { windowInfoTracker = new WindowInfoTrackerCallbackAdapter(WindowInfoTracker.getOrCreate(this)); windowInfoTracker.addWindowLayoutInfoListener(this, androidx.core.content.ContextCompat.getMainExecutor(this), windowLayoutListener); }
         catch (Exception ignored) {}
     }
 
