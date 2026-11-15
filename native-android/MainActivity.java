@@ -22,9 +22,10 @@ import androidx.media3.exoplayer.hls.*;
 import androidx.media3.ui.*;
 import androidx.core.content.FileProvider;
 import androidx.window.layout.WindowInfoTracker;
+import androidx.window.java.layout.WindowInfoTrackerCallbackAdapter;
 import androidx.window.layout.WindowLayoutInfo;
 import androidx.window.layout.FoldingFeature;
-import java.util.function.Consumer;
+import androidx.core.util.Consumer;
 import org.json.*;
 import com.caverock.androidsvg.SVG;
 import java.net.*;
@@ -67,12 +68,12 @@ public class MainActivity extends Activity {
  private String matchReturnDestination="home";
  private android.graphics.Rect foldingFeatureBounds=new android.graphics.Rect();
  private boolean separatingVerticalHinge=false;
- private WindowInfoTracker windowInfoTracker;
+ private WindowInfoTrackerCallbackAdapter windowInfoTracker;
  private final Consumer<WindowLayoutInfo> windowLayoutListener=info->{android.graphics.Rect next=new android.graphics.Rect();boolean vertical=false;for(androidx.window.layout.DisplayFeature feature:info.getDisplayFeatures()){if(feature instanceof FoldingFeature){FoldingFeature fold=(FoldingFeature)feature;if(fold.isSeparating()){next.set(fold.getBounds());vertical=fold.getOrientation()==FoldingFeature.ORIENTATION_VERTICAL;break;}}}boolean changed=!next.equals(foldingFeatureBounds)||vertical!=separatingVerticalHinge;foldingFeatureBounds=next;separatingVerticalHinge=vertical;if(changed&&root!=null)rebuildAdaptiveScreen();};
  @Override public void onCreate(Bundle b){super.onCreate(b);registerWindowLayoutListener();appPrefs=getSharedPreferences("zekify_cache",MODE_PRIVATE);installCrashRecorder();pendingMatchId=getIntent().getStringExtra("matchId")==null?"":getIntent().getStringExtra("matchId");getWindow().setStatusBarColor(BG);getWindow().setNavigationBarColor(BG);getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR^View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);createReminderChannel();home();applySettings();showStartupSplash();registerNetworkRecovery();if(hasInternetConnection())load();else showOfflineGate();}
  private int windowWidthDp(){int width=getResources().getConfiguration().screenWidthDp;if(width>0)return width;return (int)(getResources().getDisplayMetrics().widthPixels/getResources().getDisplayMetrics().density);}
  private boolean isExpandedLayout(){return windowWidthDp()>=600;}
- private void registerWindowLayoutListener(){try{windowInfoTracker=WindowInfoTracker.getOrCreate(this);windowInfoTracker.addWindowLayoutInfoListener(this,androidx.core.content.ContextCompat.getMainExecutor(this),windowLayoutListener);}catch(Exception ignored){}}
+ private void registerWindowLayoutListener(){try{windowInfoTracker=new WindowInfoTrackerCallbackAdapter(WindowInfoTracker.getOrCreate(this));windowInfoTracker.addWindowLayoutInfoListener(this,androidx.core.content.ContextCompat.getMainExecutor(this),windowLayoutListener);}catch(Exception ignored){}}
  private void rebuildAdaptiveScreen(){if(isFinishing()||isDestroyed())return;if(selected!=null){renderMatchScreen();}else if("home".equals(destination)){home();renderContent();}else{showDestination(destination);}}
  @Override public void onConfigurationChanged(Configuration newConfig){super.onConfigurationChanged(newConfig);rebuildAdaptiveScreen();}
  private void installCrashRecorder(){Thread.UncaughtExceptionHandler previous=Thread.getDefaultUncaughtExceptionHandler();Thread.setDefaultUncaughtExceptionHandler((thread,error)->{try{StringWriter trace=new StringWriter();error.printStackTrace(new PrintWriter(trace));recordBug("APP_CRASH",error,trace.toString());appPrefs.edit().putString("last_uncaught_error",trace.toString()).putLong("last_uncaught_error_at",System.currentTimeMillis()).apply();}catch(Exception ignored){}if(previous!=null)previous.uncaughtException(thread,error);else{android.os.Process.killProcess(android.os.Process.myPid());System.exit(10);}});}
