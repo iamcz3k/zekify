@@ -57,15 +57,68 @@ jobs:
           assert providers[0].attrib.get('{http://schemas.android.com/apk/res/android}authorities') == '${applicationId}.fileprovider'
           print('Android manifest and update FileProvider verified')
           PY
-      - name: Compile Android debug APK (no release or publishing)
+      - name: Set test build version
+        run: |
+          sed -i 's/versionCode 1/versionCode 357/' android/app/build.gradle
+          sed -i 's/versionName "1.0"/versionName "3.5.7-test"/' android/app/build.gradle
+          grep -E 'versionCode|versionName' android/app/build.gradle
+      - name: Configure production-compatible signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE_BASE64" || (echo "Missing KEYSTORE_BASE64 secret" && exit 1)
+          test -n "$KEYSTORE_PASSWORD" || (echo "Missing KEYSTORE_PASSWORD secret" && exit 1)
+          test -n "$KEY_ALIAS" || (echo "Missing KEY_ALIAS secret" && exit 1)
+          test -n "$KEY_PASSWORD" || (echo "Missing KEY_PASSWORD secret" && exit 1)
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > android/zekify-release.jks
+          test -s android/zekify-release.jks
+          cat >> android/app/build.gradle <<'GRADLE'
+          android {
+              signingConfigs {
+                  release {
+                      storeFile file("../zekify-release.jks")
+                      storePassword System.getenv("KEYSTORE_PASSWORD")
+                      keyAlias System.getenv("KEY_ALIAS")
+                      keyPassword System.getenv("KEY_PASSWORD")
+                  }
+              }
+              buildTypes {
+                  release {
+                      minifyEnabled true
+                      shrinkResources false
+                      proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+                      signingConfig signingConfigs.release
+                  }
+              }
+          }
+          GRADLE
+      - name: Build signed test APK (no release publishing)
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
-      - name: Upload test APK
+          ./gradlew assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.5.7-test.apk
+          cd ..
+          rm -f android/zekify-release.jks
+          test -s Zekify-v3.5.7-test.apk
+      - name: Verify production signing certificate
+        run: |
+          set -o pipefail
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.5.7-test.apk | tee signing-certificate.txt
+          CERT="$(awk '/Signer #1 certificate SHA-256 digest:/ {print $NF; exit}' signing-certificate.txt)"
+          echo "Test APK signing certificate: $CERT"
+          test "$CERT" = "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119" || (echo "Unexpected signing key. Refusing to provide incompatible test APK." && exit 1)
+      - name: Upload signed test APK
         uses: actions/upload-artifact@v4
         with:
-          name: zekify-mini-player-updater-debug-apk
-          path: android/app/build/outputs/apk/debug/*.apk
+          name: zekify-v3.5.7-test-signed-apk
+          path: Zekify-v3.5.7-test.apk
           if-no-files-found: error
           retention-days: 14
