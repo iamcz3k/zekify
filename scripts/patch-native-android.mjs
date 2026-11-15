@@ -105,7 +105,7 @@ playerActivity = playerActivity.replace(controlsAnchor, `    private void update
 playerActivity = playerActivity.replace("        controlsVisible = visible;", "        controlsVisible = visible;\n        updateVideoScrim();");
 playerActivity = playerActivity.replace("        webView.setVisibility(View.VISIBLE);\n        webView.onResume();", "        webView.setVisibility(View.VISIBLE);\n        updateVideoScrim();\n        webView.onResume();");
 playerActivity = playerActivity.replace("        playerView.setVisibility(View.VISIBLE);\n        playerView.requestLayout();", "        playerView.setVisibility(View.VISIBLE);\n        updateVideoScrim();\n        playerView.requestLayout();");
-if (!playerActivity.includes("videoScrim.animate().alpha(0.28f)")) throw new Error("Video scrim fade patch did not apply");
+if (!playerActivity.includes("videoScrim.animate().alpha(0.42f)")) throw new Error("Video scrim fade patch did not apply");
 const lockStatePromptDuration = "locked ? 5000L : 1300L";
 if (!playerActivity.includes(lockStatePromptDuration)) throw new Error("Lock/unlock status prompt duration anchor missing");
 playerActivity = playerActivity.replace(lockStatePromptDuration, "2000L");
