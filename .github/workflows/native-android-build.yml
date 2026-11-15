@@ -1,13 +1,13 @@
-name: Zekify standalone native Android build and v3.5.6 release
+name: Zekify standalone native Android build and v3.5.7 release
 on:
   push:
     branches:
-      - v3.5.6-native-android-pixel-migration
+      - v3.5.7-recovery
   workflow_dispatch:
 permissions:
   contents: write
 concurrency:
-  group: zekify-v3.5.6-native-release
+  group: zekify-v3.5.7-native-release
   cancel-in-progress: false
 jobs:
   build-native:
@@ -43,7 +43,7 @@ jobs:
           grep -q 'classes.dex' apk-contents.txt
           ! grep -Eq 'assets/public/(index.html|.*\\.js)' apk-contents.txt
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -q "package: name='com.v3x.zekify'"
-      - name: Configure existing v3.5.6 release signing
+      - name: Configure existing v3.5.7 release signing
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -74,7 +74,7 @@ jobs:
               }
           }
           GRADLE
-      - name: Build signed v3.5.6 APK
+      - name: Build signed v3.5.7 APK
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
@@ -83,33 +83,33 @@ jobs:
           cd android-native
           gradle --no-daemon assembleRelease
           cd ..
-          cp android-native/app/build/outputs/apk/release/app-release.apk Zekify-v3.5.6.apk
+          cp android-native/app/build/outputs/apk/release/app-release.apk Zekify-v3.5.7.apk
           rm -f android-native/zekify-release.jks
-          test -s Zekify-v3.5.6.apk
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Zekify-v3.5.6.apk | grep -q "package: name='com.v3x.zekify'"
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Zekify-v3.5.6.apk | grep -q "versionCode='356'"
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Zekify-v3.5.6.apk | grep -q "versionName='3.5.6'"
+          test -s Zekify-v3.5.7.apk
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Zekify-v3.5.7.apk | grep -q "package: name='com.v3x.zekify'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Zekify-v3.5.7.apk | grep -q "versionCode='357'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Zekify-v3.5.7.apk | grep -q "versionName='3.5.7'"
       - name: Verify APK signature matches existing production key
         run: |
           set -o pipefail
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.5.6.apk | tee signing-certificate.txt
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.5.7.apk | tee signing-certificate.txt
           CERT="$(awk '/Signer #1 certificate SHA-256 digest:/ {print $NF; exit}' signing-certificate.txt)"
           echo "Release signing certificate: $CERT"
           test "$CERT" = "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119" || (echo "Unexpected signing key. Refusing to publish an incompatible update." && exit 1)
       - name: Generate update checksum
-        run: sha256sum Zekify-v3.5.6.apk > Zekify-v3.5.6.apk.sha256
+        run: sha256sum Zekify-v3.5.7.apk > Zekify-v3.5.7.apk.sha256
       - uses: actions/upload-artifact@v4
         with:
-          name: zekify-v3.5.6-native-signed-release
+          name: zekify-v3.5.7-native-signed-release
           path: |
-            Zekify-v3.5.6.apk
-            Zekify-v3.5.6.apk.sha256
+            Zekify-v3.5.7.apk
+            Zekify-v3.5.7.apk.sha256
           if-no-files-found: error
           retention-days: 14
-      - name: Replace APK on existing v3.5.6 GitHub Release
+      - name: Publish recovered v3.5.7 GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view v3.5.6 --repo "$GITHUB_REPOSITORY" >/dev/null
-          gh release upload v3.5.6 Zekify-v3.5.6.apk Zekify-v3.5.6.apk.sha256 --repo "$GITHUB_REPOSITORY" --clobber
-          gh release edit v3.5.6 --repo "$GITHUB_REPOSITORY" --title "Zekify v3.5.6" --notes "Zekify v3.5.6: standalone native Android app build, Pixel-inspired native interface, original launcher branding, existing signing identity, and the existing v3.5.6 feature set."
+          gh release view v3.5.7 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create v3.5.7 --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Zekify v3.5.7" --notes "Zekify v3.5.7 recovery: restored from the verified 21:32 baseline source state, with no fullscreen player redesign or refactor. Existing production signing identity retained."
+          gh release upload v3.5.7 Zekify-v3.5.7.apk Zekify-v3.5.7.apk.sha256 --repo "$GITHUB_REPOSITORY" --clobber
+          gh release edit v3.5.7 --repo "$GITHUB_REPOSITORY" --title "Zekify v3.5.7" --notes "Zekify v3.5.7 recovery: restored from the verified 21:32 baseline source state, with no fullscreen player redesign or refactor. Existing production signing identity retained."
