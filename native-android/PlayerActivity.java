@@ -220,11 +220,6 @@ public class PlayerActivity extends Activity {
         hideBars();
     }
 
-    @Override protected void onDestroy() {
-        try { if (windowInfoTracker != null) windowInfoTracker.removeWindowLayoutInfoListener(windowLayoutListener); } catch (Exception ignored) {}
-        super.onDestroy();
-    }
-
     private void hideBars() {
         Window window = getWindow();
         window.setStatusBarColor(Color.TRANSPARENT);
@@ -427,8 +422,8 @@ public class PlayerActivity extends Activity {
                     }
                     view.setOnTouchListener(new GestureSurface(false));
                     root.addView(view, new FrameLayout.LayoutParams(-1, -1));
-                    applyResponsivePlayerLayout();
                     customVideoView = view;
+                    applyResponsivePlayerLayout();
                     customViewCallback = callback;
                     fullscreenRequested = true;
                     webView.setVisibility(View.GONE);
@@ -1576,6 +1571,7 @@ public class PlayerActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        try { if (windowInfoTracker != null) windowInfoTracker.removeWindowLayoutInfoListener(windowLayoutListener); } catch (Exception ignored) {}
         webLoadHandler.removeCallbacksAndMessages(null);
         timelineHandler.removeCallbacksAndMessages(null);
         if (connectivityManager != null && networkCallback != null) {
