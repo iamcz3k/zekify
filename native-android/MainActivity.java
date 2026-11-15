@@ -796,6 +796,7 @@ public class MainActivity extends Activity {
   inlineWebView.getSettings().setJavaScriptEnabled(true);inlineWebView.getSettings().setDomStorageEnabled(true);
   inlineWebView.getSettings().setMediaPlaybackRequiresUserGesture(false);inlineWebView.setLongClickable(false);
   inlineWebView.setOnLongClickListener(v->true);
+  inlineWebView.addJavascriptInterface(new Object(){@android.webkit.JavascriptInterface public void onStarted(){runOnUiThread(()->{if(inlineWebGeneration==inlineLoadGeneration){setMiniStreamStarted(true);if(inlineStatus!=null)inlineStatus.setVisibility(View.GONE);}});}},"ZekifyMiniBridge");
   inlineWebView.setWebViewClient(new WebViewClient(){
    @Override public void onPageStarted(WebView view,String url,Bitmap favicon){
     if(url==null||"about:blank".equals(url)||!url.equals(view.getUrl()))return;
@@ -809,6 +810,7 @@ public class MainActivity extends Activity {
     if(url==null||"about:blank".equals(url)||!url.equals(view.getUrl())||inlineWebGeneration!=inlineLoadGeneration)return;
     if(inlineWebTimeout!=null)inlineNetworkHandler.removeCallbacks(inlineWebTimeout);
     if(inlineStatus!=null)inlineStatus.setVisibility(View.GONE);if(miniLoadingSpinner!=null)miniLoadingSpinner.setVisibility(View.VISIBLE);
+    view.evaluateJavascript("(function(){if(window.__zekifyMiniWatch)return;window.__zekifyMiniWatch=true;function check(){try{var vs=document.querySelectorAll('video');for(var i=0;i<vs.length;i++){var v=vs[i];if(!v.paused&&v.readyState>=3){ZekifyMiniBridge.onStarted();return;}}}catch(e){}}document.addEventListener('playing',check,true);document.addEventListener('canplay',check,true);setInterval(check,700);check();})()",null);
    }
    @Override public void onReceivedError(WebView view,WebResourceRequest request,WebResourceError error){
     if(request.isForMainFrame()&&request.getUrl()!=null&&request.getUrl().toString().equals(view.getUrl())&&inlineWebGeneration==inlineLoadGeneration){
