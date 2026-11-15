@@ -11,6 +11,11 @@ await copyFile("native-android/PlayerActivity.java",root+"/PlayerActivity.java")
 await copyFile("native-android/FloatingPlayerService.java",root+"/FloatingPlayerService.java");
 await copyFile("native-android/LiveScoreActivity.java",root+"/LiveScoreActivity.java");
 await copyFile("native-android/UpdateHistoryActivity.java",root+"/UpdateHistoryActivity.java");
+await copyFile("native-android/HelpActivity.java",root+"/HelpActivity.java");
+const helpAssetsSource="native-android/help-assets";
+const helpAssetsTarget=appAssets+"/help";
+await mkdir(helpAssetsTarget,{recursive:true});
+for (const asset of await readdir(helpAssetsSource)) if (asset.endsWith(".svg")) await copyFile(helpAssetsSource+"/"+asset,helpAssetsTarget+"/"+asset);
 
 const playerActivityPath = root + "/PlayerActivity.java";
 let playerActivity = await readFile(playerActivityPath, "utf8");
@@ -133,6 +138,7 @@ let manifest=await readFile(manifestPath,"utf8");
 if(manifest.includes('android:name=".MainActivity"')&&!manifest.match(/<activity[^>]*android:name=".MainActivity"[^>]*android:launchMode=/)){manifest=manifest.replace(/(<activity[^>]*android:name=".MainActivity"[^>]*)(>)/,'$1 android:launchMode="singleTop"$2');}
 if(!manifest.includes('android:name=".MatchReminderReceiver"')) manifest=manifest.replace("</application>",'    <receiver android:name=".MatchReminderReceiver" android:enabled="true" android:exported="false" />\n    </application>');
 if(!manifest.includes('android:name=".MatchReminderBootReceiver"')) manifest=manifest.replace("</application>",'    <receiver android:name=".MatchReminderBootReceiver" android:enabled="true" android:exported="false"><intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /><action android:name="android.intent.action.MY_PACKAGE_REPLACED" /></intent-filter></receiver>\n    </application>');
+if(!manifest.includes('android:name=".HelpActivity"')) manifest=manifest.replace("</application>",'    <activity android:name=".HelpActivity" android:exported="false" />\n    </application>');
 if(!manifest.includes('android:name=".PlayerActivity"')){
  manifest=manifest.replace("</application>",'    <activity android:name=".PlayerActivity" android:exported="false" android:screenOrientation="sensorLandscape" android:resizeableActivity="true" android:supportsPictureInPicture="true" android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden" />\n    </application>');
 }
