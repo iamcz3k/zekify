@@ -534,7 +534,7 @@ public class MainActivity extends Activity {
 private void addDetailRow(LinearLayout list,String label,String value){
   LinearLayout line=row();pad(line,0,11,0,11);TextView left=txt(label,11,MUTED,false);line.addView(left,new LinearLayout.LayoutParams(0,-2,1));line.addView(txt(value==null||value.trim().isEmpty()?"Not available":value,11,Color.WHITE,true));list.addView(line);View divider=new View(this);divider.setBackgroundColor(0x20ffffff);list.addView(divider,new LinearLayout.LayoutParams(-1,dp(1)));
  }
-  private View matchCard(JSONObject m){return matchCard(m,false);}
+  private void configureTeamName(TextView name){\n  name.setSingleLine(true);name.setMaxLines(1);name.setEllipsize(TextUtils.TruncateAt.MARQUEE);name.setMarqueeRepeatLimit(-1);name.setSelected(true);name.setHorizontallyScrolling(true);name.setFocusable(true);name.setFocusableInTouchMode(true);\n }\n private View matchCard(JSONObject m){return matchCard(m,false);}
  private View matchCard(JSONObject m,boolean featured){
   boolean live=isLiveMatch(m),finished=isFinishedMatch(m),upcoming=!live&&!finished;
   LinearLayout card=col();card.setBackground(shape(0xff111111,16));card.setElevation(0f);pad(card,12,10,12,10);
@@ -548,12 +548,12 @@ private void addDetailRow(LinearLayout list,String label,String value){
   if(!eventStyle(m)){
    LinearLayout teams=row();teams.setGravity(Gravity.CENTER_VERTICAL);teams.setBaselineAligned(false);teams.setWeightSum(2f);pad(teams,0,13,0,10);
    View homeBadge=teamBadge(m,"home");teams.addView(homeBadge,new LinearLayout.LayoutParams(dp(22),dp(22)));
-   TextView home=txt(team(m,"home"),11,Color.WHITE,true);home.setSingleLine(true);home.setIncludeFontPadding(false);home.setMaxLines(1);home.setEllipsize(TextUtils.TruncateAt.END);home.setGravity(Gravity.CENTER_VERTICAL|Gravity.LEFT);
+   TextView home=txt(team(m,"home"),11,Color.WHITE,true);configureTeamName(home);home.setIncludeFontPadding(false);home.setGravity(Gravity.CENTER_VERTICAL|Gravity.LEFT);
    LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(0,dp(34),1f);hp.leftMargin=dp(5);teams.addView(home,hp);
    LinearLayout centre=col();centre.setGravity(Gravity.CENTER);LinearLayout.LayoutParams centreP=new LinearLayout.LayoutParams(dp(76),dp(42));teams.addView(centre,centreP);
    TextView centreLabel=txt(live?"LIVE":finished?"FT":new java.text.SimpleDateFormat("h:mm a",Locale.getDefault()).format(new Date(Math.max(0,m.optLong("date",0)))),live?9:12,live?0xffff7168:finished?MUTED:0xff55c7ff,true);centreLabel.setGravity(Gravity.CENTER);centreLabel.setSingleLine(true);centre.addView(centreLabel);
    if(upcoming){TextView matchDate=txt(m.optLong("date",0)>0?new java.text.SimpleDateFormat("dd/MM/yyyy",Locale.getDefault()).format(new Date(m.optLong("date",0))):"Date TBC",8,MUTED,false);matchDate.setGravity(Gravity.CENTER);LinearLayout.LayoutParams dateP=new LinearLayout.LayoutParams(-1,-2);dateP.topMargin=dp(2);centre.addView(matchDate,dateP);}
-   TextView away=txt(team(m,"away"),11,Color.WHITE,true);away.setSingleLine(true);away.setIncludeFontPadding(false);away.setMaxLines(1);away.setEllipsize(TextUtils.TruncateAt.END);away.setGravity(Gravity.CENTER_VERTICAL|Gravity.RIGHT);
+   TextView away=txt(team(m,"away"),11,Color.WHITE,true);configureTeamName(away);away.setIncludeFontPadding(false);away.setGravity(Gravity.CENTER_VERTICAL|Gravity.RIGHT);
    LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(0,dp(34),1f);ap.rightMargin=dp(5);teams.addView(away,ap);
    View awayBadge=teamBadge(m,"away");teams.addView(awayBadge,new LinearLayout.LayoutParams(dp(22),dp(22)));card.addView(teams);
   }else{
@@ -637,16 +637,64 @@ private void addDetailRow(LinearLayout list,String label,String value){
   try(InputStream input=new ByteArrayInputStream(bytes)){SVG svg=SVG.getFromInputStream(input);android.graphics.Picture picture=svg.renderToPicture();int width=Math.max(1,Math.min(512,picture.getWidth())),height=Math.max(1,Math.min(512,picture.getHeight()));if(width<=1||height<=1)return null;Bitmap rendered=Bitmap.createBitmap(width,height,Bitmap.Config.ARGB_8888);new Canvas(rendered).drawPicture(picture,new Rect(0,0,width,height));return rendered;}catch(Exception ignored){return null;}
  }
  private void requestBadge(FrameLayout frame,String badgeUrl){
-  if(frame==null||!badgeUrl.equals(frame.getTag()))return;Bitmap cached;synchronized(badgeCache){cached=badgeCache.get(badgeUrl);}if(cached!=null){showBadge(frame,cached,badgeUrl);return;}
-  badgeWaiters.computeIfAbsent(badgeUrl,k->new java.util.concurrent.CopyOnWriteArrayList<>()).add(new java.lang.ref.WeakReference<>(frame));if(!badgeRequests.add(badgeUrl))return;
-  imageIo.execute(()->{Bitmap bitmap=null;HttpURLConnection connection=null;try{
-   File badgeDir=getDir("badges",MODE_PRIVATE);File badgeFile=new File(badgeDir,Integer.toHexString(badgeUrl.hashCode())+".img");
-   if(!badgeUrl.startsWith("data:image/")&&badgeFile.exists()){try(InputStream in=new FileInputStream(badgeFile);ByteArrayOutputStream bytes=new ByteArrayOutputStream()){byte[] chunk=new byte[8192];int n;while((n=in.read(chunk))!=-1)bytes.write(chunk,0,n);bitmap=decodeBadgeBytes(bytes.toByteArray());}}
-   if(bitmap==null&&badgeUrl.startsWith("data:image/")){int comma=badgeUrl.indexOf(',');if(comma>0)bitmap=decodeBadgeBytes(android.util.Base64.decode(badgeUrl.substring(comma+1),android.util.Base64.DEFAULT));}
-   if(bitmap==null&&!badgeUrl.startsWith("data:image/")){connection=(HttpURLConnection)new URL(badgeUrl).openConnection();connection.setConnectTimeout(5000);connection.setReadTimeout(7000);connection.setInstanceFollowRedirects(true);connection.setUseCaches(true);connection.setRequestMethod("GET");connection.setRequestProperty("User-Agent","Mozilla/5.0 (Linux; Android) AppleWebKit/537.36 Zekify/2.0");connection.setRequestProperty("Accept","image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8");int code=connection.getResponseCode();int length=connection.getContentLength();if(code>=200&&code<300&&(length<=0||length<=5*1024*1024)){try(InputStream input=connection.getInputStream();ByteArrayOutputStream bytes=new ByteArrayOutputStream()){byte[] chunk=new byte[8192];int n,total=0;while((n=input.read(chunk))!=-1){total+=n;if(total>5*1024*1024)throw new IOException("Badge image too large");bytes.write(chunk,0,n);}bitmap=decodeBadgeBytes(bytes.toByteArray());}}}
-   if(bitmap!=null){if(setting("data_saver",false)){Bitmap scaled=Bitmap.createScaledBitmap(bitmap,48,48,true);if(scaled!=bitmap)bitmap=scaled;}synchronized(badgeCache){badgeCache.put(badgeUrl,bitmap);}if(!badgeUrl.startsWith("data:image/")&&!badgeFile.exists())try(FileOutputStream out=new FileOutputStream(badgeFile)){bitmap.compress(Bitmap.CompressFormat.PNG,100,out);}}
-  }catch(Exception error){android.util.Log.w("Zekify","Badge load failed: "+badgeUrl,error);}finally{if(connection!=null)connection.disconnect();badgeRequests.remove(badgeUrl);}
-  final Bitmap result=bitmap;java.util.List<java.lang.ref.WeakReference<FrameLayout>> waiting=badgeWaiters.remove(badgeUrl);if(result!=null&&waiting!=null&&!isFinishing())runOnUiThread(()->{for(java.lang.ref.WeakReference<FrameLayout> ref:waiting){FrameLayout target=ref.get();if(target!=null)showBadge(target,result,badgeUrl);}});
+  if(frame==null||!badgeUrl.equals(frame.getTag()))return;
+  Bitmap cached;synchronized(badgeCache){cached=badgeCache.get(badgeUrl);}
+  if(cached!=null){showBadge(frame,cached,badgeUrl);return;}
+  badgeWaiters.computeIfAbsent(badgeUrl,k->new java.util.concurrent.CopyOnWriteArrayList<>()).add(new java.lang.ref.WeakReference<>(frame));
+  if(!badgeRequests.add(badgeUrl))return;
+  imageIo.execute(()->{
+   Bitmap bitmap=null;HttpURLConnection connection=null;
+   File badgeFile=null;
+   try{
+    File badgeDir=getDir("badges",MODE_PRIVATE);
+    badgeFile=new File(badgeDir,Integer.toHexString(badgeUrl.hashCode())+".img");
+    if(!badgeUrl.startsWith("data:image/")&&badgeFile.exists()){
+     try(InputStream in=new FileInputStream(badgeFile);ByteArrayOutputStream bytes=new ByteArrayOutputStream()){
+      byte[] chunk=new byte[8192];int n;while((n=in.read(chunk))!=-1)bytes.write(chunk,0,n);
+      bitmap=decodeBadgeBytes(bytes.toByteArray());
+     }catch(Exception ignored){bitmap=null;}
+     if(bitmap==null)badgeFile.delete();
+    }
+    if(bitmap==null&&badgeUrl.startsWith("data:image/")){
+     int comma=badgeUrl.indexOf(',');
+     if(comma>0)bitmap=decodeBadgeBytes(android.util.Base64.decode(badgeUrl.substring(comma+1),android.util.Base64.DEFAULT));
+    }
+    if(bitmap==null&&!badgeUrl.startsWith("data:image/")){
+     for(int attempt=0;attempt<3&&bitmap==null;attempt++){
+      try{
+       connection=(HttpURLConnection)new URL(badgeUrl).openConnection();
+       connection.setConnectTimeout(8000);connection.setReadTimeout(10000);
+       connection.setInstanceFollowRedirects(true);connection.setUseCaches(false);
+       connection.setRequestMethod("GET");
+       connection.setRequestProperty("User-Agent","Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36 Zekify/3.5.6");
+       connection.setRequestProperty("Accept","image/avif,image/webp,image/apng,image/svg+xml,image/png,image/jpeg,image/*,*/*;q=0.8");
+       connection.setRequestProperty("Cache-Control","no-cache");
+       int code=connection.getResponseCode();
+       if(code>=200&&code<300){
+        try(InputStream input=connection.getInputStream();ByteArrayOutputStream bytes=new ByteArrayOutputStream()){
+         byte[] chunk=new byte[8192];int n,total=0;
+         while((n=input.read(chunk))!=-1){total+=n;if(total>5*1024*1024)throw new IOException("Badge image too large");bytes.write(chunk,0,n);}
+         bitmap=decodeBadgeBytes(bytes.toByteArray());
+        }
+       }
+      }catch(Exception retryError){
+       android.util.Log.w("Zekify","Badge attempt "+(attempt+1)+" failed: "+badgeUrl,retryError);
+      }finally{if(connection!=null){connection.disconnect();connection=null;}}
+      if(bitmap==null&&attempt<2)try{Thread.sleep(450L*(attempt+1));}catch(InterruptedException interrupted){Thread.currentThread().interrupt();break;}
+     }
+    }
+    if(bitmap!=null){
+     if(setting("data_saver",false)){Bitmap scaled=Bitmap.createScaledBitmap(bitmap,48,48,true);if(scaled!=bitmap)bitmap=scaled;}
+     synchronized(badgeCache){badgeCache.put(badgeUrl,bitmap);}
+     if(!badgeUrl.startsWith("data:image/")&&badgeFile!=null)try(FileOutputStream out=new FileOutputStream(badgeFile,false)){bitmap.compress(Bitmap.CompressFormat.PNG,100,out);}
+    }
+   }catch(Exception error){android.util.Log.w("Zekify","Badge load failed: "+badgeUrl,error);}
+   finally{if(connection!=null)connection.disconnect();badgeRequests.remove(badgeUrl);}
+   final Bitmap result=bitmap;
+   java.util.List<java.lang.ref.WeakReference<FrameLayout>> waiting=badgeWaiters.remove(badgeUrl);
+   if(result!=null&&waiting!=null&&!isFinishing())runOnUiThread(()->{
+    for(java.lang.ref.WeakReference<FrameLayout> ref:waiting){FrameLayout target=ref.get();if(target!=null&&badgeUrl.equals(target.getTag()))showBadge(target,result,badgeUrl);}
+   });
   });
  }
  private void showBadge(FrameLayout frame,Bitmap bitmap,String expectedUrl){

@@ -93,7 +93,7 @@ playerActivity = playerActivity.replace(controlsAnchor, `    private void update
             if (toolbar != null) toolbar.bringToFront();
             if (gestureIndicator != null && gestureIndicator.getVisibility() == View.VISIBLE) gestureIndicator.bringToFront();
             if (unlockButton != null && unlockButton.getVisibility() == View.VISIBLE) unlockButton.bringToFront();
-            videoScrim.animate().alpha(0.28f).setDuration(200L).start();
+            videoScrim.animate().alpha(0.42f).setDuration(200L).start();
         } else {
             videoScrim.animate().alpha(0f).setDuration(200L).withEndAction(() -> {
                 if (videoScrim != null && (!controlsVisible || screenLocked)) videoScrim.setVisibility(View.GONE);
