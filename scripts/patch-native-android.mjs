@@ -176,6 +176,7 @@ for (const icon of [
 
 const mainActivityPath = root + "/MainActivity.java";
 let mainActivity = await readFile(mainActivityPath, "utf8");
+mainActivity = mainActivity.replace("@Override public void onCreate(Bundle b){super.onCreate(b);registerWindowLayoutListener();appPrefs=", "@Override public void onCreate(Bundle b){super.onCreate(b);if(!SecurityGuard.verify(this)){SecurityGuard.showBlocked(this);return;}registerWindowLayoutListener();appPrefs=");
 mainActivity = mainActivity.replace("@Override public void onCreate(Bundle b){super.onCreate(b);appPrefs=", "@Override public void onCreate(Bundle b){super.onCreate(b);if(!SecurityGuard.verify(this)){SecurityGuard.showBlocked(this);return;}appPrefs=");
 mainActivity = mainActivity.replace("@Override protected void onResume(){super.onResume();FloatingPlayerService.hideForReturn();", "@Override protected void onResume(){super.onResume();if(!SecurityGuard.verify(this)){SecurityGuard.showBlocked(this);return;}FloatingPlayerService.hideForReturn();");
 mainActivity = mainActivity.replace(
