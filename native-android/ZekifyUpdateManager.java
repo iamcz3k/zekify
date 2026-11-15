@@ -14,6 +14,7 @@ import android.graphics.Typeface;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.Intent;
+import android.content.ClipData;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.Signature;
@@ -48,6 +49,7 @@ public final class ZekifyUpdateManager {
     private static final String PREFS = "zekify_updates";
     private static final ExecutorService IO = Executors.newSingleThreadExecutor();
     private static volatile boolean installPromptVisible = false;
+    private static final AtomicBoolean downloadRunning = new AtomicBoolean(false);
     private static final String UPDATE_CHANNEL = "zekify_updates_v1";
     private static final int UPDATE_NOTIFICATION_ID = 3525;
 
@@ -372,48 +374,89 @@ public final class ZekifyUpdateManager {
             pageWindow.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
             pageWindow.setBackgroundDrawableResource(android.R.color.transparent);
         }
+        if (!downloadRunning.compareAndSet(false, true)) return;
         IO.execute(() -> {
             File apk = null;
+            File partial = null;
             String failure = null;
             try {
-                String expected = downloadText(update.checksumUrl).trim().split("\\s+")[0].toLowerCase(Locale.ROOT);
+                String checksumText = downloadText(update.checksumUrl).trim();
+                java.util.regex.Matcher checksumMatcher = java.util.regex.Pattern.compile("(?i)\\b([a-f0-9]{64})\\b").matcher(checksumText);
+                if (!checksumMatcher.find()) throw new Exception("The update checksum file is invalid.");
+                String expected = checksumMatcher.group(1).toLowerCase(Locale.ROOT);
                 File shared = new File(activity.getCacheDir(), "shared");
                 if (!shared.exists() && !shared.mkdirs()) throw new Exception("Could not create update folder.");
                 apk = new File(shared, "zekify-update.apk");
+                partial = new File(shared, "zekify-update.apk.part");
+                if (partial.exists() && !partial.delete()) throw new Exception("Could not clear an incomplete previous download.");
                 HttpURLConnection connection = (HttpURLConnection) new URL(update.apkUrl).openConnection();
-                connection.setConnectTimeout(15000);
-                connection.setReadTimeout(30000);
+                connection.setConnectTimeout(20000);
+                connection.setReadTimeout(45000);
+                connection.setInstanceFollowRedirects(true);
+                connection.setUseCaches(false);
                 connection.setRequestProperty("User-Agent", "Zekify-Android-Updater");
-                try (InputStream input = connection.getInputStream(); FileOutputStream output = new FileOutputStream(apk)) {
-                    int total = connection.getContentLength();
-                    byte[] buffer = new byte[16384];
-                    int count, received = 0;
-                    while ((count = input.read(buffer)) != -1) {
-                        output.write(buffer, 0, count);
-                        received += count;
-                        int value = total > 0 ? (int) Math.min(100, received * 100L / total) : 0;
-                        String size = total > 0 ? String.format(Locale.ROOT, "%.1f / %.1f MB", received / 1048576f, total / 1048576f) : String.format(Locale.ROOT, "%.1f MB", received / 1048576f);
-                        activity.runOnUiThread(() -> {
-                            if (page.isShowing()) {
-                                progress.setProgress(value);
-                                status.setText(total > 0 ? "Downloading… " + value + "% · " + size : "Downloading… " + size);
+                connection.setRequestProperty("Accept", "application/vnd.android.package-archive, application/octet-stream;q=0.9, */*;q=0.8");
+                try {
+                    int response = connection.getResponseCode();
+                    if (response < 200 || response >= 300) throw new Exception("APK download server returned HTTP " + response + ".");
+                    long total = connection.getHeaderFieldLong("Content-Length", -1L);
+                    if (total > 300L * 1024L * 1024L) throw new Exception("The update APK is unexpectedly large.");
+                    try (InputStream input = connection.getInputStream(); FileOutputStream output = new FileOutputStream(partial, false)) {
+                        byte[] buffer = new byte[65536];
+                        int count;
+                        long received = 0L;
+                        int lastPercent = -1;
+                        long lastUnknownReport = 0L;
+                        while ((count = input.read(buffer)) != -1) {
+                            if (count == 0) continue;
+                            output.write(buffer, 0, count);
+                            received += count;
+                            if (received > 300L * 1024L * 1024L) throw new Exception("The update APK exceeded the safe download limit.");
+                            int value = total > 0 ? (int) Math.min(100L, received * 100L / total) : -1;
+                            boolean report = total > 0 ? value != lastPercent : received - lastUnknownReport >= 1024L * 1024L;
+                            if (report) {
+                                lastPercent = value;
+                                lastUnknownReport = received;
+                                String size = total > 0
+                                    ? String.format(Locale.ROOT, "%.1f / %.1f MB", received / 1048576f, total / 1048576f)
+                                    : String.format(Locale.ROOT, "%.1f MB downloaded", received / 1048576f);
+                                final int progressValue = value < 0 ? 0 : value;
+                                final String progressText = total > 0 ? "Downloading… " + value + "% · " + size : "Downloading… " + size;
+                                activity.runOnUiThread(() -> {
+                                    if (page.isShowing() && !activity.isFinishing()) {
+                                        if (total > 0) progress.setProgress(progressValue);
+                                        status.setText(progressText);
+                                    }
+                                });
                             }
-                        });
+                        }
+                        output.flush();
+                        output.getFD().sync();
+                        if (total > 0 && received != total) throw new Exception("The APK download was incomplete. Please retry on a stable connection.");
                     }
-                } finally { connection.disconnect(); }
-                if (!apk.isFile() || apk.length() == 0) throw new Exception("The downloaded APK is empty.");
-                String actual = sha256(apk);
+                } finally {
+                    connection.disconnect();
+                }
+                if (!partial.isFile() || partial.length() < 1024L * 1024L) throw new Exception("The downloaded APK is incomplete or empty.");
+                String actual = sha256(partial);
                 if (!actual.equals(expected)) throw new Exception("APK checksum verification failed. The file was rejected.");
-                verifyPackageAndSignature(activity, apk);
-                activity.getSharedPreferences(PREFS, Activity.MODE_PRIVATE).edit().putString("pending_apk", apk.getAbsolutePath()).putString("pending_version", update.version).apply();
+                verifyPackageAndSignature(activity, partial);
+                if (apk.exists() && !apk.delete()) throw new Exception("Could not replace the previous update file.");
+                if (!partial.renameTo(apk)) throw new Exception("Could not finalize the verified update file.");
+                activity.getSharedPreferences(PREFS, Activity.MODE_PRIVATE).edit()
+                    .putString("pending_apk", apk.getAbsolutePath())
+                    .putString("pending_version", update.version)
+                    .apply();
             } catch (Exception e) {
                 failure = e.getMessage() == null ? "Update download failed. Tap Retry." : e.getMessage();
-                if (apk != null) apk.delete();
+                if (partial != null && partial.exists()) partial.delete();
+                if (apk != null && apk.exists() && apk.length() == 0) apk.delete();
             }
             String error = failure;
             File downloaded = apk;
             activity.runOnUiThread(() -> {
-                if (activity.isFinishing()) return;
+                downloadRunning.set(false);
+                if (activity.isFinishing() || activity.isDestroyed()) return;
                 if (error != null) {
                     status.setText(error);
                     progress.setVisibility(android.view.View.GONE);
@@ -421,7 +464,7 @@ public final class ZekifyUpdateManager {
                     actionButton.setEnabled(true);
                     actionButton.setOnClickListener(v -> download(activity, update));
                 } else {
-                    status.setText("Download complete. Checksum verified. Opening Android installer…");
+                    status.setText("Download complete. Checksum and signing certificate verified. Opening Android installer…");
                     progress.setProgress(100);
                     actionButton.setText("Opening installer…");
                     actionButton.setEnabled(false);
@@ -480,13 +523,16 @@ public final class ZekifyUpdateManager {
     private static void verifyPackageAndSignature(Activity activity, File apk) throws Exception {
         PackageManager pm = activity.getPackageManager();
         int flags = Build.VERSION.SDK_INT >= 28 ? PackageManager.GET_SIGNING_CERTIFICATES : PackageManager.GET_SIGNATURES;
-        PackageInfo current = pm.getPackageInfo(activity.getPackageName(), 0);
+        PackageInfo current = pm.getPackageInfo(activity.getPackageName(), flags);
         PackageInfo candidate = pm.getPackageArchiveInfo(apk.getAbsolutePath(), flags);
         if (candidate == null || !activity.getPackageName().equals(candidate.packageName))
             throw new Exception("This APK is not a Zekify update.");
         if (candidate.versionName == null || compareVersions(candidate.versionName, current.versionName) <= 0)
             throw new Exception("The downloaded APK is not newer than the installed version.");
-        // The Android package installer performs the authoritative signing-certificate check.
+        Set<String> installedCertificates = certificateDigests(current);
+        Set<String> updateCertificates = certificateDigests(candidate);
+        if (installedCertificates.isEmpty() || !installedCertificates.equals(updateCertificates))
+            throw new Exception("The update was signed with a different certificate and cannot replace this installation.");
     }
 
     public static void resumeInstall(Activity activity) {
@@ -524,10 +570,20 @@ public final class ZekifyUpdateManager {
         }
         try {
             activity.getSharedPreferences(PREFS, Activity.MODE_PRIVATE).edit().remove("awaiting_install_permission").apply();
+            if (apk == null || !apk.isFile() || apk.length() == 0) throw new Exception("The verified update file is no longer available. Download it again.");
+            verifyPackageAndSignature(activity, apk);
             Uri uri = FileProvider.getUriForFile(activity, activity.getPackageName() + ".fileprovider", apk);
-            Intent intent = new Intent(Intent.ACTION_VIEW);
-            intent.setDataAndType(uri, "application/vnd.android.package-archive");
-            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+            Intent intent = new Intent(Intent.ACTION_INSTALL_PACKAGE);
+            intent.setData(uri);
+            intent.setClipData(ClipData.newUri(activity.getContentResolver(), "Zekify update", uri));
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            if (intent.resolveActivity(activity.getPackageManager()) == null) {
+                intent = new Intent(Intent.ACTION_VIEW);
+                intent.setDataAndType(uri, "application/vnd.android.package-archive");
+                intent.setClipData(ClipData.newUri(activity.getContentResolver(), "Zekify update", uri));
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            }
+            if (intent.resolveActivity(activity.getPackageManager()) == null) throw new Exception("No Android package installer is available on this device.");
             activity.startActivity(intent);
         } catch (Exception e) {
             new AlertDialog.Builder(activity).setTitle("Could not open installer")
