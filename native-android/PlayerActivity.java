@@ -544,7 +544,7 @@ public class PlayerActivity extends Activity {
                 });
             }
         }
-        lockButton = playerIconButton("lock", "Lock player controls");
+        lockButton = playerIconButton("unlock", "Lock player controls");
         LinearLayout.LayoutParams lockParams = new LinearLayout.LayoutParams(dp(40), dp(46));
         lockParams.leftMargin = dp(2);
         toolbar.addView(lockButton, lockParams);
@@ -661,7 +661,20 @@ public class PlayerActivity extends Activity {
         if (drawable != 0) glyph.setImageResource(drawable);
         glyph.setColorFilter(0xff171717);
         glyph.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        unlock.addView(glyph, new FrameLayout.LayoutParams(dp(21), dp(21), Gravity.CENTER));
+        LinearLayout unlockContent = new LinearLayout(this);
+        unlockContent.setGravity(Gravity.CENTER);
+        unlockContent.setOrientation(LinearLayout.HORIZONTAL);
+        unlockContent.setPadding(dp(12), 0, dp(12), 0);
+        unlockContent.addView(glyph, new LinearLayout.LayoutParams(dp(19), dp(19)));
+        TextView unlockText = new TextView(this);
+        unlockText.setText("Tap to unlock");
+        unlockText.setTextColor(0xff171717);
+        unlockText.setTextSize(12);
+        unlockText.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        LinearLayout.LayoutParams unlockTextParams = new LinearLayout.LayoutParams(-2, -2);
+        unlockTextParams.leftMargin = dp(7);
+        unlockContent.addView(unlockText, unlockTextParams);
+        unlock.addView(unlockContent, new FrameLayout.LayoutParams(-2, -1, Gravity.CENTER));
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(dp(54), dp(44), Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
         params.bottomMargin = dp(64);
         root.addView(unlock, params);
@@ -672,16 +685,57 @@ public class PlayerActivity extends Activity {
 
     private void lockScreen() {
         screenLocked = true;
+        updateLockButtonIcon(true);
         controlsHandler.removeCallbacks(hideControlsTask);
         setControlsVisible(false);
         hideUnlockControl();
         if (gestureIndicator != null) gestureIndicator.setVisibility(View.GONE);
         if (gestureProgress != null) gestureHandler.removeCallbacks(hideGestureIndicator);
+        showLockStateMessage(true, "Locked");
+    }
+
+    private void updateLockButtonIcon(boolean locked) {
+        if (!(lockButton instanceof ViewGroup) || ((ViewGroup) lockButton).getChildCount() == 0) return;
+        View child = ((ViewGroup) lockButton).getChildAt(0);
+        if (child instanceof ImageView) {
+            int drawable = getResources().getIdentifier(locked ? "zekify_ic_lock" : "zekify_ic_unlock", "drawable", getPackageName());
+            if (drawable != 0) ((ImageView) child).setImageResource(drawable);
+        }
+        if (lockButton != null) lockButton.setContentDescription(locked ? "Player controls locked" : "Lock player controls");
+    }
+
+    private void showLockStateMessage(boolean locked, String message) {
+        if (root == null) return;
+        LinearLayout toast = new LinearLayout(this);
+        toast.setGravity(Gravity.CENTER);
+        toast.setOrientation(LinearLayout.HORIZONTAL);
+        toast.setPadding(dp(16), dp(10), dp(16), dp(10));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(0xb8000000);
+        bg.setCornerRadius(dp(24));
+        toast.setBackground(bg);
+        ImageView icon = new ImageView(this);
+        int drawable = getResources().getIdentifier(locked ? "zekify_ic_lock" : "zekify_ic_unlock", "drawable", getPackageName());
+        if (drawable != 0) icon.setImageResource(drawable);
+        toast.addView(icon, new LinearLayout.LayoutParams(dp(20), dp(20)));
+        TextView label = new TextView(this);
+        label.setText(message);
+        label.setTextColor(Color.WHITE);
+        label.setTextSize(13);
+        label.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        LinearLayout.LayoutParams labelParams = new LinearLayout.LayoutParams(-2, -2);
+        labelParams.leftMargin = dp(8);
+        toast.addView(label, labelParams);
+        root.addView(toast, new FrameLayout.LayoutParams(-2, -2, Gravity.CENTER));
+        toast.bringToFront();
+        controlsHandler.postDelayed(() -> { if (toast.getParent() == root) root.removeView(toast); }, 1300L);
     }
 
     private void unlockScreen() {
         screenLocked = false;
+        updateLockButtonIcon(false);
         hideUnlockControl();
+        showLockStateMessage(false, "Unlocked");
         setControlsVisible(true);
         scheduleControlsHide();
     }
