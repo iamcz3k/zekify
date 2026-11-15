@@ -477,9 +477,8 @@ public class PlayerActivity extends Activity {
                         if (view.getParent() instanceof ViewGroup) ((ViewGroup) view.getParent()).removeView(view);
                         view.setOnTouchListener(new GestureSurface(false));
                         root.addView(view, new FrameLayout.LayoutParams(-1, -1));
-                        applyResponsivePlayerLayout();
-                    applyResponsivePlayerLayout();
                         customVideoView = view;
+                        applyResponsivePlayerLayout();
                         customViewCallback = callback;
                         fullscreenRequested = true;
                         webView.setVisibility(View.GONE);
