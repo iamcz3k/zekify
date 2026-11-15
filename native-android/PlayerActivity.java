@@ -675,7 +675,7 @@ public class PlayerActivity extends Activity {
         unlockTextParams.leftMargin = dp(7);
         unlockContent.addView(unlockText, unlockTextParams);
         unlock.addView(unlockContent, new FrameLayout.LayoutParams(-2, -1, Gravity.CENTER));
-        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(dp(54), dp(44), Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(dp(148), dp(44), Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
         params.bottomMargin = dp(64);
         root.addView(unlock, params);
         unlock.setVisibility(View.GONE);
@@ -1514,6 +1514,18 @@ public class PlayerActivity extends Activity {
             }
         }
         super.onDestroy();
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP && muted) {
+            // A hardware volume-up press is an explicit request to hear the stream again.
+            muted = false;
+            if (player != null) player.setVolume(1f);
+            applyMuteToWebView();
+            updateMuteIcon();
+        }
+        return super.onKeyDown(keyCode, event);
     }
 
     @Override
