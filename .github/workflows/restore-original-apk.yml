@@ -1,0 +1,44 @@
+name: Restore original 21:32 APK to latest release
+on:
+  push:
+    branches: [telegram-football-bot]
+    paths:
+      - '.github/workflows/restore-original-apk.yml'
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: write
+jobs:
+  restore-release-asset:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download the exact signed 21:32 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: zekify-v3.5.6-native-signed-release
+          repository: iamcz3k/zekify
+          run-id: 43763980338
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: original-artifact
+      - name: Verify and stage original APK
+        run: |
+          APK="$(find original-artifact -type f -name '*.apk' -print -quit)"
+          test -n "$APK"
+          test -s "$APK"
+          cp "$APK" Zekify-v3.5.7.apk
+          sha256sum Zekify-v3.5.7.apk | tee Zekify-v3.5.7.apk.sha256
+          echo "Original APK staged:"
+          ls -l Zekify-v3.5.7.apk
+      - name: Replace the v3.5.7 release assets with the original APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v3.5.7
+          name: Zekify v3.5.7
+          files: |
+            Zekify-v3.5.7.apk
+            Zekify-v3.5.7.apk.sha256
+          overwrite_files: true
+          make_latest: true
+          fail_on_unmatched_files: true
+          body: |
+            Recovery release: the APK asset is the exact signed binary artifact from the original 21:32 build (workflow run 43763980338), republished here as the latest release asset. The APK itself retains its original embedded app version metadata.
