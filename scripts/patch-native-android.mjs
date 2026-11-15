@@ -62,6 +62,50 @@ if (!playerActivity.includes(hideMethod)) throw new Error("Fullscreen teardown a
 playerActivity = playerActivity.replace(hideMethod, fullscreenHelper + hideMethod);
 if (!playerActivity.includes("configureCustomFullscreenView(view); root.addView(view")) throw new Error("Fullscreen surface sizing patch did not apply");
 
+playerActivity = playerActivity.replace("    private View customVideoView;", "    private View customVideoView;\n    private View videoScrim;");
+const scrimAnchor = "        timelinePanel = new LinearLayout(this);";
+if (!playerActivity.includes(scrimAnchor)) throw new Error("Scrim insertion anchor missing");
+playerActivity = playerActivity.replace(scrimAnchor, `        videoScrim = new View(this);
+        videoScrim.setBackgroundColor(Color.BLACK);
+        videoScrim.setAlpha(0f);
+        videoScrim.setClickable(false);
+        videoScrim.setFocusable(false);
+        videoScrim.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        root.addView(videoScrim, new FrameLayout.LayoutParams(-1, -1));
+        videoScrim.setVisibility(View.GONE);
+
+        timelinePanel = new LinearLayout(this);`);
+const controlsAnchor = "    private void setControlsVisible(boolean visible) {";
+if (!playerActivity.includes(controlsAnchor)) throw new Error("Scrim controls anchor missing");
+playerActivity = playerActivity.replace(controlsAnchor, `    private void updateVideoScrim() {
+        if (videoScrim == null) return;
+        boolean hasVideo = customVideoView != null
+            || (playerView != null && playerView.getVisibility() == View.VISIBLE)
+            || (webView != null && webView.getVisibility() == View.VISIBLE);
+        boolean show = controlsVisible && !screenLocked && hasVideo;
+        videoScrim.animate().cancel();
+        if (show) {
+            videoScrim.setVisibility(View.VISIBLE);
+            videoScrim.setAlpha(0f);
+            videoScrim.bringToFront();
+            if (timelinePanel != null) timelinePanel.bringToFront();
+            if (status != null) status.bringToFront();
+            if (toolbar != null) toolbar.bringToFront();
+            if (gestureIndicator != null && gestureIndicator.getVisibility() == View.VISIBLE) gestureIndicator.bringToFront();
+            if (unlockButton != null && unlockButton.getVisibility() == View.VISIBLE) unlockButton.bringToFront();
+            videoScrim.animate().alpha(0.28f).setDuration(200L).start();
+        } else {
+            videoScrim.animate().alpha(0f).setDuration(200L).withEndAction(() -> {
+                if (videoScrim != null && (!controlsVisible || screenLocked)) videoScrim.setVisibility(View.GONE);
+            }).start();
+        }
+    }
+
+    private void setControlsVisible(boolean visible) {`);
+playerActivity = playerActivity.replace("        controlsVisible = visible;", "        controlsVisible = visible;\n        updateVideoScrim();");
+playerActivity = playerActivity.replace("        webView.setVisibility(View.VISIBLE);\n        webView.onResume();", "        webView.setVisibility(View.VISIBLE);\n        updateVideoScrim();\n        webView.onResume();");
+playerActivity = playerActivity.replace("        playerView.setVisibility(View.VISIBLE);\n        playerView.requestLayout();", "        playerView.setVisibility(View.VISIBLE);\n        updateVideoScrim();\n        playerView.requestLayout();");
+if (!playerActivity.includes("videoScrim.animate().alpha(0.28f)")) throw new Error("Video scrim fade patch did not apply");
 await writeFile(playerActivityPath, playerActivity);
 
 await copyFile("native-android/MatchReminderReceiver.java",root+"/MatchReminderReceiver.java");
