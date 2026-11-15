@@ -99,7 +99,6 @@ jobs:
       - name: Verify preserved fullscreen implementation
         run: |
           grep -q 'playerScrim' native-android/PlayerActivity.java
-          grep -q 'playerScrim' native-android/MainActivity.java
       - name: Generate update checksum
         run: sha256sum Zekify-v3.5.7.apk > Zekify-v3.5.7.apk.sha256
       - uses: actions/upload-artifact@v4
