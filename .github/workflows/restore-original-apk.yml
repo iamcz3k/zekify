@@ -42,3 +42,5 @@ jobs:
           fail_on_unmatched_files: true
           body: |
             Recovery release: the APK asset is the exact signed binary artifact from the original 21:32 build (workflow run 43763980338), republished here as the latest release asset. The APK itself retains its original embedded app version metadata.
+
+# Re-run restoration from the exact signed 21:32 artifact.
