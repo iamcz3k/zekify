@@ -111,7 +111,7 @@ if (!playerActivity.includes(lockStatePromptDuration)) throw new Error("Lock/unl
 playerActivity = playerActivity.replace(lockStatePromptDuration, "2000L");
 const tapToUnlockDuration = "controlsHandler.postDelayed(hideUnlockTask, 5000L);";
 if (!playerActivity.includes(tapToUnlockDuration)) throw new Error("Tap-to-unlock prompt duration anchor missing");
-playerActivity = playerActivity.replace(tapToUnlockDuration, "controlsHandler.postDelayed(hideUnlockTask, 2000L);");
+playerActivity = playerActivity.replace(tapToUnlockDuration, "controlsHandler.postDelayed(hideUnlockTask, 5000L);");
 
 await writeFile(playerActivityPath, playerActivity);
 
