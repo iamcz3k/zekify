@@ -123,6 +123,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view v3.5.6 --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 || gh release create v3.5.6 --repo "${GITHUB_REPOSITORY}" --title "Zekify v3.5.6" --notes "Adaptive tablet and foldable layouts with hinge-aware dual panes, responsive full-sensor player, improved timeline and controls, HOT match prioritisation, offline access gate, aligned match cards, cached badges, and the fighting arcade mode."
+          gh release view v3.5.6 --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 || gh release create v3.5.6 --repo "${GITHUB_REPOSITORY}" --title "Zekify v3.5.6" --notes "Offline access gate with Zekify logo and settings shortcuts, aligned match names, centered LIVE/upcoming kickoff and date, centered timers, cached badges, and the fighting arcade mode."
           gh release upload v3.5.6 Zekify-v3.5.6.apk Zekify-v3.5.6.apk.sha256 --repo "${GITHUB_REPOSITORY}" --clobber
-          gh release edit v3.5.6 --repo "${GITHUB_REPOSITORY}" --title "Zekify v3.5.6" --notes "Zekify v3.5.6: adaptive tablet and foldable layouts, hinge-aware dual panes, responsive portrait/landscape player, clearer timeline and controls, smarter HOT matches, aligned team names, centered LIVE and kickoff details, and offline gate with working network settings shortcuts."
+          gh release edit v3.5.6 --repo "${GITHUB_REPOSITORY}" --title "Zekify v3.5.6" --notes "Zekify v3.5.6: aligned team names, no VS/Watch Live labels, centered LIVE and kickoff details with timers, offline gate with app logo and working network settings shortcuts."

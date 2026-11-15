@@ -83,7 +83,7 @@ if(manifest.includes('android:name=".MainActivity"')&&!manifest.match(/<activity
 if(!manifest.includes('android:name=".MatchReminderReceiver"')) manifest=manifest.replace("</application>",'    <receiver android:name=".MatchReminderReceiver" android:enabled="true" android:exported="false" />\n    </application>');
 if(!manifest.includes('android:name=".MatchReminderBootReceiver"')) manifest=manifest.replace("</application>",'    <receiver android:name=".MatchReminderBootReceiver" android:enabled="true" android:exported="false"><intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /><action android:name="android.intent.action.MY_PACKAGE_REPLACED" /></intent-filter></receiver>\n    </application>');
 if(!manifest.includes('android:name=".PlayerActivity"')){
- manifest=manifest.replace("</application>",'    <activity android:name=".PlayerActivity" android:exported="false" android:screenOrientation="fullSensor" android:resizeableActivity="true" android:supportsPictureInPicture="true" android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden" />\n    </application>');
+ manifest=manifest.replace("</application>",'    <activity android:name=".PlayerActivity" android:exported="false" android:screenOrientation="sensorLandscape" android:resizeableActivity="true" android:supportsPictureInPicture="true" android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden" />\n    </application>');
 }
 const mainActivityTag = manifest.match(/<activity\b(?=[^>]*android:name=".MainActivity")[^>]*>/);
 if (mainActivityTag) {
@@ -121,7 +121,6 @@ if (manifest.includes('android:name=".MainActivity"') && manifest.includes('andr
 await writeFile(manifestPath,manifest);
 const gradlePath="android/app/build.gradle";
 let gradle=await readFile(gradlePath,"utf8");
-if(!gradle.includes("androidx.window:window-java:1.3.0")) gradle=gradle.replace(/dependencies\s*\{/, 'dependencies {\n    implementation "androidx.window:window-java:1.3.0"');
 if(!gradle.includes("androidx.media3:media3-exoplayer")) {
  gradle=gradle.replace(/dependencies\s*\{/, 'dependencies {\n    implementation "androidx.media3:media3-exoplayer:1.5.1"\n    implementation "androidx.media3:media3-exoplayer-hls:1.5.1"\n    implementation "androidx.media3:media3-ui:1.5.1"');
 }
@@ -176,7 +175,6 @@ for (const icon of [
 
 const mainActivityPath = root + "/MainActivity.java";
 let mainActivity = await readFile(mainActivityPath, "utf8");
-mainActivity = mainActivity.replace("@Override public void onCreate(Bundle b){super.onCreate(b);registerWindowLayoutListener();appPrefs=", "@Override public void onCreate(Bundle b){super.onCreate(b);if(!SecurityGuard.verify(this)){SecurityGuard.showBlocked(this);return;}registerWindowLayoutListener();appPrefs=");
 mainActivity = mainActivity.replace("@Override public void onCreate(Bundle b){super.onCreate(b);appPrefs=", "@Override public void onCreate(Bundle b){super.onCreate(b);if(!SecurityGuard.verify(this)){SecurityGuard.showBlocked(this);return;}appPrefs=");
 mainActivity = mainActivity.replace("@Override protected void onResume(){super.onResume();FloatingPlayerService.hideForReturn();", "@Override protected void onResume(){super.onResume();if(!SecurityGuard.verify(this)){SecurityGuard.showBlocked(this);return;}FloatingPlayerService.hideForReturn();");
 mainActivity = mainActivity.replace(

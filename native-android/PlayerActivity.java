@@ -33,11 +33,6 @@ import androidx.media3.common.TrackSelectionOverride;
 import androidx.media3.common.TrackGroup;
 import androidx.media3.ui.PlayerView;
 import androidx.media3.ui.AspectRatioFrameLayout;
-import androidx.window.layout.WindowInfoTracker;
-import androidx.window.java.layout.WindowInfoTrackerCallbackAdapter;
-import androidx.window.layout.WindowLayoutInfo;
-import androidx.window.layout.FoldingFeature;
-import androidx.core.util.Consumer;
 
 import org.json.*;
 
@@ -90,7 +85,7 @@ public class PlayerActivity extends Activity {
     private int resizeMode = 1; // 0=Fit, 1=Fill, 2=Zoom; default Fill
     private View resizeButton;
     private View stretchButton;
-    private boolean stretchEnabled = false;
+    private boolean stretchEnabled = true;
     private View gestureIndicator;
     private TextView gestureLabel;
     private ProgressBar gestureProgress;
@@ -110,35 +105,6 @@ public class PlayerActivity extends Activity {
     private boolean muted = false;
     private View lockButton, muteButton, unlockButton;
     private final Runnable hideControlsTask = () -> setControlsVisible(false);
-    private WindowInfoTrackerCallbackAdapter windowInfoTracker;
-    private android.graphics.Rect foldingFeatureBounds = new android.graphics.Rect();
-    private int foldPaneWidth = -1;
-    private int foldPaneGravity = Gravity.CENTER_HORIZONTAL;
-    private final Consumer<WindowLayoutInfo> windowLayoutListener = info -> {
-        android.graphics.Rect next = new android.graphics.Rect();
-        for (androidx.window.layout.DisplayFeature feature : info.getDisplayFeatures()) {
-            if (feature instanceof FoldingFeature) {
-                FoldingFeature fold = (FoldingFeature) feature;
-                if (fold.isSeparating() && fold.getOrientation() == FoldingFeature.Orientation.VERTICAL) {
-                    next.set(fold.getBounds());
-                    break;
-                }
-            }
-        }
-        if (!next.equals(foldingFeatureBounds)) {
-            foldingFeatureBounds = next;
-            int densityWidth = getResources().getConfiguration().screenWidthDp;
-            int windowPx = densityWidth > 0 ? dp(densityWidth) : getResources().getDisplayMetrics().widthPixels;
-            if (!next.isEmpty()) {
-                int leftPane = Math.max(0, next.left);
-                int rightPane = Math.max(0, windowPx - next.right);
-                if (leftPane >= rightPane) { foldPaneWidth = leftPane; foldPaneGravity = Gravity.LEFT; }
-                else { foldPaneWidth = rightPane; foldPaneGravity = Gravity.RIGHT; }
-            } else { foldPaneWidth = -1; foldPaneGravity = Gravity.CENTER_HORIZONTAL; }
-            applyResponsivePlayerLayout();
-        }
-    };
-
 
     @Override
     public void onCreate(Bundle state) {
@@ -154,7 +120,6 @@ public class PlayerActivity extends Activity {
         getWindow().setStatusBarColor(Color.TRANSPARENT);
         getWindow().setNavigationBarColor(Color.TRANSPARENT);
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
-        registerWindowLayoutListener();
         hideBars();
         try {
             sources = new JSONArray(getIntent().getStringExtra("sources"));
@@ -182,43 +147,6 @@ public class PlayerActivity extends Activity {
             setControlsVisible(!handedOffFromMain);
         } else if (sources.length() > 0) playSource();
         else showError("No stream sources are available.");
-    }
-
-    private void registerWindowLayoutListener() {
-        try { windowInfoTracker = new WindowInfoTrackerCallbackAdapter(WindowInfoTracker.getOrCreate(this)); windowInfoTracker.addWindowLayoutInfoListener(this, androidx.core.content.ContextCompat.getMainExecutor(this), windowLayoutListener); }
-        catch (Exception ignored) {}
-    }
-
-    private void applyResponsivePlayerLayout() {
-        if (root == null) return;
-        int width = foldPaneWidth > 0 ? foldPaneWidth : -1;
-        int gravity = foldPaneWidth > 0 ? (foldPaneGravity | Gravity.TOP) : (Gravity.TOP | Gravity.CENTER_HORIZONTAL);
-        for (View surface : new View[]{playerView, webView, customVideoView}) {
-            if (surface == null || surface.getParent() != root) continue;
-            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(width, -1, foldPaneWidth > 0 ? (foldPaneGravity | Gravity.CENTER_VERTICAL) : Gravity.CENTER);
-            surface.setLayoutParams(lp);
-        }
-        if (toolbar != null) {
-            int toolbarWidth = width;
-            if (toolbarWidth < 0 && getResources().getConfiguration().screenWidthDp >= 600) toolbarWidth = Math.min(dp(getResources().getConfiguration().screenWidthDp - 48), dp(1100));
-            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(toolbarWidth, -2, gravity);
-            lp.setMargins(dp(12), dp(12), dp(12), 0);
-            toolbar.setLayoutParams(lp);
-        }
-        if (timelinePanel != null) {
-            int timelineWidth = width;
-            if (timelineWidth < 0 && getResources().getConfiguration().screenWidthDp >= 600) timelineWidth = Math.min(dp(getResources().getConfiguration().screenWidthDp - 48), dp(1100));
-            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(timelineWidth, -2, foldPaneWidth > 0 ? (foldPaneGravity | Gravity.BOTTOM) : (Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL));
-            lp.setMargins(dp(18), 0, dp(18), dp(22));
-            timelinePanel.setLayoutParams(lp);
-        }
-        root.requestLayout();
-    }
-
-    @Override public void onConfigurationChanged(Configuration newConfig) {
-        super.onConfigurationChanged(newConfig);
-        applyResponsivePlayerLayout();
-        hideBars();
     }
 
     private void hideBars() {
@@ -306,7 +234,7 @@ public class PlayerActivity extends Activity {
             ((ViewGroup) playerView.getParent()).removeView(playerView);
         }
         playerView.setUseController(false);
-        playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT);
+        playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FILL);
         playerView.setShutterBackgroundColor(Color.BLACK);
         playerView.setOnTouchListener(new GestureSurface(true));
         root.addView(playerView, playerParams);
@@ -424,7 +352,6 @@ public class PlayerActivity extends Activity {
                     view.setOnTouchListener(new GestureSurface(false));
                     root.addView(view, new FrameLayout.LayoutParams(-1, -1));
                     customVideoView = view;
-                    applyResponsivePlayerLayout();
                     customViewCallback = callback;
                     fullscreenRequested = true;
                     webView.setVisibility(View.GONE);
@@ -479,7 +406,6 @@ public class PlayerActivity extends Activity {
                         view.setOnTouchListener(new GestureSurface(false));
                         root.addView(view, new FrameLayout.LayoutParams(-1, -1));
                         customVideoView = view;
-                        applyResponsivePlayerLayout();
                         customViewCallback = callback;
                         fullscreenRequested = true;
                         webView.setVisibility(View.GONE);
@@ -641,7 +567,6 @@ public class PlayerActivity extends Activity {
         timelineHandler.removeCallbacks(timelineTicker);
         timelineHandler.post(timelineTicker);
         setContentView(root);
-        applyResponsivePlayerLayout();
         scheduleControlsHide();
     }
 
@@ -1571,7 +1496,6 @@ public class PlayerActivity extends Activity {
 
     @Override
     protected void onDestroy() {
-        try { if (windowInfoTracker != null) windowInfoTracker.removeWindowLayoutInfoListener(windowLayoutListener); } catch (Exception ignored) {}
         webLoadHandler.removeCallbacksAndMessages(null);
         timelineHandler.removeCallbacksAndMessages(null);
         if (connectivityManager != null && networkCallback != null) {
