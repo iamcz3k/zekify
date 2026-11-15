@@ -36,7 +36,7 @@ jobs:
 
       - name: Build web bundle
         run: |
-          npm ci
+          npm install --no-package-lock
           npm run build
 
       - name: Generate Android platform and assets
