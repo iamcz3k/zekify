@@ -775,7 +775,8 @@ private void addDetailRow(LinearLayout list,String label,String value){
   for(String country:elite)if(n.equals(normalizeHotTeam(country)))return 5;
   String[] major={"morocco","egypt","nigeria","ghana","senegal","ivory coast","cote d ivoire","algeria","mexico","united states","usa","uruguay","colombia","belgium","croatia","japan","south korea","korea republic","turkey","scotland"};
   for(String country:major)if(n.equals(normalizeHotTeam(country)))return 4;
-  String[] strong={"jamaica","south africa","cameroon","tunisia","dr congo","democratic republic of the congo","congo dr","congo","costa rica","canada","australia","switzerland","denmark","sweden","norway","poland","serbia","ukraine","czech republic","austria","wales","ecuador","chile","paraguay","peru","saudi arabia","qatar","iran","uzbekistan"};
+  if(n.equals("congo"))return 1;
+  String[] strong={"jamaica","south africa","cameroon","tunisia","dr congo","democratic republic of the congo","congo dr","costa rica","canada","australia","switzerland","denmark","sweden","norway","poland","serbia","ukraine","czech republic","austria","wales","ecuador","chile","paraguay","peru","saudi arabia","qatar","iran","uzbekistan"};
   for(String country:strong)if(n.equals(normalizeHotTeam(country)))return 3;
   String[] emerging={"mali","burkina faso","zambia","zimbabwe","uganda","kenya","tanzania","angola","mozambique","cape verde","gabon","gambia","benin","togo","mauritania","libya","sudan","ethiopia","new zealand","honduras","panama","haiti","trinidad and tobago"};
   for(String country:emerging)if(n.equals(normalizeHotTeam(country)))return 2;
