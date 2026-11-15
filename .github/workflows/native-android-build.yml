@@ -1,0 +1,49 @@
+name: Zekify standalone native Android build
+on:
+  push:
+    branches:
+      - v3.5.6-native-android-pixel-migration
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build-native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Assemble standalone native Android project
+        run: |
+          mkdir -p android-native/app/src/main/java/com/v3x/zekify
+          mkdir -p android-native/app/src/main/assets/help android-native/app/src/main/assets/sports
+          cp native-android/*.java android-native/app/src/main/java/com/v3x/zekify/
+          cp native-android/help-assets/*.svg android-native/app/src/main/assets/help/
+          cp native-android/assets/sports/*.svg android-native/app/src/main/assets/sports/
+          cp native-android/assets/sports/LICENSE android-native/app/src/main/assets/sports/
+          cp native-android/assets/sports/README.md android-native/app/src/main/assets/sports/ATTRIBUTION.txt
+          printf 'ZEKIFY-INTEGRITY-V1:official-native-build' > android-native/app/src/main/assets/zekify-integrity.bin
+          cd android-native
+          gradle --no-daemon assembleDebug
+      - name: Verify APK contains native Android activities and no web app bundle
+        run: |
+          APK=android-native/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          unzip -l "$APK" > apk-contents.txt
+          grep -q 'classes.dex' apk-contents.txt
+          ! grep -Eq 'assets/public/(index.html|.*\.js)' apk-contents.txt
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -q "package: name='com.v3x.zekify'"
+          sha256sum "$APK"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zekify-v3.5.6-standalone-native-debug
+          path: android-native/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
