@@ -87,10 +87,10 @@ public class PlayerActivity extends Activity {
             status.setVisibility(View.VISIBLE);
         }
     };
-    private int resizeMode = 1; // 0=Fit, 1=Fill, 2=Zoom; default Fill
+    private int resizeMode = 2; // 0=Fill, 1=Zoom, 2=Fit; default Fit
     private View resizeButton;
     private View stretchButton;
-    private boolean stretchEnabled = true;
+    private boolean stretchEnabled = false;
     private View gestureIndicator;
     private TextView gestureLabel;
     private ProgressBar gestureProgress;
@@ -153,7 +153,8 @@ public class PlayerActivity extends Activity {
         }
         getWindow().setStatusBarColor(Color.TRANSPARENT);
         getWindow().setNavigationBarColor(Color.TRANSPARENT);
-        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR);
+        // Football streams open in landscape; sensor rotation remains available in both landscape directions.
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
         registerWindowLayoutListener();
         hideBars();
         try {
@@ -297,8 +298,7 @@ public class PlayerActivity extends Activity {
         status.setElevation(dp(8));
         status.setVisibility(View.GONE);
 
-        FrameLayout.LayoutParams playerParams =
-            new FrameLayout.LayoutParams(-1, -1);
+        FrameLayout.LayoutParams playerParams =            new FrameLayout.LayoutParams(-1, -1);
 
         playerView = transferredPlayerView != null ? transferredPlayerView : new PlayerView(this);
         transferredPlayerView = null;
@@ -306,7 +306,7 @@ public class PlayerActivity extends Activity {
             ((ViewGroup) playerView.getParent()).removeView(playerView);
         }
         playerView.setUseController(false);
-        playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FILL);
+        playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT);
         playerView.setShutterBackgroundColor(Color.BLACK);
         playerView.setOnTouchListener(new GestureSurface(true));
         root.addView(playerView, playerParams);
@@ -597,8 +597,7 @@ public class PlayerActivity extends Activity {
                 chip.setTextSize(11);
                 chip.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
                 chip.setGravity(Gravity.CENTER);
-                chip.setPadding(dp(13), 0, dp(13), 0);
-                chip.setMinHeight(dp(38));
+                chip.setPadding(dp(13), 0, dp(13), 0);                chip.setMinHeight(dp(38));
                 chip.setBackground(panel(i == sourceIndex ? 0xffff8a3d : 0xe6242424, 22));
                 LinearLayout.LayoutParams chipParams = new LinearLayout.LayoutParams(-2, dp(38));
                 chipParams.rightMargin = dp(7);
@@ -897,8 +896,7 @@ public class PlayerActivity extends Activity {
 
     private class GestureSurface implements View.OnTouchListener {
         private final boolean direct;
-        private float downX, downY, lastX, lastY, volumeAccumulator;
-        private long lastTap, startPosition;
+        private float downX, downY, lastX, lastY, volumeAccumulator;        private long lastTap, startPosition;
         private boolean moved;
 
         GestureSurface(boolean direct) { this.direct = direct; }
@@ -1145,9 +1143,9 @@ public class PlayerActivity extends Activity {
             resizeButton.setContentDescription("Switch video to " + nextLabel);
         }
         if (playerView != null) {
-            int mode = resizeMode == 0 ? AspectRatioFrameLayout.RESIZE_MODE_FIT
-                : (resizeMode == 1 ? AspectRatioFrameLayout.RESIZE_MODE_FILL
-                : AspectRatioFrameLayout.RESIZE_MODE_ZOOM);
+            int mode = resizeMode == 0 ? AspectRatioFrameLayout.RESIZE_MODE_FILL
+                : (resizeMode == 1 ? AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                : AspectRatioFrameLayout.RESIZE_MODE_FIT);
             playerView.setResizeMode(mode);
         }
         applyWebVideoSizing();
@@ -1197,8 +1195,7 @@ public class PlayerActivity extends Activity {
             if (info.getRendererType(r) != androidx.media3.common.C.TRACK_TYPE_VIDEO) continue;
             androidx.media3.exoplayer.source.TrackGroupArray groups = info.getTrackGroups(r);
             for (int g = 0; g < groups.length; g++) {
-                TrackGroup group = groups.get(g);
-                java.util.HashSet<Integer> seen = new java.util.HashSet<>();
+                TrackGroup group = groups.get(g);                java.util.HashSet<Integer> seen = new java.util.HashSet<>();
                 for (int t = 0; t < group.length; t++) {
                     androidx.media3.common.Format format = group.getFormat(t);
                     if (format.height > 0 && seen.add(format.height)) {
@@ -1292,13 +1289,19 @@ public class PlayerActivity extends Activity {
             + "if(!s){s=document.createElement('style');s.id='zekify-video-sizing';"
             + "(document.head||document.documentElement).appendChild(s);}"
             + "s.textContent='html,body{position:fixed!important;inset:0!important;width:100%!important;height:100%!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#000!important;}'"
-            + "+'iframe,video,#player,.player,.jwplayer,.video-js,.plyr{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;aspect-ratio:auto!important;object-fit:"
-            + fit + "!important;margin:0!important;}';"
-            + "document.querySelectorAll('iframe,video,#player,.player,.jwplayer,.video-js,.plyr').forEach(function(v){"
-            + "v.style.setProperty('position','fixed','important');v.style.setProperty('inset','0','important');"
-            + "v.style.setProperty('width','100vw','important');v.style.setProperty('height','100vh','important');"
-            + "v.style.setProperty('max-width','none','important');v.style.setProperty('max-height','none','important');"
-            + "v.style.setProperty('aspect-ratio','auto','important');v.style.setProperty('object-fit','" + fit + "','important');});}"
+            + "+'iframe,#player,.player,.jwplayer,.video-js,.plyr{position:fixed!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%)!important;width:min(100vw,177.7778vh)!important;height:min(100vh,56.25vw)!important;max-width:100vw!important;max-height:100vh!important;aspect-ratio:16/9!important;object-fit:contain!important;margin:0!important;}'"
+            + "+'video{position:fixed!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%)!important;width:100vw!important;height:100vh!important;max-width:100vw!important;max-height:100vh!important;object-fit:" + fit + "!important;margin:0!important;}';"
+            + "document.querySelectorAll('iframe,#player,.player,.jwplayer,.video-js,.plyr').forEach(function(v){"
+            + "v.style.setProperty('position','fixed','important');v.style.setProperty('left','50%','important');v.style.setProperty('top','50%','important');"
+            + "v.style.setProperty('transform','translate(-50%,-50%)','important');"
+            + "v.style.setProperty('width','min(100vw,177.7778vh)','important');v.style.setProperty('height','min(100vh,56.25vw)','important');"
+            + "v.style.setProperty('max-width','100vw','important');v.style.setProperty('max-height','100vh','important');"
+            + "v.style.setProperty('aspect-ratio','16/9','important');});"
+            + "document.querySelectorAll('video').forEach(function(v){v.style.setProperty('object-fit','" + fit + "','important');});}"
+            + "size();if(!window.zekifySizingObserver){window.zekifySizingObserver=new MutationObserver(size);"
+            + "window.zekifySizingObserver.observe(document.documentElement,{childList:true,subtree:true});}"
+            + "})();";
+
             + "size();if(!window.zekifySizingObserver){window.zekifySizingObserver=new MutationObserver(size);"
             + "window.zekifySizingObserver.observe(document.documentElement,{childList:true,subtree:true});}"
             + "})();";
@@ -1498,122 +1501,3 @@ public class PlayerActivity extends Activity {
         super.onResume();
         hideBars();
         if (webView != null) webView.onResume();
-        if (player != null) player.play();
-    }
-
-    private void returnPlaybackToMain() {
-        if (!handedOffFromMain || handedBackToMain) return;
-        if (playerView != null) {
-            if (playerView.getParent() instanceof ViewGroup) {
-                ((ViewGroup) playerView.getParent()).removeView(playerView);
-            }
-            playerView.setOnTouchListener(null);
-            playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FILL);
-            playerView.setLayoutParams(new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-            playerView.requestLayout();
-            returningPlayerView = playerView;
-            playerView = null;
-        }
-        returningPlayer = player;
-        player = null;
-        if (webView != null) {
-            webView.setWebChromeClient(new WebChromeClient());
-            webView.setOnTouchListener(null);
-            if (webView.getParent() instanceof ViewGroup) {
-                ((ViewGroup) webView.getParent()).removeView(webView);
-            }
-            returningWebView = webView;
-            webView = null;
-        }
-        returningSourceIndex = sourceIndex;
-        handedBackToMain = true;
-    }
-
-
-    @Override
-    public void onUserLeaveHint() {
-        super.onUserLeaveHint();
-        if (Build.VERSION.SDK_INT < 26
-            || !getSharedPreferences("zekify_cache", MODE_PRIVATE).getBoolean("setting_floating_player", false)) return;
-        boolean playing = player != null && player.isPlaying();
-        boolean webPlaying = webView != null && webView.getVisibility() == View.VISIBLE && !webLoadFailed;
-        if (!playing && !webPlaying) return;
-        try {
-            PictureInPictureParams params = new PictureInPictureParams.Builder()
-                .setAspectRatio(new Rational(16, 9))
-                .build();
-            enterPictureInPictureMode(params);
-        } catch (RuntimeException ignored) { }
-    }
-
-    @Override
-    public void onPictureInPictureModeChanged(boolean inPictureInPictureMode, Configuration newConfig) {
-        super.onPictureInPictureModeChanged(inPictureInPictureMode, newConfig);
-        if (inPictureInPictureMode) {
-            setControlsVisible(false);
-            if (toolbar != null) toolbar.setVisibility(View.GONE);
-        } else if (!isFinishing()) {
-            if (toolbar != null) toolbar.setVisibility(View.VISIBLE);
-            setControlsVisible(true);
-            scheduleControlsHide();
-        }
-    }
-
-    @Override
-    protected void onPause() {
-        boolean inPictureInPicture = Build.VERSION.SDK_INT >= 24 && isInPictureInPictureMode();
-        if (webView != null && !inPictureInPicture) webView.onPause();
-        if (player != null && !inPictureInPicture) player.pause();
-        if (isFinishing()) returnPlaybackToMain();
-        super.onPause();
-    }
-
-    @Override
-    protected void onDestroy() {
-        try { if (windowInfoTracker != null) windowInfoTracker.removeWindowLayoutInfoListener(windowLayoutListener); } catch (Exception ignored) {}
-        webLoadHandler.removeCallbacksAndMessages(null);
-        timelineHandler.removeCallbacksAndMessages(null);
-        if (connectivityManager != null && networkCallback != null) {
-            try { connectivityManager.unregisterNetworkCallback(networkCallback); } catch (RuntimeException ignored) {}
-            networkCallback = null;
-        }
-        controlsHandler.removeCallbacks(hideControlsTask);
-        recoveryHandler.removeCallbacksAndMessages(null);
-        if (customVideoView != null) hideCustomVideoView();
-        if (handedOffFromMain && !handedBackToMain) returnPlaybackToMain();
-        if (!handedBackToMain) {
-            stopPlayback();
-            if (webView != null) {
-                webView.destroy();
-                webView = null;
-            }
-        }
-        super.onDestroy();
-    }
-
-    @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP && muted) {
-            // A hardware volume-up press is an explicit request to hear the stream again.
-            muted = false;
-            if (player != null) player.setVolume(1f);
-            applyMuteToWebView();
-            updateMuteIcon();
-        }
-        return super.onKeyDown(keyCode, event);
-    }
-
-    @Override
-    public void onBackPressed() {
-        if (customVideoView != null) {
-            hideCustomVideoView();
-            return;
-        }
-        if (webView != null && webView.canGoBack()) {
-            webView.goBack();
-            return;
-        }
-        finish();
-    }
-}
