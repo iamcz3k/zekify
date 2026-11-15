@@ -534,14 +534,17 @@ public class MainActivity extends Activity {
     NativeIcon reminder=new NativeIcon(this,isMatchScheduled(selected)?"bell-on":"bell",isMatchScheduled(selected)?ORANGE:MUTED);header.addView(reminder,new LinearLayout.LayoutParams(dp(42),dp(42)));reminder.setOnClickListener(v->toggleMatchReminder(selected));screen.addView(header);
     ScrollView scroll=new ScrollView(this);scroll.setFillViewport(false);scroll.setVerticalScrollBarEnabled(false);scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
     LinearLayout scrollContent=col();pad(scrollContent,12,2,12,20);
-    View miniPlayer=buildInlinePlayer();if(miniPlayer!=null){LinearLayout.LayoutParams miniP=new LinearLayout.LayoutParams(-1,-2);miniP.setMargins(0,0,0,dp(14));scrollContent.addView(miniPlayer,miniP);}
-    TextView recommendations=txt("MORE TO WATCH",10,ORANGE,true);LinearLayout.LayoutParams recP=new LinearLayout.LayoutParams(-1,-2);recP.topMargin=dp(4);recP.bottomMargin=dp(8);scrollContent.addView(recommendations,recP);
+    boolean detailTwoPane=windowWidthDp()>=900&&!separatingVerticalHinge;
+    LinearLayout playerColumn=scrollContent,recommendationColumn=scrollContent;
+    if(detailTwoPane){LinearLayout columns=row();columns.setGravity(Gravity.TOP);LinearLayout.LayoutParams columnsP=new LinearLayout.LayoutParams(-1,-2);scrollContent.addView(columns,columnsP);playerColumn=col();recommendationColumn=col();LinearLayout.LayoutParams playerColP=new LinearLayout.LayoutParams(0,-2,1.55f);playerColP.rightMargin=dp(12);columns.addView(playerColumn,playerColP);columns.addView(recommendationColumn,new LinearLayout.LayoutParams(0,-2,1f));}
+    View miniPlayer=buildInlinePlayer();if(miniPlayer!=null){LinearLayout.LayoutParams miniP=new LinearLayout.LayoutParams(-1,-2);miniP.setMargins(0,0,0,dp(14));playerColumn.addView(miniPlayer,miniP);}
+    TextView recommendations=txt("MORE TO WATCH",10,ORANGE,true);LinearLayout.LayoutParams recP=new LinearLayout.LayoutParams(-1,-2);recP.topMargin=dp(4);recP.bottomMargin=dp(8);recommendationColumn.addView(recommendations,recP);
     ArrayList<JSONObject> candidates=new ArrayList<>();for(JSONObject item:matches){if(!item.optString("id").equals(selected.optString("id")))candidates.add(item);}
     boolean popular=false;for(JSONObject item:candidates)if(popularScore(item)>0){popular=true;break;}
     if(popular)Collections.sort(candidates,(a,b)->Integer.compare(popularScore(b),popularScore(a)));
-    int shown=0;for(JSONObject item:candidates){if(shown>=4)break;scrollContent.addView(matchCard(item,popular&&popularScore(item)>0));shown++;}
-    if(shown==0){TextView empty=txt("No other matches available yet.",11,MUTED,false);pad(empty,8,16,8,16);scrollContent.addView(empty);}
-    safeScrollAdd(scroll,scrollContent);screen.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+    int shown=0;for(JSONObject item:candidates){if(shown>=4)break;recommendationColumn.addView(matchCard(item,popular&&popularScore(item)>0));shown++;}
+    if(shown==0){TextView empty=txt("No other matches available yet.",11,MUTED,false);pad(empty,8,16,8,16);recommendationColumn.addView(empty);}
+    FrameLayout detailFrame=new FrameLayout(this);int detailWidth=windowWidthDp();detailFrame.addView(scrollContent,new FrameLayout.LayoutParams(detailWidth>=600?dp(Math.min(detailWidth,1280)):-1,-2,Gravity.TOP|Gravity.CENTER_HORIZONTAL));safeScrollAdd(scroll,detailFrame);screen.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
     screen.addView(buildBottomNavigation(matchReturnDestination));
     root=screen;setContentView(screen);if(!setting("reduce_motion",false)){screen.setAlpha(0f);screen.animate().alpha(1f).setDuration(200L).start();}
    }
