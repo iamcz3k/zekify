@@ -534,7 +534,11 @@ public class MainActivity extends Activity {
 private void addDetailRow(LinearLayout list,String label,String value){
   LinearLayout line=row();pad(line,0,11,0,11);TextView left=txt(label,11,MUTED,false);line.addView(left,new LinearLayout.LayoutParams(0,-2,1));line.addView(txt(value==null||value.trim().isEmpty()?"Not available":value,11,Color.WHITE,true));list.addView(line);View divider=new View(this);divider.setBackgroundColor(0x20ffffff);list.addView(divider,new LinearLayout.LayoutParams(-1,dp(1)));
  }
-  private void configureTeamName(TextView name){\n  name.setSingleLine(true);name.setMaxLines(1);name.setEllipsize(TextUtils.TruncateAt.MARQUEE);name.setMarqueeRepeatLimit(-1);name.setSelected(true);name.setHorizontallyScrolling(true);name.setFocusable(true);name.setFocusableInTouchMode(true);\n }\n private View matchCard(JSONObject m){return matchCard(m,false);}
+  private void configureTeamName(TextView name){
+  name.setSingleLine(true);name.setMaxLines(1);name.setEllipsize(TextUtils.TruncateAt.MARQUEE);
+  name.setMarqueeRepeatLimit(-1);name.setSelected(true);name.setHorizontallyScrolling(true);
+ }
+ private View matchCard(JSONObject m){return matchCard(m,false);}
  private View matchCard(JSONObject m,boolean featured){
   boolean live=isLiveMatch(m),finished=isFinishedMatch(m),upcoming=!live&&!finished;
   LinearLayout card=col();card.setBackground(shape(0xff111111,16));card.setElevation(0f);pad(card,12,10,12,10);
