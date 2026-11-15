@@ -119,7 +119,7 @@ public class PlayerActivity extends Activity {
         for (androidx.window.layout.DisplayFeature feature : info.getDisplayFeatures()) {
             if (feature instanceof FoldingFeature) {
                 FoldingFeature fold = (FoldingFeature) feature;
-                if (fold.isSeparating() && fold.getOrientation() == FoldingFeature.ORIENTATION_VERTICAL) {
+                if (fold.isSeparating() && fold.getOrientation() == FoldingFeature.Orientation.VERTICAL) {
                     next.set(fold.getBounds());
                     break;
                 }
