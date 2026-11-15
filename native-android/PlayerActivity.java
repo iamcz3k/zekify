@@ -101,6 +101,9 @@ public class PlayerActivity extends Activity {
     private boolean switchingSource = false;
     private final Handler controlsHandler = new Handler(Looper.getMainLooper());
     private boolean controlsVisible = true;
+    private boolean screenLocked = false;
+    private boolean muted = false;
+    private View lockButton, muteButton, unlockButton;
     private final Runnable hideControlsTask = () -> setControlsVisible(false);
 
     @Override
@@ -282,6 +285,7 @@ public class PlayerActivity extends Activity {
                 webLoadFailed = false;
                 status.setVisibility(View.GONE);
                 applyWebVideoSizing();
+                applyMuteToWebView();
                 if (fullscreenRequested) hideBars();
             }
 
@@ -449,9 +453,18 @@ public class PlayerActivity extends Activity {
         timelineSeek.setMax(1000);
         timelineSeek.setPadding(0, 0, 0, 0);
         timelineSeek.setProgressTintList(android.content.res.ColorStateList.valueOf(0xffff8a3d));
-        timelineSeek.setSecondaryProgressTintList(android.content.res.ColorStateList.valueOf(0xffb8b8b8));
+        timelineSeek.setSecondaryProgressTintList(android.content.res.ColorStateList.valueOf(0xffe5e9ef));
         timelineSeek.setThumbTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
-        timelineSeek.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(0xff666666));
+        timelineSeek.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(0xff727b89));
+        timelineSeek.setSplitTrack(false);
+        GradientDrawable timelineThumb = new GradientDrawable();
+        timelineThumb.setShape(GradientDrawable.OVAL);
+        timelineThumb.setColor(Color.WHITE);
+        timelineThumb.setStroke(dp(2), 0xffff8a3d);
+        timelineThumb.setSize(dp(16), dp(16));
+        timelineSeek.setThumb(timelineThumb);
+        timelineSeek.setThumbOffset(dp(8));
+        timelineSeek.setElevation(dp(3));
         timelineSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 if (fromUser && timelineUserSeeking && player != null) {
@@ -531,16 +544,26 @@ public class PlayerActivity extends Activity {
                 });
             }
         }
+        lockButton = playerIconButton("lock", "Lock player controls");
+        LinearLayout.LayoutParams lockParams = new LinearLayout.LayoutParams(dp(40), dp(46));
+        lockParams.leftMargin = dp(2);
+        toolbar.addView(lockButton, lockParams);
+        lockButton.setOnClickListener(v -> lockScreen());
+        muteButton = playerIconButton("volume_up", "Mute sound");
+        LinearLayout.LayoutParams muteParams = new LinearLayout.LayoutParams(dp(40), dp(46));
+        toolbar.addView(muteButton, muteParams);
+        muteButton.setOnClickListener(v -> toggleMute());
         FrameLayout.LayoutParams barParams =
             new FrameLayout.LayoutParams(-1, -2, Gravity.TOP);
         barParams.setMargins(dp(12), dp(12), dp(12), 0);
         root.addView(toolbar, barParams);
         buildGestureIndicator();
+        buildUnlockControl();
         if (handedOffFromMain) {
             controlsVisible = false;
             toolbar.setVisibility(View.GONE);
         }
-        root.setOnClickListener(v -> toggleControls());
+        root.setOnClickListener(v -> { if (screenLocked) toggleUnlockControl(); else toggleControls(); });
         timelineHandler.removeCallbacks(timelineTicker);
         timelineHandler.post(timelineTicker);
         setContentView(root);
@@ -579,6 +602,112 @@ public class PlayerActivity extends Activity {
         holder.setFocusable(true);
         return holder;
     }
+
+    private View playerIconButton(String icon, String description) {
+        FrameLayout holder = new FrameLayout(this);
+        holder.setBackgroundColor(Color.TRANSPARENT);
+        holder.setClickable(true);
+        holder.setFocusable(true);
+        holder.setContentDescription(description);
+        ImageView glyph = new ImageView(this);
+        int drawable = getResources().getIdentifier("zekify_ic_" + icon, "drawable", getPackageName());
+        if (drawable != 0) glyph.setImageResource(drawable);
+        glyph.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        FrameLayout.LayoutParams glyphParams = new FrameLayout.LayoutParams(dp(23), dp(23), Gravity.CENTER);
+        holder.addView(glyph, glyphParams);
+        return holder;
+    }
+
+    private void updateMuteIcon() {
+        if (muteButton instanceof ViewGroup && ((ViewGroup) muteButton).getChildCount() > 0
+            && ((ViewGroup) muteButton).getChildAt(0) instanceof ImageView) {
+            ImageView glyph = (ImageView) ((ViewGroup) muteButton).getChildAt(0);
+            int drawable = getResources().getIdentifier(muted ? "zekify_ic_volume_off" : "zekify_ic_volume_up", "drawable", getPackageName());
+            if (drawable != 0) glyph.setImageResource(drawable);
+        }
+        if (muteButton != null) muteButton.setContentDescription(muted ? "Unmute sound" : "Mute sound");
+    }
+
+    private void toggleMute() {
+        muted = !muted;
+        if (player != null) player.setVolume(muted ? 0f : 1f);
+        applyMuteToWebView();
+        updateMuteIcon();
+        scheduleControlsHide();
+    }
+
+    private void applyMuteToWebView() {
+        if (webView == null || webView.getVisibility() != View.VISIBLE) return;
+        String value = muted ? "true" : "false";
+        String js = "(function(){var m=" + value + ";function apply(){document.querySelectorAll('video,audio').forEach(function(v){v.muted=m;});}"
+            + "apply();if(!window.__zekifyMuteObserver){window.__zekifyMuteObserver=new MutationObserver(apply);"
+            + "window.__zekifyMuteObserver.observe(document.documentElement,{childList:true,subtree:true});}"
+            + "})();";
+        try { webView.evaluateJavascript(js, null); } catch (RuntimeException ignored) {}
+    }
+
+    private void buildUnlockControl() {
+        FrameLayout unlock = new FrameLayout(this);
+        GradientDrawable background = new GradientDrawable();
+        background.setColor(0xdfffffff);
+        background.setCornerRadius(dp(22));
+        unlock.setBackground(background);
+        unlock.setElevation(dp(7));
+        unlock.setClickable(true);
+        unlock.setFocusable(true);
+        unlock.setContentDescription("Unlock player controls");
+        ImageView glyph = new ImageView(this);
+        int drawable = getResources().getIdentifier("zekify_ic_unlock", "drawable", getPackageName());
+        if (drawable != 0) glyph.setImageResource(drawable);
+        glyph.setColorFilter(0xff171717);
+        glyph.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        unlock.addView(glyph, new FrameLayout.LayoutParams(dp(21), dp(21), Gravity.CENTER));
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(dp(54), dp(44), Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        params.bottomMargin = dp(64);
+        root.addView(unlock, params);
+        unlock.setVisibility(View.GONE);
+        unlock.setOnClickListener(v -> unlockScreen());
+        unlockButton = unlock;
+    }
+
+    private void lockScreen() {
+        screenLocked = true;
+        controlsHandler.removeCallbacks(hideControlsTask);
+        setControlsVisible(false);
+        hideUnlockControl();
+        if (gestureIndicator != null) gestureIndicator.setVisibility(View.GONE);
+        if (gestureProgress != null) gestureHandler.removeCallbacks(hideGestureIndicator);
+    }
+
+    private void unlockScreen() {
+        screenLocked = false;
+        hideUnlockControl();
+        setControlsVisible(true);
+        scheduleControlsHide();
+    }
+
+    private void showUnlockControl() {
+        if (!screenLocked || unlockButton == null) return;
+        unlockButton.setVisibility(View.VISIBLE);
+        unlockButton.bringToFront();
+        controlsHandler.removeCallbacks(hideUnlockTask);
+        controlsHandler.postDelayed(hideUnlockTask, 5000L);
+    }
+
+    private void hideUnlockControl() {
+        controlsHandler.removeCallbacks(hideUnlockTask);
+        if (unlockButton != null) unlockButton.setVisibility(View.GONE);
+    }
+
+    private void toggleUnlockControl() {
+        if (!screenLocked) return;
+        if (unlockButton != null && unlockButton.getVisibility() == View.VISIBLE) hideUnlockControl();
+        else showUnlockControl();
+    }
+
+    private final Runnable hideUnlockTask = () -> {
+        if (unlockButton != null) unlockButton.setVisibility(View.GONE);
+    };
 
     private void adjustVolume(int direction) {
         android.media.AudioManager audio = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
@@ -644,6 +773,10 @@ public class PlayerActivity extends Activity {
         GestureSurface(boolean direct) { this.direct = direct; }
 
         @Override public boolean onTouch(View view, MotionEvent e) {
+            if (screenLocked) {
+                if (e.getAction() == MotionEvent.ACTION_UP) toggleUnlockControl();
+                return true;
+            }
             float x = e.getX(), y = e.getY();
             if (e.getAction() == MotionEvent.ACTION_DOWN) {
                 downX = x; downY = y; lastX = x; lastY = y;
@@ -987,6 +1120,7 @@ public class PlayerActivity extends Activity {
         timelineDuration.setText(formatTimelineTime(duration));
     }
     private void setControlsVisible(boolean visible) {
+        if (screenLocked && visible) { toggleUnlockControl(); return; }
         controlsVisible = visible;
         if (toolbar != null) {
             toolbar.animate().cancel();
@@ -1008,12 +1142,13 @@ public class PlayerActivity extends Activity {
 
     private void scheduleControlsHide() {
         controlsHandler.removeCallbacks(hideControlsTask);
-        if (controlsVisible && toolbar != null && toolbar.getVisibility() == View.VISIBLE) {
+        if (!screenLocked && controlsVisible && toolbar != null && toolbar.getVisibility() == View.VISIBLE) {
             controlsHandler.postDelayed(hideControlsTask, 5000L);
         }
     }
 
     private void toggleControls() {
+        if (screenLocked) { toggleUnlockControl(); return; }
         // Every tap on the player toggles controls; visible controls can be dismissed immediately.
         setControlsVisible(!controlsVisible);
     }
@@ -1058,6 +1193,7 @@ public class PlayerActivity extends Activity {
             scheduleControlsHide();
         }
         webView.loadUrl(url);
+        webView.postDelayed(this::applyMuteToWebView, 900L);
     }
 
     private void playDirectMedia(JSONObject source, String url) {
@@ -1140,6 +1276,7 @@ public class PlayerActivity extends Activity {
             });
         }
         playerView.setPlayer(player);
+        player.setVolume(muted ? 0f : 1f);
 
         MediaItem item = new MediaItem.Builder()
             .setUri(Uri.parse(url))
