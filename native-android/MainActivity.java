@@ -783,6 +783,7 @@ private void addDetailRow(LinearLayout list,String label,String value){
   boolean away=isApprovedHotTeam(team(match,"away"));
   return home&&away?100:0;
  }
+ private boolean isHotMatch(JSONObject match){return hotScore(match)>0;}
  
  private Set<String> getScheduledIds(){Set<String> stored=appPrefs==null?null:appPrefs.getStringSet(REMINDER_IDS,Collections.emptySet());return stored==null?new HashSet<>():new HashSet<>(stored);}
  private boolean isMatchScheduled(JSONObject match){return match!=null&&getScheduledIds().contains(match.optString("id"));}
