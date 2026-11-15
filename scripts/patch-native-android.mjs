@@ -106,6 +106,13 @@ playerActivity = playerActivity.replace("        controlsVisible = visible;", " 
 playerActivity = playerActivity.replace("        webView.setVisibility(View.VISIBLE);\n        webView.onResume();", "        webView.setVisibility(View.VISIBLE);\n        updateVideoScrim();\n        webView.onResume();");
 playerActivity = playerActivity.replace("        playerView.setVisibility(View.VISIBLE);\n        playerView.requestLayout();", "        playerView.setVisibility(View.VISIBLE);\n        updateVideoScrim();\n        playerView.requestLayout();");
 if (!playerActivity.includes("videoScrim.animate().alpha(0.28f)")) throw new Error("Video scrim fade patch did not apply");
+const lockStatePromptDuration = "locked ? 5000L : 1300L";
+if (!playerActivity.includes(lockStatePromptDuration)) throw new Error("Lock/unlock status prompt duration anchor missing");
+playerActivity = playerActivity.replace(lockStatePromptDuration, "2000L");
+const tapToUnlockDuration = "controlsHandler.postDelayed(hideUnlockTask, 5000L);";
+if (!playerActivity.includes(tapToUnlockDuration)) throw new Error("Tap-to-unlock prompt duration anchor missing");
+playerActivity = playerActivity.replace(tapToUnlockDuration, "controlsHandler.postDelayed(hideUnlockTask, 2000L);");
+
 await writeFile(playerActivityPath, playerActivity);
 
 await copyFile("native-android/MatchReminderReceiver.java",root+"/MatchReminderReceiver.java");
