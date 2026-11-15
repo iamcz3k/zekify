@@ -21,6 +21,10 @@ import androidx.media3.exoplayer.*;
 import androidx.media3.exoplayer.hls.*;
 import androidx.media3.ui.*;
 import androidx.core.content.FileProvider;
+import androidx.window.layout.WindowInfoTracker;
+import androidx.window.layout.WindowLayoutInfo;
+import androidx.window.layout.FoldingFeature;
+import java.util.function.Consumer;
 import org.json.*;
 import com.caverock.androidsvg.SVG;
 import java.net.*;
@@ -61,7 +65,17 @@ public class MainActivity extends Activity {
  private final int ORANGE=Color.rgb(255,138,61),BG=Color.rgb(5,5,5),PANEL=Color.rgb(17,17,17),MUTED=Color.rgb(145,145,145);
  private String destination="home",settingsReturnDestination="profile",detailTab="overview";
  private String matchReturnDestination="home";
+ private android.graphics.Rect foldingFeatureBounds=new android.graphics.Rect();
+ private boolean separatingVerticalHinge=false;
+ private WindowInfoTracker windowInfoTracker;
+ private final Consumer<WindowLayoutInfo> windowLayoutListener=info->{android.graphics.Rect next=new android.graphics.Rect();boolean vertical=false;for(androidx.window.layout.DisplayFeature feature:info.getDisplayFeatures()){if(feature instanceof FoldingFeature){FoldingFeature fold=(FoldingFeature)feature;if(fold.isSeparating()){next.set(fold.getBounds());vertical=fold.getOrientation()==FoldingFeature.ORIENTATION_VERTICAL;break;}}}boolean changed=!next.equals(foldingFeatureBounds)||vertical!=separatingVerticalHinge;foldingFeatureBounds=next;separatingVerticalHinge=vertical;if(changed&&root!=null)rebuildAdaptiveScreen();};
  @Override public void onCreate(Bundle b){super.onCreate(b);appPrefs=getSharedPreferences("zekify_cache",MODE_PRIVATE);installCrashRecorder();pendingMatchId=getIntent().getStringExtra("matchId")==null?"":getIntent().getStringExtra("matchId");getWindow().setStatusBarColor(BG);getWindow().setNavigationBarColor(BG);getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR^View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);createReminderChannel();home();applySettings();showStartupSplash();registerNetworkRecovery();if(hasInternetConnection())load();else showOfflineGate();}
+ private int windowWidthDp(){int width=getResources().getConfiguration().screenWidthDp;if(width>0)return width;return (int)(getResources().getDisplayMetrics().widthPixels/getResources().getDisplayMetrics().density);}
+ private boolean isExpandedLayout(){return windowWidthDp()>=600;}
+ private void registerWindowLayoutListener(){try{windowInfoTracker=WindowInfoTracker.getOrCreate(this);windowInfoTracker.addWindowLayoutInfoListener(this,androidx.core.content.ContextCompat.getMainExecutor(this),windowLayoutListener);}catch(Exception ignored){}}
+ private void rebuildAdaptiveScreen(){if(isFinishing()||isDestroyed())return;if(selected!=null){renderMatchScreen();}else if("home".equals(destination)){home();renderContent();}else{showDestination(destination);}}
+ @Override public void onConfigurationChanged(Configuration newConfig){super.onConfigurationChanged(newConfig);rebuildAdaptiveScreen();}
+ @Override protected void onDestroy(){try{if(windowInfoTracker!=null)windowInfoTracker.removeWindowLayoutInfoListener(windowLayoutListener);}catch(Exception ignored){}super.onDestroy();}
  private void installCrashRecorder(){Thread.UncaughtExceptionHandler previous=Thread.getDefaultUncaughtExceptionHandler();Thread.setDefaultUncaughtExceptionHandler((thread,error)->{try{StringWriter trace=new StringWriter();error.printStackTrace(new PrintWriter(trace));recordBug("APP_CRASH",error,trace.toString());appPrefs.edit().putString("last_uncaught_error",trace.toString()).putLong("last_uncaught_error_at",System.currentTimeMillis()).apply();}catch(Exception ignored){}if(previous!=null)previous.uncaughtException(thread,error);else{android.os.Process.killProcess(android.os.Process.myPid());System.exit(10);}});}
  private boolean hasInternetConnection(){try{if(connectivityManager==null)connectivityManager=(ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);if(connectivityManager==null)return false;Network active=connectivityManager.getActiveNetwork();if(active==null)return false;android.net.NetworkCapabilities caps=connectivityManager.getNetworkCapabilities(active);return caps!=null&&caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)&&caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED);}catch(Exception ignored){return false;}}
  private void showOfflineGate(){
@@ -196,7 +210,7 @@ public class MainActivity extends Activity {
   HorizontalScrollView hs=new HorizontalScrollView(this);hs.setHorizontalScrollBarEnabled(false);hs.setOverScrollMode(View.OVER_SCROLL_NEVER);
   leagueRow=row();pad(leagueRow,18,2,18,10);hs.addView(leagueRow);root.addView(hs,new LinearLayout.LayoutParams(-1,dp(42)));
   ScrollView sc=new ScrollView(this);matchesScroll=sc;sc.setFillViewport(true);sc.setVerticalScrollBarEnabled(false);
-  content=col();pad(content,18,5,18,20);safeScrollAdd(sc,content);sc.setOnScrollChangeListener((View v,int sx,int sy,int oldSx,int oldSy)->loadVisibleBadges());
+  content=col();pad(content,18,5,18,20);FrameLayout adaptiveFrame=new FrameLayout(this);int adaptiveWidth=windowWidthDp();FrameLayout.LayoutParams adaptiveContentParams=new FrameLayout.LayoutParams(adaptiveWidth>=600?dp(Math.min(adaptiveWidth,1180)):-1,-2,Gravity.TOP|Gravity.CENTER_HORIZONTAL);adaptiveFrame.addView(content,adaptiveContentParams);safeScrollAdd(sc,adaptiveFrame);sc.setOnScrollChangeListener((View v,int sx,int sy,int oldSx,int oldSy)->loadVisibleBadges());
   root.addView(sc,new LinearLayout.LayoutParams(-1,0,1));
   root.addView(buildBottomNavigation("home"));
   setContentView(root);if(!setting("reduce_motion",false)){root.setAlpha(0f);root.animate().alpha(1f).setDuration(220L).start();}
@@ -508,7 +522,7 @@ public class MainActivity extends Activity {
     if(!hay.contains(query))continue;visibleMatches.add(match);
    }catch(RuntimeException cardError){android.util.Log.w("Zekify","Skipped malformed match card",cardError);}}
    if("live".equals(tab))Collections.sort(visibleMatches,(a,b)->{int hotOrder=Integer.compare(hotScore(b),hotScore(a));return hotOrder!=0?hotOrder:Integer.compare(popularScore(b),popularScore(a));});
-   int shown=0;for(JSONObject match:visibleMatches){if(shown>=80)break;content.addView(matchCard(match));shown++;}
+   int shown=0;if(isExpandedLayout()){for(int i=0;i<visibleMatches.size()&&shown<80;i+=2){LinearLayout cardRow=row();cardRow.setGravity(Gravity.TOP);JSONObject first=visibleMatches.get(i);View firstCard=matchCard(first);LinearLayout.LayoutParams firstParams=new LinearLayout.LayoutParams(0,-2,1f);firstParams.rightMargin=dp(6);cardRow.addView(firstCard,firstParams);shown++;if(i+1<visibleMatches.size()){JSONObject second=visibleMatches.get(i+1);View secondCard=matchCard(second);LinearLayout.LayoutParams secondParams=new LinearLayout.LayoutParams(0,-2,1f);secondParams.leftMargin=dp(6);cardRow.addView(secondCard,secondParams);shown++;}else{View emptySpace=new View(this);cardRow.addView(emptySpace,new LinearLayout.LayoutParams(0,1,1f));}LinearLayout.LayoutParams rowParams=new LinearLayout.LayoutParams(-1,-2);rowParams.bottomMargin=dp(2);content.addView(cardRow,rowParams);}}else{for(JSONObject match:visibleMatches){if(shown>=80)break;content.addView(matchCard(match));shown++;}}
    if(shown==0){LinearLayout empty=col();empty.setGravity(Gravity.CENTER);empty.setBackground(shape(0xff151515,24));pad(empty,20,26,20,26);LinearLayout.LayoutParams ep=new LinearLayout.LayoutParams(-1,-2);ep.topMargin=dp(8);content.addView(empty,ep);TextView title=txt(tab.equals("live")?"No live matches right now":"No upcoming matches found",15,Color.WHITE,true);title.setGravity(Gravity.CENTER);empty.addView(title);TextView note=txt(tab.equals("live")?"When a match goes live, it will appear here.":"Try another competition or sport.",11,MUTED,false);note.setGravity(Gravity.CENTER);LinearLayout.LayoutParams np=new LinearLayout.LayoutParams(-1,-2);np.topMargin=dp(6);empty.addView(note,np);}
    if(matchesScroll!=null)matchesScroll.postDelayed(this::loadVisibleBadges,80L);
   }
