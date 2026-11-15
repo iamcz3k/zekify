@@ -226,7 +226,8 @@ for (const icon of [
 
 const mainActivityPath = root + "/MainActivity.java";
 let mainActivity = await readFile(mainActivityPath, "utf8");
-mainActivity = mainActivity.replace("@Override public void onCreate(Bundle b){super.onCreate(b);appPrefs=", "@Override public void onCreate(Bundle b){super.onCreate(b);appPrefs=");\nmainActivity = mainActivity.replace("installCrashRecorder();pendingMatchId=", "installCrashRecorder();if(!SecurityGuard.verify(this)){SecurityGuard.showBlocked(this);return;}pendingMatchId=");
+mainActivity = mainActivity.replace("@Override public void onCreate(Bundle b){super.onCreate(b);appPrefs=", "@Override public void onCreate(Bundle b){super.onCreate(b);appPrefs=");
+mainActivity = mainActivity.replace("installCrashRecorder();pendingMatchId=", "installCrashRecorder();if(!SecurityGuard.verify(this)){SecurityGuard.showBlocked(this);return;}pendingMatchId=");
 mainActivity = mainActivity.replace("@Override protected void onResume(){super.onResume();FloatingPlayerService.hideForReturn();", "@Override protected void onResume(){super.onResume();if(!SecurityGuard.verify(this)){SecurityGuard.showBlocked(this);return;}FloatingPlayerService.hideForReturn();");
 mainActivity = mainActivity.replace(
  'private String team(JSONObject m,String side){JSONObject teams=m.optJSONObject("teams"),t=teams==null?null:teams.optJSONObject(side);return t==null?"Team":t.optString("name","Team");}',
