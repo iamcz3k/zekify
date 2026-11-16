@@ -182,8 +182,12 @@ jobs:
           - Added update-available notifications with Android 13+ permission handling.
           - Released Zekify 3.6.1 with a new internal build code.
           - Improved Material Motion navigation with overlapping shared-axis screen transitions to eliminate background flashes and smoother Live/Upcoming tab changes.
+          - Match detail opens directly into the mini-player; source discovery stays in the existing source selector instead of inserting a separate prompt block.
+          - Added persistent local caching for live-match stream sources across all supported sports.
+          - Added immediate foreground refresh plus scheduled WorkManager background refresh every 15 minutes when network is available, so cached sources are ready when users return.
+          - Cached sources load first and refresh quietly without interrupting an active mini-player stream.
           - Retained AndroidX SplashScreen launch animation and predictive back integration.
-          - Preserved fullscreen player implementation and existing mini-player behaviour.
+          - Preserved fullscreen player implementation and behaviour.
           NOTES
           if gh release view v3.6.1 --repo ${{ github.repository }} >/dev/null 2>&1; then
             gh release upload v3.6.1 Zekify-v3.6.1.apk Zekify-v3.6.1.apk.sha256 --repo ${{ github.repository }} --clobber
