@@ -220,8 +220,6 @@ public class MainActivity extends Activity {
    float sx=Math.max(.88f,Math.min(1f,sourceSize[0]/w)),sy=Math.max(.88f,Math.min(1f,sourceSize[1]/h));
    float tx=(source[0]+sourceSize[0]/2f)-(pos[0]+w/2f),ty=(source[1]+sourceSize[1]/2f)-(pos[1]+h/2f);
    incoming.setPivotX(w/2f);incoming.setPivotY(h/2f);incoming.setScaleX(sx);incoming.setScaleY(sy);incoming.setTranslationX(tx);incoming.setTranslationY(ty);
-   incoming.animate().alpha(1f).scaleX(1f).scaleY(1f).translationX(0f).translationY(0f).setDuration(340L).setInterpolator(easing).start();
-   outgoing.animate().alpha(.94f).setDuration(220L).setInterpolator(easing).start();
   }else{
    // Shared-axis X: both pages coexist throughout the motion, so no grey/black
    // window frame can flash between the old and new destinations.
