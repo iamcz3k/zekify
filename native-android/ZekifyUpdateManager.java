@@ -121,8 +121,6 @@ public final class ZekifyUpdateManager {
         if (Build.VERSION.SDK_INT >= 33
             && activity.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED) {
-            activity.requestPermissions(
-                new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 4103);
             return;
         }
         NotificationManager manager = (NotificationManager) activity.getSystemService(Activity.NOTIFICATION_SERVICE);
@@ -284,10 +282,13 @@ public final class ZekifyUpdateManager {
     }
 
     public static void showRequiredUpdate(Activity activity, Update update) {
-        if (activity == null || activity.isFinishing() || update == null) return;
+        if (activity == null || activity.isFinishing() || activity.isDestroyed() || update == null) return;
+        if (installPromptVisible) return;
         String notes = update.notes == null || update.notes.trim().isEmpty() ? "Stability improvements and important fixes." : update.notes;
         if (notes.length() > 1200) notes = notes.substring(0, 1200) + "…";
-        requiredPage(activity, "Update required", "Zekify " + update.version + " is ready.\n\n" + notes, "Download update", () -> download(activity, update));
+        installPromptVisible = true;
+        Dialog dialog = requiredPage(activity, "Update available", "Zekify " + update.version + " is ready to install.\n\n" + notes, "Download update", () -> download(activity, update));
+        dialog.setOnDismissListener(ignored -> installPromptVisible = false);
     }
 
     public static void download(Activity activity, Update update) {
