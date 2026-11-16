@@ -553,7 +553,14 @@ public class MainActivity extends Activity {
   }
    private void renderMatchScreen(){
     LinearLayout screen=col();screen.setBackgroundColor(BG);
-    View miniPlayer=buildInlinePlayer();screen.addView(miniPlayer,new LinearLayout.LayoutParams(-1,-2));
+    if(inlineLoading&&selectedSources==null){
+     LinearLayout discovery=row();discovery.setGravity(Gravity.CENTER_VERTICAL);discovery.setBackground(shape(0xff101010,16));pad(discovery,16,0,16,0);
+     ProgressBar finding=new ProgressBar(this);finding.setIndeterminate(true);if(Build.VERSION.SDK_INT>=21)finding.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(ORANGE));discovery.addView(finding,new LinearLayout.LayoutParams(dp(22),dp(22)));
+     TextView findingLabel=txt("Finding available streams…",12,MUTED,true);LinearLayout.LayoutParams findingP=new LinearLayout.LayoutParams(0,-2,1);findingP.leftMargin=dp(12);discovery.addView(findingLabel,findingP);
+     LinearLayout.LayoutParams discoveryP=new LinearLayout.LayoutParams(-1,dp(64));discoveryP.setMargins(dp(16),dp(12),dp(16),dp(8));screen.addView(discovery,discoveryP);
+    }else{
+     View miniPlayer=buildInlinePlayer();screen.addView(miniPlayer,new LinearLayout.LayoutParams(-1,-2));
+    }
     ScrollView scroll=new ScrollView(this);scroll.setFillViewport(false);scroll.setVerticalScrollBarEnabled(false);scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
     LinearLayout scrollContent=col();pad(scrollContent,16,14,16,20);
     TextView sourceHeading=txt("AVAILABLE SOURCES",10,ORANGE,true);sourceHeading.setLetterSpacing(.1f);scrollContent.addView(sourceHeading);
