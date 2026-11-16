@@ -64,8 +64,13 @@ function discoverCountryPages(html) {
 }
 function imageUrls(html) {
   const found = [];
-  const pattern = /https:\/\/assets\.football-logos\.cc\/logos\/[a-z0-9-]+\/256x256\/[a-z0-9._-]+\.png/gi;
-  for (const match of html.matchAll(pattern)) found.push(match[0]);
+  const patterns = [
+    /https:\/\/assets\.football-logos\.cc\/logos\/[a-z0-9-]+\/256x256\/[a-z0-9._-]+\.png/gi,
+    /https:\/\/assets\.football-logos\.cc\/logos\/256x256\/[a-z0-9._-]+\.png/gi
+  ];
+  for (const pattern of patterns) {
+    for (const match of html.matchAll(pattern)) found.push(match[0]);
+  }
   return [...new Set(found)];
 }
 function slugFromImage(url) {
@@ -73,8 +78,10 @@ function slugFromImage(url) {
   return file.replace(/\.[a-f0-9]{8}\.png$/i, "").replace(/\.png$/i, "");
 }
 function countryFromImage(url, fallback) {
-  const match = new URL(url).pathname.match(/\/logos\/([^/]+)\//);
-  return match?.[1] || fallback;
+  const parts = new URL(url).pathname.split("/").filter(Boolean);
+  const logosIndex = parts.indexOf("logos");
+  const segment = logosIndex >= 0 ? parts[logosIndex + 1] : "";
+  return !segment || segment === "256x256" ? fallback : segment;
 }
 function isCompetitionHeading(value) {
   return /(league|cup|tournament|division|premier|serie|liga|championship|shield|superliga|competition|federation|national league)/i.test(value);
