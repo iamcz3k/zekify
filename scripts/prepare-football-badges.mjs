@@ -50,6 +50,8 @@ let copied = 0;
 let teamCount = 0;
 let competitionCount = 0;
 const copiedFiles = new Set();
+const teamAssets = new Set();
+const competitionAssets = new Set();
 
 for (const file of files) {
   const relative = path.relative(sourceRoot, file);
@@ -80,13 +82,13 @@ for (const file of files) {
 
   if (isCompetition) {
     addIdentity(competitions, competitionOwners, ambiguousCompetitions, countryKey, nameKey, entry);
-    competitionCount++;
+    if (!competitionAssets.has(filename)) { competitionAssets.add(filename); competitionCount++; }
   } else {
     addIdentity(teams, teamOwners, ambiguousTeams, countryKey, nameKey, entry);
     const aliasName = name.replace(/\b(association football club|football club|athletic club|sporting club|fc|afc|cf|sc|ac|fk|sv|bk|cd|ud|rcd)\b/gi, " ");
     const aliasKey = safeSlug(aliasName);
     if (aliasKey && aliasKey !== nameKey) addIdentity(teams, teamOwners, ambiguousTeams, countryKey, aliasKey, entry);
-    teamCount++;
+    if (!teamAssets.has(filename)) { teamAssets.add(filename); teamCount++; }
   }
 }
 
