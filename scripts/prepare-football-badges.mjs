@@ -63,7 +63,7 @@ for (const file of files) {
   }
   copied++;
 }
-if (copied < 1000) throw new Error("Expected at least 1,000 bundled team badges, found " + copied);
+if (copied < 3000) throw new Error("Expected at least 3,000 bundled team badges, found " + copied);
 const index = {
   schema_version: 1,
   updated_at: new Date().toISOString(),
