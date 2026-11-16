@@ -73,6 +73,18 @@ jobs:
           grep -q 'zekify_ic_menu.xml' scripts/patch-native-android.mjs
           grep -q 'setDuration(300L)' native-android/LiveScoreActivity.java
           grep -q 'PathInterpolator' native-android/UpdateHistoryActivity.java
+      - name: Verify automatic live-source caching
+        run: |
+          grep -q 'Fetching sources…' native-android/MainActivity.java
+          ! grep -q 'Finding available streams…' native-android/MainActivity.java
+          ! grep -q 'LinearLayout discovery=row()' native-android/MainActivity.java
+          grep -q 'readCachedMatchDetail(selectedSport,m.optString("id"))' native-android/MainActivity.java
+          grep -q 'LiveSourcePrefetch.schedule(this)' native-android/MainActivity.java
+          grep -q 'PeriodicWorkRequest' native-android/LiveSourcePrefetch.java
+          grep -q '15, TimeUnit.MINUTES' native-android/LiveSourcePrefetch.java
+          grep -q 'LiveSourcePrefetchWorker' scripts/patch-native-android.mjs
+          grep -q 'androidx.work:work-runtime:2.9.1' scripts/patch-native-android.mjs
+          grep -q 'live_sources_v1_' native-android/LiveSourcePrefetchWorker.java
       - name: Apply native Android source
         run: node scripts/patch-native-android.mjs
       - name: Apply native playback compatibility patch
