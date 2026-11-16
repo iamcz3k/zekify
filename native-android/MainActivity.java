@@ -176,72 +176,33 @@ public class MainActivity extends Activity {
  private Button btn(String s,boolean primary){Button b=new Button(this);b.setText(s);b.setTextSize(12);b.setAllCaps(false);b.setTextColor(primary?Color.BLACK:Color.WHITE);b.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));b.setBackground(ripple(primary?ORANGE:0xff171717,20));b.setMinHeight(dp(46));b.setPadding(dp(16),0,dp(16),0);b.setOnTouchListener((v,e)->{if(e.getAction()==MotionEvent.ACTION_DOWN)v.animate().scaleX(.97f).scaleY(.97f).setDuration(75).start();else if(e.getAction()==MotionEvent.ACTION_UP||e.getAction()==MotionEvent.ACTION_CANCEL)v.animate().scaleX(1f).scaleY(1f).setDuration(130).setInterpolator(new android.view.animation.OvershootInterpolator(1.15f)).start();return false;});return b;}
  private void setAnimatedScreen(View screen){
   if(screen==null)return;
-  View origin=pendingMotionOrigin;String motion=pendingMotionKind;
-  pendingMotionOrigin=null;pendingMotionKind="shared-x";
-  int[] source=new int[2];final int[] sourceSize=new int[]{0,0};
-  if(origin!=null&&origin.getWidth()>0&&origin.getHeight()>0){origin.getLocationOnScreen(source);sourceSize[0]=origin.getWidth();sourceSize[1]=origin.getHeight();}
+  pendingMotionOrigin=null;
+  pendingMotionKind="shared-x";
   boolean reduce=setting("reduce_motion",false);
   if(getWindow()!=null)getWindow().setBackgroundDrawable(new ColorDrawable(BG));
   if(motionHost==null){
    ViewGroup contentRoot=findViewById(android.R.id.content);
    View first=contentRoot!=null&&contentRoot.getChildCount()>0?contentRoot.getChildAt(0):null;
-   motionHost=new FrameLayout(this);motionHost.setBackgroundColor(BG);
+   motionHost=new FrameLayout(this);motionHost.setBackgroundColor(BG);motionHost.setClipChildren(true);motionHost.setClipToPadding(true);
    if(first!=null){contentRoot.removeView(first);if(first.getParent() instanceof ViewGroup)((ViewGroup)first.getParent()).removeView(first);motionHost.addView(first,new FrameLayout.LayoutParams(-1,-1));}
    setContentView(motionHost);
   }
-  // If another navigation happens mid-transition, keep only the latest visible
-  // screen and cancel the older animation instead of exposing the window.
-  for(int i=motionHost.getChildCount()-2;i>=0;i--){View stale=motionHost.getChildAt(i);stale.animate().cancel();motionHost.removeViewAt(i);}
+  for(int i=motionHost.getChildCount()-2;i>=0;i--){View stale=motionHost.getChildAt(i);stale.animate().setListener(null);stale.animate().cancel();motionHost.removeViewAt(i);}
   View outgoing=motionHost.getChildCount()>0?motionHost.getChildAt(0):null;
   if(outgoing==screen)return;
-  if(outgoing!=null){outgoing.animate().cancel();outgoing.setTranslationX(0f);outgoing.setTranslationY(0f);outgoing.setScaleX(1f);outgoing.setScaleY(1f);outgoing.setAlpha(1f);}
+  if(outgoing!=null){outgoing.animate().setListener(null);outgoing.animate().cancel();outgoing.setAlpha(1f);outgoing.setTranslationX(0f);outgoing.setTranslationY(0f);outgoing.setScaleX(1f);outgoing.setScaleY(1f);}
   if(screen.getParent() instanceof ViewGroup)((ViewGroup)screen.getParent()).removeView(screen);
   screen.setBackgroundColor(BG);
-  screen.animate().cancel();
-  screen.setAlpha(1f);screen.setTranslationX(0f);screen.setTranslationY(0f);screen.setScaleX(1f);screen.setScaleY(1f);
+  screen.setAlpha(outgoing==null||reduce?1f:0f);screen.setTranslationX(outgoing==null||reduce?0f:dp(24));screen.setTranslationY(0f);screen.setScaleX(outgoing==null||reduce?1f:.985f);screen.setScaleY(outgoing==null||reduce?1f:.985f);
   motionHost.addView(screen,new FrameLayout.LayoutParams(-1,-1));
-  if(outgoing==null||reduce){
-   if(outgoing!=null)motionHost.removeView(outgoing);
-   return;
-  }
+  if(outgoing==null||reduce){if(outgoing!=null)motionHost.removeView(outgoing);return;}
   android.view.animation.Interpolator easing=new android.view.animation.PathInterpolator(.2f,0f,0f,1f);
   screen.bringToFront();
-  if("container".equals(motion)&&sourceSize[0]>0&&sourceSize[1]>0){
-   float w=Math.max(1,screen.getWidth()),h=Math.max(1,screen.getHeight());
-   if(w<=1||h<=1){screen.post(()->animateScreenPair(outgoing,screen,motion,source,sourceSize,easing));}
-   else animateScreenPair(outgoing,screen,motion,source,sourceSize,easing);
-  }else animateScreenPair(outgoing,screen,motion,source,sourceSize,easing);
- }
- private void animateScreenPair(View outgoing,View incoming,String motion,int[] source,int[] sourceSize,android.view.animation.Interpolator easing){
-  if(outgoing==null||incoming==null||outgoing.getParent()!=motionHost||incoming.getParent()!=motionHost)return;
-  if("container".equals(motion)&&sourceSize[0]>0&&sourceSize[1]>0){
-   int[] pos=new int[2];incoming.getLocationOnScreen(pos);
-   float w=Math.max(1,incoming.getWidth()),h=Math.max(1,incoming.getHeight());
-   float sx=Math.max(.88f,Math.min(1f,sourceSize[0]/w)),sy=Math.max(.88f,Math.min(1f,sourceSize[1]/h));
-   float tx=(source[0]+sourceSize[0]/2f)-(pos[0]+w/2f),ty=(source[1]+sourceSize[1]/2f)-(pos[1]+h/2f);
-   incoming.setPivotX(w/2f);incoming.setPivotY(h/2f);incoming.setScaleX(sx);incoming.setScaleY(sy);incoming.setTranslationX(tx);incoming.setTranslationY(ty);
-  }else{
-   // Shared-axis X: both pages coexist throughout the motion, so no grey/black
-   // window frame can flash between the old and new destinations.
-   incoming.setTranslationX(dp(34));incoming.setAlpha(1f);
-   outgoing.setTranslationX(0f);outgoing.setAlpha(1f);
-  }
-  outgoing.animate().setListener(new android.animation.AnimatorListenerAdapter(){
-   @Override public void onAnimationEnd(android.animation.Animator animation){
-    if(outgoing.getParent()==motionHost)motionHost.removeView(outgoing);
-    outgoing.animate().setListener(null);outgoing.setTranslationX(0f);outgoing.setAlpha(1f);
-   }
-   @Override public void onAnimationCancel(android.animation.Animator animation){
-    outgoing.animate().setListener(null);
-   }
-  });
-  if("container".equals(motion)&&sourceSize[0]>0&&sourceSize[1]>0){
-   incoming.animate().alpha(1f).scaleX(1f).scaleY(1f).translationX(0f).translationY(0f).setDuration(340L).setInterpolator(easing).start();
-   outgoing.animate().alpha(.94f).setDuration(220L).setInterpolator(easing).start();
-  }else{
-   incoming.animate().translationX(0f).setDuration(300L).setInterpolator(easing).start();
-   outgoing.animate().translationX(-dp(18)).setDuration(300L).setInterpolator(easing).start();
-  }
+  outgoing.animate().alpha(0f).scaleX(.985f).scaleY(.985f).translationX(-dp(24)).setDuration(300L).setInterpolator(easing).withEndAction(()->{
+   if(outgoing.getParent()==motionHost)motionHost.removeView(outgoing);
+   outgoing.setAlpha(1f);outgoing.setScaleX(1f);outgoing.setScaleY(1f);outgoing.setTranslationX(0f);outgoing.animate().setListener(null);
+  }).start();
+  screen.animate().alpha(1f).scaleX(1f).scaleY(1f).translationX(0f).setDuration(300L).setInterpolator(easing).start();
  }
  private void home(){
   destination="home";
@@ -846,7 +807,7 @@ public class MainActivity extends Activity {
    if(inlinePlayer!=null){if(inlinePlayer.isPlaying())inlinePlayer.pause();else inlinePlayer.play();if(miniPlayButton!=null)miniPlayButton.setName(inlinePlayer.isPlaying()?"pause":"play");return;}
    if(inlineWebView!=null)inlineWebView.evaluateJavascript("(function(){var v=document.querySelector('video');if(v){if(v.paused)v.play();else v.pause();}})()",null);
   }
-  private void setMiniStreamStarted(boolean started){miniStreamStarted=started;if(miniLoadingSpinner!=null)miniLoadingSpinner.setVisibility(started?View.GONE:View.VISIBLE);if(inlineStatus!=null&&inlineStatus.getText().length()==0)inlineStatus.setVisibility(View.GONE);if(started){setMiniControlsVisible(true);scheduleMiniControlsHide();}else{miniControlsHandler.removeCallbacks(hideMiniControlsTask);setMiniControlsVisible(false);}}
+  private void setMiniStreamStarted(boolean started){miniStreamStarted=started;if(miniLoadingSpinner!=null){miniLoadingSpinner.animate().cancel();if(started){miniLoadingSpinner.animate().alpha(0f).setDuration(140L).withEndAction(()->{if(miniLoadingSpinner!=null&&miniStreamStarted)miniLoadingSpinner.setVisibility(View.GONE);}).start();}else{miniLoadingSpinner.setVisibility(View.VISIBLE);miniLoadingSpinner.setAlpha(0f);miniLoadingSpinner.animate().alpha(1f).setDuration(180L).start();}}if(inlineStatus!=null&&inlineStatus.getText().length()==0)inlineStatus.setVisibility(View.GONE);if(started){setMiniControlsVisible(true);scheduleMiniControlsHide();}else{miniControlsHandler.removeCallbacks(hideMiniControlsTask);setMiniControlsVisible(false);}}
   private void showMiniControls(){if(miniStreamStarted)setMiniControlsVisible(true);}
   private void scheduleMiniControlsHide(){miniControlsHandler.removeCallbacks(hideMiniControlsTask);if(!miniLocked&&miniControlsVisible)miniControlsHandler.postDelayed(hideMiniControlsTask,5000L);}
   private void setMiniControlsVisible(boolean visible){if(visible&&!miniStreamStarted)return;if(miniLocked&&visible)return;miniControlsVisible=visible;View[] controls={miniTopControls,miniBottomControls};for(View view:controls){if(view==null)continue;view.animate().cancel();if(visible){view.setVisibility(View.VISIBLE);view.setAlpha(0f);view.bringToFront();view.animate().alpha(1f).setDuration(140L).start();}else{view.animate().alpha(0f).setDuration(110L).withEndAction(()->{if(!miniControlsVisible)view.setVisibility(View.GONE);}).start();}}if(miniDimOverlay!=null){miniDimOverlay.animate().cancel();miniDimOverlay.animate().alpha(visible?0.22f:0f).setDuration(140L).start();}if(inlineStatus!=null&&inlineStatus.getVisibility()==View.VISIBLE)inlineStatus.bringToFront();if(miniUnlockControl!=null)miniUnlockControl.bringToFront();if(visible)scheduleMiniControlsHide();else miniControlsHandler.removeCallbacks(hideMiniControlsTask);}
