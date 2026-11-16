@@ -81,7 +81,7 @@ public class MainActivity extends Activity {
   FrameLayout page=new FrameLayout(this);page.setBackgroundColor(Color.BLACK);
   LinearLayout body=col();body.setGravity(Gravity.CENTER);pad(body,28,24,28,24);
   FrameLayout.LayoutParams bp=new FrameLayout.LayoutParams(-1,-2,Gravity.CENTER);page.addView(body,bp);
-  body.addView(new Ball(this),new LinearLayout.LayoutParams(dp(76),dp(76)));
+  ImageView offlineArt=new ImageView(this);int offlineArtId=getResources().getIdentifier("zekify_illustration_offline","drawable",getPackageName());if(offlineArtId!=0)offlineArt.setImageResource(offlineArtId);else offlineArt.setImageDrawable(null);offlineArt.setScaleType(ImageView.ScaleType.FIT_CENTER);body.addView(offlineArt,new LinearLayout.LayoutParams(dp(144),dp(144)));
   TextView brand=txt("ZEKIFY",20,Color.WHITE,true);brand.setLetterSpacing(.18f);brand.setGravity(Gravity.CENTER);LinearLayout.LayoutParams brandP=new LinearLayout.LayoutParams(-1,-2);brandP.topMargin=dp(17);body.addView(brand,brandP);
   TextView title=txt("You're offline",19,Color.WHITE,true);title.setGravity(Gravity.CENTER);LinearLayout.LayoutParams titleP=new LinearLayout.LayoutParams(-1,-2);titleP.topMargin=dp(34);body.addView(title,titleP);
   TextView note=txt("Connect to Wi-Fi or mobile data to continue. Zekify will unlock automatically once your connection is back.",12,MUTED,false);note.setGravity(Gravity.CENTER);LinearLayout.LayoutParams noteP=new LinearLayout.LayoutParams(-1,-2);noteP.topMargin=dp(9);body.addView(note,noteP);
