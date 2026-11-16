@@ -337,6 +337,7 @@ public class MainActivity extends Activity {
   TextView section=txt("PREFERENCES",10,ORANGE,true);LinearLayout.LayoutParams sectionP=new LinearLayout.LayoutParams(-1,-2);sectionP.topMargin=dp(22);sectionP.bottomMargin=dp(8);wrap.addView(section,sectionP);
   wrap.addView(profileAction("Settings","Appearance, playback, data and app preferences","settings",()->{settingsReturnDestination="profile";showDestination("settings");}));
   wrap.addView(profileAction("Scheduled matches","Your saved kickoff reminders","calendar",()->showDestination("schedule")));
+  wrap.addView(profileAction("Followed teams & leagues","Your saved clubs and competitions","profile",()->startActivity(new Intent(this,FollowedEntitiesActivity.class))));
   wrap.addView(profileToggleAction("Floating player","Keep watching in a movable overlay","floating_player",false));
   TextView tools=txt("APP TOOLS",10,ORANGE,true);LinearLayout.LayoutParams toolsP=new LinearLayout.LayoutParams(-1,-2);toolsP.topMargin=dp(22);toolsP.bottomMargin=dp(8);wrap.addView(tools,toolsP);
   wrap.addView(profileAction("LiveScore","Fixtures, live scores and match centre","calendar",()->startActivity(new Intent(this,LiveScoreActivity.class))));
