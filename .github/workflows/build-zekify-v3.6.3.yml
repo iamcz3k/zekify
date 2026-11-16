@@ -121,7 +121,7 @@ jobs:
           test -s native-android/res/drawable/zekify_illustration_offline.xml
           test -s native-android/res/drawable/zekify_illustration_empty_fixtures.xml
           grep -q 'versionLabel=txt("v"+installedVersion' native-android/MainActivity.java
-          grep -q 'R.drawable.zekify_illustration_offline' native-android/MainActivity.java
+          grep -q 'getIdentifier("zekify_illustration_offline"' native-android/MainActivity.java
           grep -q 'R.drawable.zekify_illustration_empty_fixtures' native-android/MainActivity.java
           grep -q 'Continue offline' native-android/MainActivity.java
           grep -q 'TeamBadgeCatalog.resolveBundledTeamBadge' native-android/MainActivity.java
