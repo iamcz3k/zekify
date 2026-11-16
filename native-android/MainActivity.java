@@ -553,14 +553,7 @@ public class MainActivity extends Activity {
   }
    private void renderMatchScreen(){
     LinearLayout screen=col();screen.setBackgroundColor(BG);
-    if(inlineLoading&&selectedSources==null){
-     LinearLayout discovery=row();discovery.setGravity(Gravity.CENTER_VERTICAL);discovery.setBackground(shape(0xff101010,16));pad(discovery,16,0,16,0);
-     ProgressBar finding=new ProgressBar(this);finding.setIndeterminate(true);if(Build.VERSION.SDK_INT>=21)finding.setIndeterminateTintList(android.content.res.ColorStateList.valueOf(ORANGE));discovery.addView(finding,new LinearLayout.LayoutParams(dp(22),dp(22)));
-     TextView findingLabel=txt("Finding available streams…",12,MUTED,true);LinearLayout.LayoutParams findingP=new LinearLayout.LayoutParams(0,-2,1);findingP.leftMargin=dp(12);discovery.addView(findingLabel,findingP);
-     LinearLayout.LayoutParams discoveryP=new LinearLayout.LayoutParams(-1,dp(64));discoveryP.setMargins(dp(16),dp(12),dp(16),dp(8));screen.addView(discovery,discoveryP);
-    }else{
-     View miniPlayer=buildInlinePlayer();screen.addView(miniPlayer,new LinearLayout.LayoutParams(-1,-2));
-    }
+    View miniPlayer=buildInlinePlayer();screen.addView(miniPlayer,new LinearLayout.LayoutParams(-1,-2));
     ScrollView scroll=new ScrollView(this);scroll.setFillViewport(false);scroll.setVerticalScrollBarEnabled(false);scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
     LinearLayout scrollContent=col();pad(scrollContent,16,14,16,20);
     TextView sourceHeading=txt("AVAILABLE SOURCES",10,ORANGE,true);sourceHeading.setLetterSpacing(.1f);scrollContent.addView(sourceHeading);
@@ -754,13 +747,26 @@ public class MainActivity extends Activity {
  private String date(long v){if(v<=0)return "Kickoff TBC";return new java.text.SimpleDateFormat("EEE, d MMM · HH:mm",Locale.getDefault()).format(new Date(v));}
  private String timerText(long kickoff,boolean live){long now=System.currentTimeMillis();long diff=live?Math.max(0,now-kickoff):Math.max(0,kickoff-now);long sec=diff/1000;long days=sec/86400;long hours=(sec%86400)/3600;long mins=(sec%3600)/60;long seconds=sec%60;String value=String.format(Locale.getDefault(),"%02d:%02d:%02d",hours,mins,seconds);return live?"LIVE · "+(days>0?days+"d ":"")+value:(days>0?days+"d ":"")+value;}
  private void bindMatchTimer(TextView view,long kickoff,boolean live){Runnable tick=new Runnable(){public void run(){if(isFinishing()||view.getWindowToken()==null)return;if(hasInternetConnection()&&appForeground)view.setText(timerText(kickoff,live));view.postDelayed(this,1000);}};view.setTag(tick);view.post(tick);}
+ private String sourceCacheKey(String sport,String matchId){return "live_sources_v1_"+sport+"_"+android.util.Base64.encodeToString(matchId.getBytes(java.nio.charset.StandardCharsets.UTF_8),android.util.Base64.NO_WRAP|android.util.Base64.URL_SAFE);}
+ private JSONObject readCachedMatchDetail(String sport,String matchId){try{String raw=appPrefs.getString(sourceCacheKey(sport,matchId),"");if(raw.isEmpty())return null;JSONObject cached=new JSONObject(raw);return cached.optJSONObject("detail");}catch(Exception ignored){return null;}}
+ private void saveCachedMatchDetail(String sport,String matchId,JSONObject data){if(data==null)return;try{JSONObject record=new JSONObject();record.put("cached_at",System.currentTimeMillis());record.put("detail",data);appPrefs.edit().putString(sourceCacheKey(sport,matchId),record.toString()).apply();}catch(Exception ignored){}}
+ private void refreshMatchSourcesQuietly(JSONObject match,String sport,boolean startIfNeeded){
+  final String matchId=match.optString("id");apiIo.execute(()->{try{
+   JSONObject p=request("/api/public/football-streams?mode=detail&sport="+URLEncoder.encode(sport,"UTF-8")+"&id="+URLEncoder.encode(matchId,"UTF-8"));
+   JSONObject d=p.optJSONObject("data");JSONArray src=d==null?null:d.optJSONArray("sources");saveCachedMatchDetail(sport,matchId,d);
+   runOnUiThread(()->{if(selected==null||!selected.optString("id").equals(matchId)||!selectedSport.equals(sport))return;boolean hadSources=selectedSources!=null&&selectedSources.length()>0;detail=d;if(src!=null&&src.length()>0){selectedSources=src;inlineLoading=false;renderMiniSources();if(startIfNeeded&&!hadSources&&inlinePlayer==null&&inlineWebView==null)startInlineSource(0);}else if(!hadSources){selectedSources=src;inlineLoading=false;renderMiniSources();}});
+  }catch(Exception e){runOnUiThread(()->{if(selected!=null&&selected.optString("id").equals(matchId)&&!selectedSport.equals(sport)){inlineLoading=false;renderMiniSources();}});}});
+ }
  private void selectMatch(JSONObject m){
   if(m==null)return;
   if(selected!=null&&selected.optString("id").equals(m.optString("id")))return;
   if(selected==null)matchReturnDestination=destination;
   if(pendingMotionOrigin==null)pendingMotionKind="shared-x";
-  stopInlinePlayback();selected=m;detail=null;selectedSources=null;selectedSourceIndex=0;detailTab="overview";inlineLoading=true;render();
-  final String sport=selectedSport;apiIo.execute(()->{try{JSONObject p=request("/api/public/football-streams?mode=detail&sport="+URLEncoder.encode(sport,"UTF-8")+"&id="+URLEncoder.encode(m.optString("id"),"UTF-8"));JSONObject d=p.optJSONObject("data");JSONArray src=d==null?null:d.optJSONArray("sources");runOnUiThread(()->{if(selected==null||!selected.optString("id").equals(m.optString("id")))return;detail=d;selectedSources=src;inlineLoading=false;render();if(src!=null&&src.length()>0)startInlineSource(0);});}catch(Exception e){runOnUiThread(()->{if(selected==null||!selected.optString("id").equals(m.optString("id")))return;inlineLoading=false;recordBug("MATCH_DETAIL",e,null);render();});}});
+  stopInlinePlayback();selected=m;detail=null;selectedSources=null;selectedSourceIndex=0;detailTab="overview";
+  JSONObject cached=readCachedMatchDetail(selectedSport,m.optString("id"));JSONArray cachedSources=cached==null?null:cached.optJSONArray("sources");
+  boolean hasCached=cachedSources!=null&&cachedSources.length()>0;detail=cached;selectedSources=cachedSources;inlineLoading=!hasCached;render();
+  if(hasCached)startInlineSource(0);
+  refreshMatchSourcesQuietly(m,selectedSport,!hasCached);
  }
  private void retrySelectedMatch(){JSONObject current=selected;if(current==null){load();return;}selected=null;selectMatch(current);}
  private View buildInlinePlayer(){
@@ -807,7 +813,7 @@ public class MainActivity extends Activity {
   private FrameLayout miniIconHolder(NativeIcon icon){FrameLayout holder=new FrameLayout(this);holder.setBackgroundColor(Color.TRANSPARENT);holder.setElevation(0f);icon.setClickable(false);icon.setBackgroundColor(Color.TRANSPARENT);holder.addView(icon,new FrameLayout.LayoutParams(dp(18),dp(18),Gravity.CENTER));return holder;}
   private void renderMiniSources(){
    if(inlineSources==null)return;inlineSources.removeAllViews();
-   if(selectedSources==null||selectedSources.length()==0){inlineSources.addView(txt(inlineLoading?"Finding sources…":"No sources available",11,MUTED,false));return;}
+   if(selectedSources==null||selectedSources.length()==0){inlineSources.addView(txt(inlineLoading?"Fetching sources…":"No sources available",11,MUTED,false));return;}
    for(int i=0;i<selectedSources.length();i++){JSONObject source=selectedSources.optJSONObject(i);if(source==null)continue;final int ix=i;boolean active=i==selectedSourceIndex;TextView chip=txt(source.optString("source","Source "+(i+1)),11,active?Color.BLACK:Color.WHITE,true);chip.setGravity(Gravity.CENTER);chip.setBackground(shape(active?ORANGE:0xff222222,18));pad(chip,15,0,15,0);LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-2,dp(40));cp.rightMargin=dp(8);inlineSources.addView(chip,cp);chip.setOnClickListener(v->{selectedSourceIndex=ix;startInlineSource(ix);renderMiniSources();});}
   }
   private void toggleMiniPlayback(){
