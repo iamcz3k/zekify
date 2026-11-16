@@ -1,9 +1,11 @@
-import { readFile, writeFile, mkdir, copyFile, readdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, copyFile, readdir, rm } from "node:fs/promises";
 const pkg="com.v3x.zekify";
 const root="android/app/src/main/java/"+pkg.replaceAll(".","/");
 await mkdir(root,{recursive:true});
 const appAssets="android/app/src/main/assets";
 await mkdir(appAssets,{recursive:true});
+// MainActivity and feature screens are native Android. Keep WebView only for remote stream providers, not a bundled website UI.
+await rm(appAssets+"/public",{recursive:true,force:true});
 await writeFile(appAssets+"/zekify-integrity.bin","ZEKIFY-INTEGRITY-V1:official-native-build");
 await copyFile("native-android/MainActivity.java",root+"/MainActivity.java");
 await copyFile("native-android/MaterialMotion.java",root+"/MaterialMotion.java");
