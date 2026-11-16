@@ -42,8 +42,8 @@ object TeamBadgeCatalog {
         if (!name.isNullOrBlank()) {
             val normalizedName = normalize(name)
             if (normalizedName.isNotBlank()) {
-                candidates.add(normalizedName)
                 if (!country.isNullOrBlank()) candidates.add(normalize(country) + "::" + normalizedName)
+                candidates.add(normalizedName)
             }
         }
 
