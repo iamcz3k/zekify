@@ -291,15 +291,17 @@ public final class ZekifyUpdateManager {
     public static void showRequiredUpdate(Activity activity, Update update) {
         if (activity == null || activity.isFinishing() || activity.isDestroyed() || update == null) return;
         if (installPromptVisible) return;
-        String notes = update.notes == null || update.notes.trim().isEmpty() ? "Stability improvements and important fixes." : update.notes;
-        if (notes.length() > 1200) notes = notes.substring(0, 1200) + "…";
         installPromptVisible = true;
-        Dialog dialog = requiredPage(activity, "Update available", "Zekify " + update.version + " is ready to install.\n\n" + notes, "Download update", () -> download(activity, update));
+        Dialog dialog = requiredPage(activity, "Update available", "Zekify " + update.version + " is ready. Download the verified update and Android will handle installation.", "Update app", () -> download(activity, update));
         dialog.setOnDismissListener(ignored -> installPromptVisible = false);
     }
 
     public static void download(Activity activity, Update update) {
-        if (activity == null || activity.isFinishing()) return;
+        if (activity == null || activity.isFinishing() || activity.isDestroyed() || update == null) return;
+        if (!downloadRunning.compareAndSet(false, true)) {
+            android.widget.Toast.makeText(activity, "An update download is already running.", android.widget.Toast.LENGTH_SHORT).show();
+            return;
+        }
         ProgressBar progress = new ProgressBar(activity, null, android.R.attr.progressBarStyleHorizontal);
         progress.setMax(100);
         progress.setProgress(0);
@@ -382,7 +384,6 @@ public final class ZekifyUpdateManager {
             pageWindow.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
             pageWindow.setBackgroundDrawableResource(android.R.color.transparent);
         }
-        if (!downloadRunning.compareAndSet(false, true)) return;
         IO.execute(() -> {
             File apk = null;
             File partial = null;
@@ -469,7 +470,7 @@ public final class ZekifyUpdateManager {
                 if (error != null) {
                     status.setText(error);
                     progress.setVisibility(android.view.View.GONE);
-                    actionButton.setText("Retry download");
+                    actionButton.setText("Retry update");
                     actionButton.setEnabled(true);
                     actionButton.setOnClickListener(v -> download(activity, update));
                 } else {
