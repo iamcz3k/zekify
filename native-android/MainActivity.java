@@ -194,6 +194,7 @@ public class MainActivity extends Activity {
   for(int i=motionHost.getChildCount()-2;i>=0;i--){View stale=motionHost.getChildAt(i);stale.animate().cancel();motionHost.removeViewAt(i);}
   View outgoing=motionHost.getChildCount()>0?motionHost.getChildAt(0):null;
   if(outgoing==screen)return;
+  if(outgoing!=null){outgoing.animate().cancel();outgoing.setTranslationX(0f);outgoing.setTranslationY(0f);outgoing.setScaleX(1f);outgoing.setScaleY(1f);outgoing.setAlpha(1f);}
   if(screen.getParent() instanceof ViewGroup)((ViewGroup)screen.getParent()).removeView(screen);
   screen.setBackgroundColor(BG);
   screen.animate().cancel();
@@ -226,8 +227,6 @@ public class MainActivity extends Activity {
    // window frame can flash between the old and new destinations.
    incoming.setTranslationX(dp(34));incoming.setAlpha(1f);
    outgoing.setTranslationX(0f);outgoing.setAlpha(1f);
-   incoming.animate().translationX(0f).setDuration(300L).setInterpolator(easing).start();
-   outgoing.animate().translationX(-dp(18)).setDuration(300L).setInterpolator(easing).start();
   }
   outgoing.animate().setListener(new android.animation.AnimatorListenerAdapter(){
    @Override public void onAnimationEnd(android.animation.Animator animation){
@@ -238,6 +237,13 @@ public class MainActivity extends Activity {
     outgoing.animate().setListener(null);
    }
   });
+  if("container".equals(motion)&&sourceSize[0]>0&&sourceSize[1]>0){
+   incoming.animate().alpha(1f).scaleX(1f).scaleY(1f).translationX(0f).translationY(0f).setDuration(340L).setInterpolator(easing).start();
+   outgoing.animate().alpha(.94f).setDuration(220L).setInterpolator(easing).start();
+  }else{
+   incoming.animate().translationX(0f).setDuration(300L).setInterpolator(easing).start();
+   outgoing.animate().translationX(-dp(18)).setDuration(300L).setInterpolator(easing).start();
+  }
  }
  private void home(){
   destination="home";
