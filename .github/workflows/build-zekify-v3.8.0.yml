@@ -3,7 +3,7 @@ name: Build and publish Zekify v3.8.0
 on:
   push:
     branches:
-      - feature/zekify-v3.8.0-native-global
+      - feature/zekify-v3.8.0-native-football
   workflow_dispatch:
 permissions:
   contents: write
@@ -194,7 +194,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          LATEST_SHA="$(git ls-remote origin refs/heads/feature/zekify-v3.8.0-native-global | awk '{print $1}')"
+          LATEST_SHA="$(git ls-remote origin refs/heads/feature/zekify-v3.8.0-native-football | awk '{print $1}')"
           if [ "$GITHUB_SHA" != "$LATEST_SHA" ]; then echo "Superseded build; only the latest branch commit may publish."; exit 1; fi
           cp Zekify-v3.8.0-updater-test.apk Zekify-v3.8.0.apk
           sha256sum Zekify-v3.8.0.apk > Zekify-v3.8.0.apk.sha256
