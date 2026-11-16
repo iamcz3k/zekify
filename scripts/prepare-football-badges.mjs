@@ -15,10 +15,15 @@ await mkdir(outputRoot, { recursive: true });
 
 const normalize = value => value.toLocaleLowerCase("en").normalize("NFC").replace(/[^\p{L}\p{N}]/gu, "");
 const safeSlug = value => normalize(value) || "unknown";
+const competitionPattern = /(league|liga|ligue|division|serie[a-z0-9]*|cup|copa|champions|championship|premier|bundesliga|eredivisie|superlig|tournament|confederation|afcon|uefa|fifa|concacaf|conmebol|caf|ofc|vleague|jleague|kleague|allsvenskan|eliteserien|premiership|supercup|proleague|nationalcup|aleague|nwsl|majorleaguesoccer|^mls$)/i;
 const teams = {};
-const globalNameOwners = new Map();
-const ambiguousGlobalNames = new Set();
+const competitions = {};
+const teamOwners = new Map();
+const competitionOwners = new Map();
+const ambiguousTeams = new Set();
+const ambiguousCompetitions = new Set();
 const files = [];
+
 async function walk(dir) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
@@ -26,9 +31,26 @@ async function walk(dir) {
     else if (entry.isFile() && entry.name.toLowerCase().endsWith(".svg")) files.push(full);
   }
 }
+
+function addIdentity(index, owners, ambiguous, countryKey, nameKey, entry) {
+  index[countryKey + "::" + nameKey] = entry;
+  if (ambiguous.has(nameKey)) return;
+  const owner = owners.get(nameKey);
+  if (!owner) {
+    owners.set(nameKey, countryKey);
+    index[nameKey] = entry;
+  } else if (owner !== countryKey) {
+    delete index[nameKey];
+    ambiguous.add(nameKey);
+  }
+}
+
 await walk(sourceRoot);
 let copied = 0;
+let teamCount = 0;
+let competitionCount = 0;
 const copiedFiles = new Set();
+
 for (const file of files) {
   const relative = path.relative(sourceRoot, file);
   const parts = relative.split(path.sep);
@@ -39,42 +61,51 @@ for (const file of files) {
   const nameKey = safeSlug(name);
   const info = await stat(file);
   if (info.size === 0 || info.size > 256 * 1024) continue;
+
   const filename = countryKey + "--" + nameKey + ".svg";
   const destination = path.join(outputRoot, filename);
   const content = await readFile(file, "utf8");
-  if (!content.includes("<svg")) continue;
+  if (!content.toLowerCase().includes("<svg")) continue;
+  if (/<script\b|<foreignObject\b|<!DOCTYPE|<!ENTITY|\son[a-z]+\s*=|(?:href|xlink:href)\s*=\s*["'](?:https?:|\/\/|data:|javascript:)/i.test(content)) continue;
+
   if (!copiedFiles.has(filename)) {
     await writeFile(destination, content);
     copiedFiles.add(filename);
     copied++;
   }
+
   const assetPath = "football/badges/" + filename;
   const entry = { path: assetPath, name, country, source: "JoseArroyave/football-logos" };
-  teams[countryKey + "::" + nameKey] = entry;
-  if (!ambiguousGlobalNames.has(nameKey)) {
-    const owner = globalNameOwners.get(nameKey);
-    if (!owner) { globalNameOwners.set(nameKey, countryKey); teams[nameKey] = entry; }
-    else if (owner !== countryKey) { delete teams[nameKey]; ambiguousGlobalNames.add(nameKey); }
-  }
-  const aliasName = name.replace(/\\b(association football club|football club|athletic club|sporting club|fc|afc|cf|sc|ac|fk|sv|bk|cd|ud|rcd)\\b/gi, " ");
-  const aliasKey = safeSlug(aliasName);
-  if (aliasKey && aliasKey !== nameKey) {
-    teams[countryKey + "::" + aliasKey] = entry;
-    if (!ambiguousGlobalNames.has(aliasKey)) {
-      const owner = globalNameOwners.get(aliasKey);
-      if (!owner) { globalNameOwners.set(aliasKey, countryKey); teams[aliasKey] = entry; }
-      else if (owner !== countryKey) { delete teams[aliasKey]; ambiguousGlobalNames.add(aliasKey); }
-    }
+  const isCompetition = countryKey === "international" || competitionPattern.test(nameKey);
+
+  if (isCompetition) {
+    addIdentity(competitions, competitionOwners, ambiguousCompetitions, countryKey, nameKey, entry);
+    competitionCount++;
+  } else {
+    addIdentity(teams, teamOwners, ambiguousTeams, countryKey, nameKey, entry);
+    const aliasName = name.replace(/\b(association football club|football club|athletic club|sporting club|fc|afc|cf|sc|ac|fk|sv|bk|cd|ud|rcd)\b/gi, " ");
+    const aliasKey = safeSlug(aliasName);
+    if (aliasKey && aliasKey !== nameKey) addIdentity(teams, teamOwners, ambiguousTeams, countryKey, aliasKey, entry);
+    teamCount++;
   }
 }
-if (copied < 3000) throw new Error("Expected at least 3,000 bundled team badges, found " + copied);
+
+if (teamCount < 3000) throw new Error("Expected at least 3,000 bundled team badges, found " + teamCount);
+if (competitionCount < 25) throw new Error("Expected at least 25 bundled competition badges, found " + competitionCount);
+
 const index = {
-  schema_version: 1,
+  schema_version: 2,
   updated_at: new Date().toISOString(),
-  source: { repository: "https://github.com/JoseArroyave/football-logos", license_claim: "Personal and commercial use stated in upstream README; club marks remain trademarks of their owners." },
-  bundled_team_badges: copied,
+  source: {
+    repository: "https://github.com/JoseArroyave/football-logos",
+    license_claim: "Personal and commercial use stated in upstream README; club and competition marks remain trademarks of their owners."
+  },
+  bundled_badge_assets: copied,
+  bundled_team_badges: teamCount,
+  bundled_competition_badges: competitionCount,
   teams,
-  competitions: {}
+  competitions
 };
+
 await writeFile(indexPath, JSON.stringify(index, null, 2) + "\n");
-console.log("Prepared " + copied + " country-qualified team badges.");
+console.log("Prepared " + teamCount + " team badges and " + competitionCount + " competition badges (" + copied + " unique SVG assets).");
