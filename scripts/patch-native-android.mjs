@@ -137,7 +137,7 @@ const footballBadgesSource="native-android/assets/football/badges";
 const footballBadgesTarget="android/app/src/main/assets/football/badges";
 await mkdir(footballBadgesTarget,{recursive:true});
 for(const asset of await readdir(footballBadgesSource)){
- if(asset.endsWith(".svg")||asset.endsWith(".webp")||asset.endsWith(".png")||asset.endsWith(".json")||asset.endsWith(".md")){
+ if(asset.endsWith(".svg")||asset.endsWith(".webp")||asset.endsWith(".png")||asset.endsWith(".json")||asset.endsWith(".md")||asset.endsWith(".txt")){
   await copyFile(footballBadgesSource+"/"+asset,footballBadgesTarget+"/"+asset);
  }
 }
