@@ -1,4 +1,5 @@
 name: Build and publish Zekify v3.8.0
+# Workflow registered on the repository default branch; source is checked out from the triggering feature branch.
 on:
   push:
     branches:
