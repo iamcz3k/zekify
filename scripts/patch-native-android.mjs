@@ -10,6 +10,7 @@ await copyFile("native-android/MaterialMotion.java",root+"/MaterialMotion.java")
 await copyFile("native-android/OfflineMatchStore.kt",root+"/OfflineMatchStore.kt");
 await copyFile("native-android/TeamBadgeCatalog.kt",root+"/TeamBadgeCatalog.kt");
 await copyFile("native-android/FootballEntityActivity.kt",root+"/FootballEntityActivity.kt");
+await copyFile("native-android/FollowedEntitiesActivity.kt",root+"/FollowedEntitiesActivity.kt");
 await copyFile("native-android/SecurityGuard.java",root+"/SecurityGuard.java");
 await copyFile("native-android/PlayerActivity.java",root+"/PlayerActivity.java");
 await copyFile("native-android/FloatingPlayerService.java",root+"/FloatingPlayerService.java");
@@ -172,6 +173,7 @@ if(!manifest.includes('android:name=".FloatingPlayerService"')) manifest=manifes
 if(!manifest.includes('android:name=".LiveScoreActivity"')) manifest=manifest.replace("</application>",'    <activity android:name=".LiveScoreActivity" android:exported="false" android:screenOrientation="unspecified" />\n    </application>');
 if(!manifest.includes('android:name=".UpdateHistoryActivity"')) manifest=manifest.replace("</application>",'    <activity android:name=".UpdateHistoryActivity" android:exported="false" android:screenOrientation="unspecified" />\n    </application>');
 if(!manifest.includes('android:name=".FootballEntityActivity"')) manifest=manifest.replace("</application>",'    <activity android:name=".FootballEntityActivity" android:exported="false" android:screenOrientation="unspecified" />\n    </application>');
+if(!manifest.includes('android:name=".FollowedEntitiesActivity"')) manifest=manifest.replace("</application>",'    <activity android:name=".FollowedEntitiesActivity" android:exported="false" android:screenOrientation="unspecified" />\n    </application>');
 if(manifest.includes('android:name="androidx.core.content.FileProvider"')){
  const providerAt=manifest.indexOf('android:name="androidx.core.content.FileProvider"');
  const resourceAt=manifest.indexOf('android:resource="@xml/',providerAt);
