@@ -36,6 +36,7 @@ class FootballEntityActivity : Activity() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private lateinit var entity: JSONObject
     private lateinit var entityName: String
+    private lateinit var entityType: String
     private lateinit var sport: String
     private lateinit var badgeView: ImageView
     private lateinit var body: LinearLayout
@@ -44,6 +45,7 @@ class FootballEntityActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         entityName = intent.getStringExtra("entity_name") ?: "Team"
+        entityType = intent.getStringExtra("entity_type") ?: "team"
         sport = intent.getStringExtra("sport") ?: "football"
         entity = try { JSONObject(intent.getStringExtra("entity_json") ?: "{}") } catch (_: Exception) { JSONObject() }
         savedMatches = OfflineMatchStore.readMatches(this, sport) ?: JSONArray()
@@ -73,7 +75,7 @@ class FootballEntityActivity : Activity() {
         }
         header.addView(back, LinearLayout.LayoutParams(dp(44), dp(44)))
         val heading = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        heading.addView(text("TEAM PROFILE", 10, accentColor, true))
+        heading.addView(text(if (entityType == "competition") "COMPETITION PROFILE" else "TEAM PROFILE", 10, accentColor, true))
         heading.addView(text(entityName, 17, Color.WHITE, true))
         header.addView(heading, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(12) })
         body.addView(header)
@@ -96,16 +98,16 @@ class FootballEntityActivity : Activity() {
             setPadding(0, dp(13), 0, dp(4))
         })
         val country = first(entity, "country", "countryName", "country_name", "area")
-        hero.addView(text(country.ifBlank { "Football team" }, 12, mutedColor, false).apply { gravity = Gravity.CENTER })
+        hero.addView(text(country.ifBlank { if (entityType == "competition") "Football competition" else "Football team" }, 12, mutedColor, false).apply { gravity = Gravity.CENTER })
 
-        val favourite = text(if (isFavourite()) "♥  Following team" else "♡  Follow team", 13, Color.WHITE, true).apply {
+        val favourite = text(if (isFavourite()) "♥  Following" else "♡  Follow", 13, Color.WHITE, true).apply {
             gravity = Gravity.CENTER
             background = rounded(Color.rgb(48, 32, 22), 14)
             setPadding(dp(18), dp(12), dp(18), dp(12))
             setOnClickListener {
                 val following = !isFavourite()
                 saveFavourite(following)
-                text = if (following) "♥  Following team" else "♡  Follow team"
+                text = if (following) "♥  Following" else "♡  Follow"
             }
         }
         hero.addView(favourite, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(17) })
@@ -159,19 +161,29 @@ class FootballEntityActivity : Activity() {
 
     private fun findRelatedMatches(): JSONArray {
         val result = JSONArray()
-        val wantedId = first(entity, "id", "teamId", "team_id", "providerId", "provider_id")
+        val wantedId = first(entity, "id", "teamId", "team_id", "competitionId", "competition_id", "leagueId", "league_id", "providerId", "provider_id")
         val wantedName = normalize(entityName)
         for (index in 0 until savedMatches.length()) {
             val match = savedMatches.optJSONObject(index) ?: continue
-            val teams = match.optJSONObject("teams")
             var found = false
-            for (side in listOf("home", "away")) {
-                val team = teams?.optJSONObject(side) ?: match.optJSONObject(side)
-                    ?: match.optJSONObject(side + "Team") ?: match.optJSONObject(side + "_team")
-                val id = first(team, "id", "teamId", "team_id", "providerId", "provider_id")
-                val name = first(team, "name", "teamName", "team_name", "displayName")
+            if (entityType == "competition") {
+                val competition = match.optJSONObject("competition") ?: match.optJSONObject("leagueData") ?: match.optJSONObject("tournament")
+                val id = first(competition, "id", "competitionId", "competition_id", "leagueId", "league_id")
+                    .ifBlank { first(match, "competitionId", "competition_id", "leagueId", "league_id") }
+                val name = first(competition, "name", "title", "displayName", "league")
+                    .ifBlank { first(match, "league", "competitionName", "competition_name") }
                 if (wantedId.isNotBlank() && wantedId == id) found = true
                 if (wantedName.isNotBlank() && wantedName == normalize(name)) found = true
+            } else {
+                val teams = match.optJSONObject("teams")
+                for (side in listOf("home", "away")) {
+                    val team = teams?.optJSONObject(side) ?: match.optJSONObject(side)
+                        ?: match.optJSONObject(side + "Team") ?: match.optJSONObject(side + "_team")
+                    val id = first(team, "id", "teamId", "team_id", "providerId", "provider_id")
+                    val name = first(team, "name", "teamName", "team_name", "displayName")
+                    if (wantedId.isNotBlank() && wantedId == id) found = true
+                    if (wantedName.isNotBlank() && wantedName == normalize(name)) found = true
+                }
             }
             if (found) result.put(match)
         }
@@ -189,7 +201,7 @@ class FootballEntityActivity : Activity() {
     }
 
     private fun loadBadge() {
-        val bundled = TeamBadgeCatalog.resolveBundledTeamBadge(this, entity)
+        val bundled = if (entityType == "competition") TeamBadgeCatalog.resolveBundledCompetitionBadge(this, entity) else TeamBadgeCatalog.resolveBundledTeamBadge(this, entity)
         val remote = first(entity, "badge", "badgeUrl", "badge_url", "logo", "logoUrl", "logo_url", "image", "imageUrl", "image_url", "crest", "crestUrl", "crest_url")
         val source = bundled.ifBlank { remote }
         if (source.isBlank()) return
@@ -227,15 +239,16 @@ class FootballEntityActivity : Activity() {
         }.start()
     }
 
-    private fun favouriteKey(): String = first(entity, "id", "teamId", "team_id").ifBlank { normalize(entityName) }
+    private fun favouriteKey(): String = first(entity, "id", "teamId", "team_id", "competitionId", "competition_id", "leagueId", "league_id").ifBlank { normalize(entityName) }
+    private fun favouriteStoreKey(): String = if (entityType == "competition") "competitions" else "teams"
     private fun isFavourite(): Boolean = favouriteSet().contains(favouriteKey())
     private fun saveFavourite(enabled: Boolean) {
         val values = favouriteSet().toMutableSet()
         if (enabled) values.add(favouriteKey()) else values.remove(favouriteKey())
-        getSharedPreferences("zekify_favourites", MODE_PRIVATE).edit().putStringSet("teams", values).apply()
+        getSharedPreferences("zekify_favourites", MODE_PRIVATE).edit().putStringSet(favouriteStoreKey(), values).apply()
     }
     private fun favouriteSet(): Set<String> =
-        getSharedPreferences("zekify_favourites", MODE_PRIVATE).getStringSet("teams", emptySet()) ?: emptySet()
+        getSharedPreferences("zekify_favourites", MODE_PRIVATE).getStringSet(favouriteStoreKey(), emptySet()) ?: emptySet()
 
     private fun first(obj: JSONObject?, vararg keys: String): String {
         if (obj == null) return ""
