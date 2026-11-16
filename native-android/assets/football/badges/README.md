@@ -1,29 +1,20 @@
-# Zekify football badge catalogue
+# Zekify global football badge bundle
 
-This directory is the bundled, stable-ID-first badge collection used by
-`TeamBadgeCatalog.kt`.
+The release workflow generates this folder from the current country, national-team and tournament collections at https://football-logos.cc/.
 
-## Adding badges
+- Country coverage: all country and territory pages discovered from the source index
+- Formats: 128px transparent PNG source images optimized to 128px WebP for Android
+- Identity keys: provider IDs when available, then country-qualified names, aliases and normalized names
+- Missing logos: MainActivity continues to use the match provider's genuine image URL and existing local cache
 
-1. Use only badge artwork that Zekify has permission to redistribute.
-2. Prefer optimised SVG or transparent WebP files.
-3. Store each image beneath this directory.
-4. Add the exact football-data provider ID to `index.json`, pointing to its
-   relative asset path, for example:
+The generated `index.json` maps stable names and country/name pairs to bundled assets. The image files and index are generated during the release build so the repository does not carry thousands of binary files.
 
-```json
-{
-  "schema_version": 1,
-  "teams": {
-    "provider-team-id": "football/badges/teams/provider-team-id.svg"
-  },
-  "competitions": {}
-}
-```
+## Attribution and usage
 
-5. Keep source URL, licence/permission and attribution details in the
-   corresponding source manifest before bundling.
+Source: https://football-logos.cc/
 
-An empty catalogue is intentional until a source's redistribution terms are
-verified. Zekify continues to use the match provider's supplied badge URL and
-its existing on-device image cache whenever no bundled badge is available.
+Please credit and link to football-logos.cc. Its usage disclaimer describes informational, editorial and fan-based use, including non-commercial fan projects. Zekify is distributed free and without advertising. Do not use the collection for commercial products, merchandise, branding, promotion, or to imply affiliation or endorsement.
+
+All club, league, federation and association names and marks remain the intellectual property of their respective owners. The source is independent and is not affiliated with those rights holders.
+
+Full terms: https://football-logos.cc/license/
