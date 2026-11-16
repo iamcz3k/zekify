@@ -52,7 +52,7 @@ class FollowedEntitiesActivity : Activity() {
             }
             val competition = match.optJSONObject("competition") ?: match.optJSONObject("leagueData")
                 ?: match.optJSONObject("tournament")
-            val compId = first(competition, "id", "competitionId", "competition_id", "leagueId", "league_id")
+            val compId = first(competition, "id", "competitionId", "competition_id", "leagueId", "league_id", "providerId", "provider_id")
                 .ifBlank { first(match, "competitionId", "competition_id", "leagueId", "league_id") }
             val compName = first(competition, "name", "title", "displayName", "league")
                 .ifBlank { first(match, "league", "competitionName", "competition_name") }
