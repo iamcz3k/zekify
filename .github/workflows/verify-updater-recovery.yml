@@ -38,8 +38,21 @@ jobs:
       - run: npx cap add android
       - run: npm run assets:generate
       - run: npx cap sync android
-      - name: Verify fullscreen player is unchanged
-        run: git diff --exit-code d05b7577a753fe91394684ddc5205b380571e764...HEAD -- native-android/PlayerActivity.java scripts/fix-player-playback-state.mjs
+      - name: Verify fullscreen changes are limited to the requested lock handoff
+        run: |
+          git diff --exit-code d05b7577a753fe91394684ddc5205b380571e764...HEAD -- scripts/fix-player-playback-state.mjs
+          python3 - <<'PY'
+          import subprocess
+          base = "d05b7577a753fe91394684ddc5205b380571e764"
+          diff = subprocess.check_output(["git", "diff", "--unified=0", f"{base}...HEAD", "--", "native-android/PlayerActivity.java"], text=True)
+          changed = [line for line in diff.splitlines() if line.startswith(("+", "-")) and not line.startswith(("+++", "---"))]
+          allowed = {
+              '+        if (getIntent().getBooleanExtra("lockOnOpen", false)) lockScreen();'
+          }
+          assert set(changed).issubset(allowed), "Unexpected fullscreen player changes detected: " + repr(changed)
+          assert changed, "Expected the explicitly requested lock handoff change was not found"
+          print("Only the requested fullscreen lock-on-open hook changed; all other fullscreen code remains untouched.")
+          PY
       - name: Apply native Android source
         run: node scripts/patch-native-android.mjs
       - name: Apply native playback compatibility patch
