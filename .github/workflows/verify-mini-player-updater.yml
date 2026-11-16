@@ -1,11 +1,11 @@
-name: Verify Zekify mini-player and updater changes
+name: Build and release Zekify v3.5.8
 on:
   push:
     branches:
       - feature/youtube-mini-player-updater-fix
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -57,10 +57,12 @@ jobs:
           assert providers[0].attrib.get('{http://schemas.android.com/apk/res/android}authorities') == '${applicationId}.fileprovider'
           print('Android manifest and update FileProvider verified')
           PY
-      - name: Set test build version
+      - name: Set final v3.5.8 version
         run: |
-          sed -i 's/versionCode 1/versionCode 357/' android/app/build.gradle
-          sed -i 's/versionName "1.0"/versionName "3.5.7-test"/' android/app/build.gradle
+          sed -i 's/versionCode 1/versionCode 358/' android/app/build.gradle
+          sed -i 's/versionName "1.0"/versionName "3.5.8"/' android/app/build.gradle
+          grep -q 'versionCode 358' android/app/build.gradle
+          grep -q 'versionName "3.5.8"' android/app/build.gradle
           grep -E 'versionCode|versionName' android/app/build.gradle
       - name: Configure production-compatible signing
         env:
@@ -95,7 +97,7 @@ jobs:
               }
           }
           GRADLE
-      - name: Build signed test APK (no release publishing)
+      - name: Build signed v3.5.8 APK
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
@@ -104,21 +106,53 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew assembleRelease
-          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.5.7-test.apk
+          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.5.8.apk
           cd ..
           rm -f android/zekify-release.jks
-          test -s Zekify-v3.5.7-test.apk
+          test -s Zekify-v3.5.8.apk
       - name: Verify production signing certificate
         run: |
           set -o pipefail
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.5.7-test.apk | tee signing-certificate.txt
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.5.8.apk | tee signing-certificate.txt
           CERT="$(awk '/Signer #1 certificate SHA-256 digest:/ {print $NF; exit}' signing-certificate.txt)"
           echo "Test APK signing certificate: $CERT"
           test "$CERT" = "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119" || (echo "Unexpected signing key. Refusing to provide incompatible test APK." && exit 1)
-      - name: Upload signed test APK
+      - name: Verify final package version
+        run: |
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Zekify-v3.5.8.apk | grep "package: name='com.v3x.zekify' versionCode='358' versionName='3.5.8'"
+      - name: Generate APK checksum
+        run: sha256sum Zekify-v3.5.8.apk > Zekify-v3.5.8.apk.sha256
+      - name: Upload signed v3.5.8 artifact
         uses: actions/upload-artifact@v4
         with:
-          name: zekify-v3.5.7-test-signed-apk
-          path: Zekify-v3.5.7-test.apk
+          name: zekify-v3.5.8-signed-release-apk
+          path: |
+            Zekify-v3.5.8.apk
+            Zekify-v3.5.8.apk.sha256
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
+      - name: Publish v3.5.8 GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > release-notes.md <<'NOTES'
+          Zekify v3.5.8
+
+          ### Added
+          - Fullscreen-matched mini-player controls, with transparent icons and a cleaner seek timeline.
+          - Buffered-stream progress indicator with light-grey buffered content and a dark-grey remaining track.
+
+          ### Fixed
+          - Mini-player loading and playback control visibility.
+          - Mini-player tap-to-toggle controls and double-tap seeking.
+          - Updater download and installation reliability.
+
+          ### Improved
+          - Update logs now group changes into Added, Fixed, Improved and Removed sections.
+          - Release notes are sanitized so account handles, repository details and author metadata are never displayed.
+          - Mini-player control sizing and visual consistency.
+          NOTES
+          gh release view v3.5.8 --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 || gh release create v3.5.8 --repo "${GITHUB_REPOSITORY}" --title "Zekify v3.5.8" --notes-file release-notes.md --target "${GITHUB_SHA}"
+          gh release upload v3.5.8 Zekify-v3.5.8.apk Zekify-v3.5.8.apk.sha256 --repo "${GITHUB_REPOSITORY}" --clobber
+          gh release edit v3.5.8 --repo "${GITHUB_REPOSITORY}" --title "Zekify v3.5.8" --notes-file release-notes.md
+
