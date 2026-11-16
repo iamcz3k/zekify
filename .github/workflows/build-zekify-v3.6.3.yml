@@ -99,6 +99,21 @@ jobs:
           grep -q 'FollowedEntitiesActivity' scripts/patch-native-android.mjs
           grep -q 'Followed teams & leagues' native-android/MainActivity.java
           test -s native-android/assets/football/badges/index.json
+          python3 - <<'PY'
+          import json, os
+          with open('native-android/assets/football/badges/index.json', encoding='utf-8') as f:
+              data = json.load(f)
+          count = data.get('bundled_team_badges', 0)
+          entries = data.get('teams', {})
+          assert count >= 3000, f'Expected at least 3,000 bundled team badges, got {count}'
+          assert len(entries) >= count, 'Badge identity index is smaller than the unique asset count'
+          for entry in entries.values():
+              if isinstance(entry, dict):
+                  asset = entry.get('path', '')
+                  assert asset.startswith('football/badges/') and '..' not in asset, f'Unsafe badge path: {asset}'
+                  assert os.path.isfile('native-android/assets/' + asset), f'Missing badge asset: {asset}'
+          print(f'Global bundled team badges verified: {count}; indexed identities: {len(entries)}')
+          PY
           test -s native-android/res/drawable/zekify_illustration_offline.xml
           test -s native-android/res/drawable/zekify_illustration_empty_fixtures.xml
           grep -q 'versionLabel=txt("v"+installedVersion' native-android/MainActivity.java
