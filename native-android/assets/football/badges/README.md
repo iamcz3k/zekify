@@ -33,4 +33,4 @@ Run:
 node scripts/prepare-football-badges.mjs
 ```
 
-The build fails if fewer than 1,000 valid team SVGs are imported.
+The build fails if fewer than 3,000 valid team SVGs are imported.
