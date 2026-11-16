@@ -61,6 +61,9 @@ jobs:
           grep -q 'miniLocked=false;updateMiniLockState();' native-android/MainActivity.java
           grep -q 'zekify_ic_menu' native-android/MainActivity.java
           test -s native-android/res/drawable/zekify_ic_menu.xml
+          grep -q 'zekify_ic_menu.xml' scripts/patch-native-android.mjs
+          grep -q 'setDuration(280L)' native-android/LiveScoreActivity.java
+          grep -q 'setDuration(280L)' native-android/UpdateHistoryActivity.java
       - name: Apply native Android source
         run: node scripts/patch-native-android.mjs
       - name: Apply native playback compatibility patch
