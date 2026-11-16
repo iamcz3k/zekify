@@ -99,10 +99,14 @@ jobs:
           grep -q 'android:name=".FootballEntityActivity"' scripts/patch-native-android.mjs
           grep -q 'profile.putExtra("entity_type","team")' native-android/MainActivity.java
           grep -q 'profile.putExtra("entity_type","competition")' native-android/MainActivity.java
-          grep -q 'Continue offline' native-android/MainActivity.java
+          ! grep -q 'Continue offline' native-android/MainActivity.java
           grep -q 'matches_cached_at_' native-android/MainActivity.java
           grep -q 'resolveBundledTeamBadge' native-android/TeamBadgeCatalog.kt
           grep -q 'normalize' native-android/TeamBadgeCatalog.kt
+          ! grep -q ',ORANGE,true)' native-android/MainActivity.java
+          grep -q 'case "broadcast"' native-android/MainActivity.java
+          grep -q 'configureTeamName(eventName)' native-android/MainActivity.java
+          grep -q 'dp(32),dp(32)' native-android/MainActivity.java
           python3 - <<'PY'
           import xml.etree.ElementTree as ET
           for path in [
@@ -218,7 +222,7 @@ jobs:
           - Kept genuine provider-logo fetching and persistent on-device caching as the fallback for badges not in the bundle.
           - Added native Kotlin team and competition profiles with cached fixture history.
           - Added a native Followed Teams & Competitions screen with locally stored favourites.
-          - Added Continue Offline, cached fixture access, connection refresh, Wi-Fi settings and mobile-data settings.
+          - Enforced online-only app entry with a blocking offline connection gate, connection refresh, Wi-Fi settings and mobile-data settings.
           - Added the installed app version to the splash screen and original native vector illustrations with subtle motion.
           - Removed the unused bundled Vite website UI from the APK. Native Android screens remain; WebViews are retained only for remote streaming providers.
           - Preserved existing match navigation, reminders, updater, mini-player and streaming behaviour.
