@@ -117,7 +117,8 @@ jobs:
                       assert asset.startswith('football/badges/') and '..' not in asset, f'Unsafe badge path: {asset}'
                       assert os.path.isfile('native-android/assets/' + asset), f'Missing badge asset: {asset}'
           print(f'Global badge bundle verified: {team_count} teams, {competition_count} competitions')
-          PY          test -s native-android/res/drawable/zekify_illustration_offline.xml
+          PY
+          test -s native-android/res/drawable/zekify_illustration_offline.xml
           test -s native-android/res/drawable/zekify_illustration_empty_fixtures.xml
           grep -q 'versionLabel=txt("v"+installedVersion' native-android/MainActivity.java
           grep -q 'Continue offline' native-android/MainActivity.java
