@@ -204,3 +204,5 @@ jobs:
           path: Zekify-v3.8.0-updater-test.apk
           if-no-files-found: error
           retention-days: 14
+
+# CI trigger refresh for the isolated app source.
