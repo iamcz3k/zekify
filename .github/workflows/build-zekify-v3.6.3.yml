@@ -85,6 +85,8 @@ jobs:
           grep -q 'LiveSourcePrefetchWorker' scripts/patch-native-android.mjs
           grep -q 'androidx.work:work-runtime:2.9.1' scripts/patch-native-android.mjs
           grep -q 'live_sources_v1_' native-android/LiveSourcePrefetchWorker.java
+      - name: Prepare global bundled team badges
+        run: node scripts/prepare-football-badges.mjs
       - name: Verify v3.6.3 Kotlin and offline foundation
         run: |
           test -s native-android/OfflineMatchStore.kt
