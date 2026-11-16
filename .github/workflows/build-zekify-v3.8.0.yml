@@ -179,7 +179,7 @@ jobs:
 
           - Added a native Kotlin team profile screen opened directly from match team badges.
           - Team profiles show matching cached fixtures and remain usable offline.
-          - Added local follow/unfollow controls for teams.
+          - Added local follow/unfollow controls for teams, stored independently from temporary cache clearing.
           - Added native entrance motion and badge loading with on-device image caching.
           - Preserved the existing native match centre, reminders, updater, mini-player and playback flows.
           - Preserved the existing fullscreen player implementation and behaviour.
