@@ -28,6 +28,7 @@ async function walk(dir) {
 }
 await walk(sourceRoot);
 let copied = 0;
+const copiedFiles = new Set();
 for (const file of files) {
   const relative = path.relative(sourceRoot, file);
   const parts = relative.split(path.sep);
@@ -42,7 +43,11 @@ for (const file of files) {
   const destination = path.join(outputRoot, filename);
   const content = await readFile(file, "utf8");
   if (!content.includes("<svg")) continue;
-  await writeFile(destination, content);
+  if (!copiedFiles.has(filename)) {
+    await writeFile(destination, content);
+    copiedFiles.add(filename);
+    copied++;
+  }
   const assetPath = "football/badges/" + filename;
   const entry = { path: assetPath, name, country, source: "JoseArroyave/football-logos" };
   teams[countryKey + "::" + nameKey] = entry;
@@ -61,7 +66,6 @@ for (const file of files) {
       else if (owner !== countryKey) { delete teams[aliasKey]; ambiguousGlobalNames.add(aliasKey); }
     }
   }
-  copied++;
 }
 if (copied < 3000) throw new Error("Expected at least 3,000 bundled team badges, found " + copied);
 const index = {
