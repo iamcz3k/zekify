@@ -244,7 +244,7 @@ class FootballEntityActivity : Activity() {
         }.start()
     }
 
-    private fun favouriteKey(): String = first(entity, "id", "teamId", "team_id", "competitionId", "competition_id", "leagueId", "league_id").ifBlank { normalize(entityName) }
+    private fun favouriteKey(): String = first(entity, "id", "teamId", "team_id", "competitionId", "competition_id", "leagueId", "league_id", "providerId", "provider_id").ifBlank { normalize(entityName) }
     private fun favouriteStoreKey(): String = if (entityType == "competition") "competitions" else "teams"
     private fun isFavourite(): Boolean = favouriteSet().contains(favouriteKey())
     private fun saveFavourite(enabled: Boolean) {
