@@ -2,7 +2,7 @@ name: Build and publish Zekify v3.6.1
 on:
   push:
     branches:
-      - feature/zekify-v3.6.1-material-motion
+      - feature/zekify-v3.6.1-smooth-navigation
   workflow_dispatch:
 permissions:
   contents: write
