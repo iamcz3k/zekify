@@ -2,7 +2,7 @@ name: Build and publish Zekify v3.6.0
 on:
   push:
     branches:
-      - feature/zekify-v3.6.0-smooth-navigation
+      - feature/zekify-v3.6.0-material-motion
   workflow_dispatch:
 permissions:
   contents: write
@@ -158,17 +158,17 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          LATEST_SHA="$(git ls-remote origin refs/heads/feature/zekify-v3.6.0-smooth-navigation | awk '{print $1}')"
+          LATEST_SHA="$(git ls-remote origin refs/heads/feature/zekify-v3.6.0-material-motion | awk '{print $1}')"
           if [ "$GITHUB_SHA" != "$LATEST_SHA" ]; then echo "Superseded build; only the latest branch commit may publish."; exit 1; fi
           cp Zekify-v3.6.0-updater-test.apk Zekify-v3.6.0.apk
           sha256sum Zekify-v3.6.0.apk > Zekify-v3.6.0.apk.sha256
           cat > release-notes-v3.6.0.md <<'NOTES'
-          Build code: 360
+          Build code: 361
 
           - Fixed updater certificate pre-check so Android's package installer performs the authoritative signing compatibility check.
           - Updater verifies the APK checksum and package/build identity, then hands installation to Android.
           - Added update-available notifications with Android 13+ permission handling.
-          - Preserved version name 3.6.0 while advancing the internal build code for this same-version repair.
+          - Released Zekify 3.6.0 with a new internal build code.
           - Added Material Motion: fade-through section changes, shared-axis navigation, and match-card container transforms.
           - Added AndroidX SplashScreen launch animation and predictive back integration.
           - Preserved fullscreen player implementation and existing mini-player behaviour.

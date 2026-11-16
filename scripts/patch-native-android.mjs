@@ -175,7 +175,7 @@ if (manifest.includes('android:name=".MainActivity"') && !manifest.includes('and
 await writeFile(manifestPath,manifest);
 const gradlePath="android/app/build.gradle";
 let gradle=await readFile(gradlePath,"utf8");
-if(!gradle.includes("androidx.core:core-splashscreen"))gradle=gradle.replace(/dependencies\\s*\\{/, 'dependencies {\\n    implementation "androidx.core:core-splashscreen:1.0.1"');
+if(!gradle.includes("androidx.core:core-splashscreen"))gradle=gradle.replace(/dependencies\s*\{/, 'dependencies {\n    implementation "androidx.core:core-splashscreen:1.0.1"');
 if(!gradle.includes("androidx.media3:media3-exoplayer")) {
  gradle=gradle.replace(/dependencies\s*\{/, 'dependencies {\n    implementation "androidx.media3:media3-exoplayer:1.5.1"\n    implementation "androidx.media3:media3-exoplayer-hls:1.5.1"\n    implementation "androidx.media3:media3-ui:1.5.1"');
 }
@@ -199,7 +199,7 @@ await mkdir(resourceRoot + "/values", {recursive:true});
 const colorsPath = resourceRoot + "/values/zekify_colors.xml";
 await writeFile(colorsPath, '<?xml version="1.0" encoding="utf-8"?>\n<resources><color name="zekify_splash_black">#000000</color></resources>\n');
 const splashStylesPath = resourceRoot + "/values/zekify_splash_styles.xml";
-await writeFile(splashStylesPath, '<?xml version="1.0" encoding="utf-8"?>\\n<resources><style name="Zekify.Splash" parent="Theme.SplashScreen"><item name="windowSplashScreenBackground">@color/zekify_splash_black</item><item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item><item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item></style></resources>\\n');
+await writeFile(splashStylesPath, '<?xml version="1.0" encoding="utf-8"?>\n<resources><style name="Zekify.Splash" parent="Theme.SplashScreen"><item name="windowSplashScreenBackground">@color/zekify_splash_black</item><item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item><item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item></style></resources>\n');
 for (const folder of ["values","values-night","values-v31","values-night-v31"]) {
  const stylePath = resourceRoot + "/" + folder + "/styles.xml";
  try {
