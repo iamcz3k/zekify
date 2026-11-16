@@ -16,6 +16,8 @@ await mkdir(outputRoot, { recursive: true });
 const normalize = value => value.toLocaleLowerCase("en").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 const safeSlug = value => normalize(value) || "unknown";
 const teams = {};
+const globalNameOwners = new Map();
+const ambiguousGlobalNames = new Set();
 const files = [];
 async function walk(dir) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
@@ -44,12 +46,20 @@ for (const file of files) {
   const assetPath = "football/badges/" + filename;
   const entry = { path: assetPath, name, country, source: "JoseArroyave/football-logos" };
   teams[countryKey + "::" + nameKey] = entry;
-  if (!teams[nameKey]) teams[nameKey] = entry;
+  if (!ambiguousGlobalNames.has(nameKey)) {
+    const owner = globalNameOwners.get(nameKey);
+    if (!owner) { globalNameOwners.set(nameKey, countryKey); teams[nameKey] = entry; }
+    else if (owner !== countryKey) { delete teams[nameKey]; ambiguousGlobalNames.add(nameKey); }
+  }
   const aliasName = name.replace(/\\b(association football club|football club|athletic club|sporting club|fc|afc|cf|sc|ac|fk|sv|bk|cd|ud|rcd)\\b/gi, " ");
   const aliasKey = safeSlug(aliasName);
   if (aliasKey && aliasKey !== nameKey) {
     teams[countryKey + "::" + aliasKey] = entry;
-    if (!teams[aliasKey]) teams[aliasKey] = entry;
+    if (!ambiguousGlobalNames.has(aliasKey)) {
+      const owner = globalNameOwners.get(aliasKey);
+      if (!owner) { globalNameOwners.set(aliasKey, countryKey); teams[aliasKey] = entry; }
+      else if (owner !== countryKey) { delete teams[aliasKey]; ambiguousGlobalNames.add(aliasKey); }
+    }
   }
   copied++;
 }
