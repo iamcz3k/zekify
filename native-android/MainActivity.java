@@ -70,7 +70,7 @@ public class MainActivity extends Activity {
   if(Build.VERSION.SDK_INT>=31){splash=androidx.core.splashscreen.SplashScreen.installSplashScreen(this);splash.setOnExitAnimationListener(provider->{View icon=provider.getView();icon.animate().alpha(0f).scaleX(1.16f).scaleY(1.16f).setDuration(220L).setInterpolator(new android.view.animation.PathInterpolator(.2f,0f,0f,1f)).withEndAction(provider::remove).start();});}
   super.onCreate(b);
   if(Build.VERSION.SDK_INT>=33){predictiveBackCallback=this::handleBackNavigation;getOnBackInvokedDispatcher().registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,predictiveBackCallback);}
-  appPrefs=getSharedPreferences("zekify_cache",MODE_PRIVATE);installCrashRecorder();pendingMatchId=getIntent().getStringExtra("matchId")==null?"":getIntent().getStringExtra("matchId");getWindow().setStatusBarColor(BG);getWindow().setNavigationBarColor(BG);getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR^View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);createReminderChannel();LiveSourcePrefetch.schedule(this);home();applySettings();if(Build.VERSION.SDK_INT<31)showStartupSplash();registerNetworkRecovery();if(hasInternetConnection())load();else showOfflineGate();
+  appPrefs=getSharedPreferences("zekify_cache",MODE_PRIVATE);installCrashRecorder();pendingMatchId=getIntent().getStringExtra("matchId")==null?"":getIntent().getStringExtra("matchId");getWindow().setStatusBarColor(BG);getWindow().setNavigationBarColor(BG);getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR^View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);createReminderChannel();LiveSourcePrefetch.schedule(this);home();applySettings();showStartupSplash();registerNetworkRecovery();if(hasInternetConnection())load();else showOfflineGate();
  }
  private void installCrashRecorder(){Thread.UncaughtExceptionHandler previous=Thread.getDefaultUncaughtExceptionHandler();Thread.setDefaultUncaughtExceptionHandler((thread,error)->{try{StringWriter trace=new StringWriter();error.printStackTrace(new PrintWriter(trace));recordBug("APP_CRASH",error,trace.toString());appPrefs.edit().putString("last_uncaught_error",trace.toString()).putLong("last_uncaught_error_at",System.currentTimeMillis()).apply();}catch(Exception ignored){}if(previous!=null)previous.uncaughtException(thread,error);else{android.os.Process.killProcess(android.os.Process.myPid());System.exit(10);}});}
  private boolean hasInternetConnection(){try{if(connectivityManager==null)connectivityManager=(ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);if(connectivityManager==null)return false;Network active=connectivityManager.getActiveNetwork();if(active==null)return false;android.net.NetworkCapabilities caps=connectivityManager.getNetworkCapabilities(active);return caps!=null&&caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)&&caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED);}catch(Exception ignored){return false;}}
@@ -81,10 +81,11 @@ public class MainActivity extends Activity {
   FrameLayout page=new FrameLayout(this);page.setBackgroundColor(Color.BLACK);
   LinearLayout body=col();body.setGravity(Gravity.CENTER);pad(body,28,24,28,24);
   FrameLayout.LayoutParams bp=new FrameLayout.LayoutParams(-1,-2,Gravity.CENTER);page.addView(body,bp);
-  body.addView(new Ball(this),new LinearLayout.LayoutParams(dp(76),dp(76)));
+  ImageView offlineArt=new ImageView(this);int offlineArtId=getResources().getIdentifier("zekify_illustration_offline","drawable",getPackageName());if(offlineArtId!=0)offlineArt.setImageResource(offlineArtId);else offlineArt.setImageDrawable(null);offlineArt.setScaleType(ImageView.ScaleType.FIT_CENTER);body.addView(offlineArt,new LinearLayout.LayoutParams(dp(144),dp(144)));android.animation.ObjectAnimator pulse=android.animation.ObjectAnimator.ofFloat(offlineArt,"scaleX",.97f,1.03f);android.animation.ObjectAnimator pulseY=android.animation.ObjectAnimator.ofFloat(offlineArt,"scaleY",.97f,1.03f);android.animation.AnimatorSet offlineMotion=new android.animation.AnimatorSet();offlineMotion.playTogether(pulse,pulseY);offlineMotion.setDuration(1700L);offlineMotion.setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator());pulse.setRepeatCount(android.animation.ValueAnimator.INFINITE);pulse.setRepeatMode(android.animation.ValueAnimator.REVERSE);pulseY.setRepeatCount(android.animation.ValueAnimator.INFINITE);pulseY.setRepeatMode(android.animation.ValueAnimator.REVERSE);offlineMotion.start();
   TextView brand=txt("ZEKIFY",20,Color.WHITE,true);brand.setLetterSpacing(.18f);brand.setGravity(Gravity.CENTER);LinearLayout.LayoutParams brandP=new LinearLayout.LayoutParams(-1,-2);brandP.topMargin=dp(17);body.addView(brand,brandP);
   TextView title=txt("You're offline",19,Color.WHITE,true);title.setGravity(Gravity.CENTER);LinearLayout.LayoutParams titleP=new LinearLayout.LayoutParams(-1,-2);titleP.topMargin=dp(34);body.addView(title,titleP);
   TextView note=txt("Connect to Wi-Fi or mobile data to continue. Zekify will unlock automatically once your connection is back.",12,MUTED,false);note.setGravity(Gravity.CENTER);LinearLayout.LayoutParams noteP=new LinearLayout.LayoutParams(-1,-2);noteP.topMargin=dp(9);body.addView(note,noteP);
+  TextView offline=txt("Continue offline",12,Color.WHITE,true);offline.setGravity(Gravity.CENTER);offline.setBackground(ripple(PANEL,14));LinearLayout.LayoutParams offlineP=new LinearLayout.LayoutParams(-1,dp(46));offlineP.topMargin=dp(18);body.addView(offline,offlineP);offline.setOnClickListener(v->{hideOfflineGate();matchesLoading.set(false);boolean restored=loadCachedMatchesOffline();if(restored)Toast.makeText(this,"Showing saved matches. Live updates need internet.",Toast.LENGTH_LONG).show();else Toast.makeText(this,"No saved matches yet. You can still browse Zekify offline.",Toast.LENGTH_LONG).show();});
   TextView refresh=txt("Refresh connection",13,Color.BLACK,true);refresh.setGravity(Gravity.CENTER);refresh.setBackground(ripple(ORANGE,14));LinearLayout.LayoutParams refreshP=new LinearLayout.LayoutParams(-1,dp(50));refreshP.topMargin=dp(26);body.addView(refresh,refreshP);refresh.setOnClickListener(v->{if(hasInternetConnection()){offlineDialog.dismiss();offlineDialog=null;load();}else Toast.makeText(this,"Still offline. Check your connection.",Toast.LENGTH_SHORT).show();});
   TextView wifi=txt("Open Wi-Fi settings",12,Color.WHITE,true);wifi.setGravity(Gravity.CENTER);wifi.setBackground(ripple(PANEL,14));LinearLayout.LayoutParams wifiP=new LinearLayout.LayoutParams(-1,dp(46));wifiP.topMargin=dp(9);body.addView(wifi,wifiP);wifi.setOnClickListener(v->{try{startActivity(new Intent(android.provider.Settings.ACTION_WIFI_SETTINGS));}catch(Exception e){startActivity(new Intent(android.provider.Settings.ACTION_WIRELESS_SETTINGS));}});
   TextView data=txt("Open mobile data settings",12,Color.WHITE,true);data.setGravity(Gravity.CENTER);data.setBackground(ripple(PANEL,14));LinearLayout.LayoutParams dataP=new LinearLayout.LayoutParams(-1,dp(46));dataP.topMargin=dp(8);body.addView(data,dataP);data.setOnClickListener(v->openMobileDataSettings());
@@ -92,6 +93,18 @@ public class MainActivity extends Activity {
  }
  private void openMobileDataSettings(){String[] actions={"android.settings.DATA_USAGE_SETTINGS","android.settings.WIRELESS_SETTINGS","android.settings.SETTINGS"};for(String action:actions){try{Intent intent=new Intent(action);intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);startActivity(intent);return;}catch(Exception ignored){}}Toast.makeText(this,"Open Android Settings to enable mobile data.",Toast.LENGTH_LONG).show();}
  private void hideOfflineGate(){if(offlineDialog!=null&&offlineDialog.isShowing()){offlineDialog.dismiss();offlineDialog=null;}}
+ private boolean loadCachedMatchesOffline(){
+  try{
+   org.json.JSONArray cached=OfflineMatchStore.readMatches(this,selectedSport);
+   if(cached==null)return false;
+   ArrayList<JSONObject> saved=new ArrayList<>();
+   for(int i=0;i<cached.length();i++){JSONObject item=cached.optJSONObject(i);if(item!=null)saved.add(item);}
+   matches.clear();matches.addAll(saved);matchesLoading.set(false);matchesError="";
+   selectDefaultTabForMatches();renderLeagues();
+   if("discover".equals(destination))refreshDiscoverResults();else render();
+   return !saved.isEmpty();
+  }catch(Exception ignored){matches.clear();matchesLoading.set(false);matchesError="";render();return false;}
+ }
  private void showStartupSplash(){
   startupDialog=new Dialog(this);startupDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);FrameLayout splash=new FrameLayout(this);splash.setBackgroundColor(Color.BLACK);
   LinearLayout center=col();center.setGravity(Gravity.CENTER);FrameLayout.LayoutParams cp=new FrameLayout.LayoutParams(-1,-2,Gravity.CENTER);splash.addView(center,cp);
@@ -657,12 +670,16 @@ public class MainActivity extends Activity {
  private FrameLayout eventBadge(JSONObject m){
   FrameLayout frame=new FrameLayout(this);GradientDrawable badgeShape=new GradientDrawable();badgeShape.setShape(GradientDrawable.OVAL);badgeShape.setColor(0xff252525);frame.setBackground(badgeShape);frame.setClipToOutline(true);
   TextView fallback=txt(sportGlyph(m.optString("category",selectedSport)),22,ORANGE,true);fallback.setGravity(Gravity.CENTER);frame.addView(fallback,new FrameLayout.LayoutParams(-1,-1));
-  String url=eventBadgeUrl(m);if(url.isEmpty()||!setting("show_badges",true))return frame;frame.setTag(url);Bitmap cached;synchronized(badgeCache){cached=badgeCache.get(url);}if(cached!=null)showBadge(frame,cached,url);return frame;
+  JSONObject competition=m==null?null:m.optJSONObject("competition");if(competition==null&&m!=null)competition=m.optJSONObject("leagueData");if(competition==null&&m!=null)competition=m.optJSONObject("tournament");
+  String competitionName=firstNonEmpty(competition,"name","title","displayName","league");if(competitionName.isEmpty())competitionName=m==null?"":leagueName(m);
+  if(!competitionName.isEmpty()){final JSONObject selectedCompetition=competition==null?new JSONObject():competition;try{if(!selectedCompetition.has("name"))selectedCompetition.put("name",competitionName);if(!selectedCompetition.has("id")){String cid=firstNonEmpty(m,"competitionId","competition_id","leagueId","league_id");if(!cid.isEmpty())selectedCompetition.put("id",cid);}}catch(Exception ignored){}frame.setContentDescription("Open "+competitionName+" competition");frame.setClickable(true);frame.setFocusable(true);frame.setOnClickListener(v->{Intent profile=new Intent(this,FootballEntityActivity.class);profile.putExtra("entity_type","competition");profile.putExtra("entity_name",competitionName);profile.putExtra("entity_json",selectedCompetition.toString());profile.putExtra("sport",selectedSport);startActivity(profile);overridePendingTransition(android.R.anim.fade_in,android.R.anim.fade_out);});}
+  String url=eventBadgeUrl(m);if(url.isEmpty())url=TeamBadgeCatalog.resolveBundledCompetitionBadge(this,competition);if(url.isEmpty()||!setting("show_badges",true))return frame;frame.setTag(url);Bitmap cached;synchronized(badgeCache){cached=badgeCache.get(url);}if(cached!=null)showBadge(frame,cached,url);return frame;
  }
  private View teamBadge(JSONObject m,String side){
   FrameLayout frame=new FrameLayout(this);GradientDrawable badgeShape=new GradientDrawable();badgeShape.setShape(GradientDrawable.OVAL);badgeShape.setColor(0xff252525);frame.setBackground(badgeShape);frame.setClipToOutline(true);frame.setElevation(dp(0));
   String name=team(m,side);TextView fallback=txt(name.isEmpty()?"•":name.substring(0,1).toUpperCase(Locale.ROOT),10,ORANGE,true);fallback.setGravity(Gravity.CENTER);frame.addView(fallback,new FrameLayout.LayoutParams(-1,-1));
-  JSONObject teams=m.optJSONObject("teams"),teamData=teams==null?null:teams.optJSONObject(side);if(teamData==null)teamData=m.optJSONObject(side);if(teamData==null)teamData=m.optJSONObject(side+"Team");if(teamData==null)teamData=m.optJSONObject(side.toLowerCase(Locale.ROOT)+"_team");String url=badgeFromObject(teamData,"badge","badgeUrl","badge_url","logo","logoUrl","logo_url","image","imageUrl","image_url","crest","crestUrl","crest_url","teamBadge","team_badge","teamLogo","team_logo","icon","thumbnail","flag");if(url.isEmpty()&&teamData!=null){url=badgeFromObject(teamData.optJSONObject("team"),"badge","logo","image","crest","icon");if(url.isEmpty())url=badgeFromObject(teamData.optJSONObject("club"),"badge","logo","image","crest","icon");}
+  JSONObject teams=m.optJSONObject("teams"),teamData=teams==null?null:teams.optJSONObject(side);if(teamData==null)teamData=m.optJSONObject(side);if(teamData==null)teamData=m.optJSONObject(side+"Team");if(teamData==null)teamData=m.optJSONObject(side.toLowerCase(Locale.ROOT)+"_team");String url=TeamBadgeCatalog.resolveBundledTeamBadge(this,teamData);if(url.isEmpty())url=badgeFromObject(teamData,"badge","badgeUrl","badge_url","logo","logoUrl","logo_url","image","imageUrl","image_url","crest","crestUrl","crest_url","teamBadge","team_badge","teamLogo","team_logo","icon","thumbnail","flag");if(url.isEmpty()&&teamData!=null){url=badgeFromObject(teamData.optJSONObject("team"),"badge","logo","image","crest","icon");if(url.isEmpty())url=badgeFromObject(teamData.optJSONObject("club"),"badge","logo","image","crest","icon");}
+  if(!name.isEmpty()&&teamData!=null){final JSONObject selectedTeam=teamData;frame.setContentDescription("Open "+name+" team profile");frame.setClickable(true);frame.setFocusable(true);frame.setOnClickListener(v->{Intent profile=new Intent(this,FootballEntityActivity.class);profile.putExtra("entity_type","team");profile.putExtra("entity_name",name);profile.putExtra("entity_json",selectedTeam.toString());profile.putExtra("sport",selectedSport);startActivity(profile);overridePendingTransition(android.R.anim.fade_in,android.R.anim.fade_out);});}
   if(url.isEmpty()||!setting("show_badges",true))return frame;frame.setTag(url);Bitmap cached;synchronized(badgeCache){cached=badgeCache.get(url);}if(cached!=null)showBadge(frame,cached,url);return frame;
  }
  private void loadVisibleBadges(){
@@ -671,7 +688,7 @@ public class MainActivity extends Activity {
   for(int i=0;i<content.getChildCount();i++){View card=content.getChildAt(i);if(card.getBottom()>top&&card.getTop()<bottom)loadBadgesIn(card);}
  }
  private void loadBadgesIn(View view){
-  if(view instanceof FrameLayout){Object tag=view.getTag();if(tag instanceof String){String url=(String)tag;if(url.startsWith("http")||url.startsWith("data:image/"))requestBadge((FrameLayout)view,url);}}
+  if(view instanceof FrameLayout){Object tag=view.getTag();if(tag instanceof String){String url=(String)tag;if(url.startsWith("http")||url.startsWith("data:image/")||url.startsWith("asset://"))requestBadge((FrameLayout)view,url);}}
   if(view instanceof android.view.ViewGroup){android.view.ViewGroup group=(android.view.ViewGroup)view;for(int i=0;i<group.getChildCount();i++)loadBadgesIn(group.getChildAt(i));}
  }
  private Bitmap decodeBadgeBytes(byte[] bytes){
@@ -701,7 +718,14 @@ public class MainActivity extends Activity {
      int comma=badgeUrl.indexOf(',');
      if(comma>0)bitmap=decodeBadgeBytes(android.util.Base64.decode(badgeUrl.substring(comma+1),android.util.Base64.DEFAULT));
     }
-    if(bitmap==null&&!badgeUrl.startsWith("data:image/")){
+    if(bitmap==null&&badgeUrl.startsWith("asset://")){
+     String assetPath=badgeUrl.substring("asset://".length());
+     try(InputStream input=getAssets().open(assetPath);ByteArrayOutputStream bytes=new ByteArrayOutputStream()){
+      byte[] chunk=new byte[8192];int n;while((n=input.read(chunk))!=-1)bytes.write(chunk,0,n);
+      bitmap=decodeBadgeBytes(bytes.toByteArray());
+     }catch(Exception ignored){bitmap=null;}
+    }
+    if(bitmap==null&&!badgeUrl.startsWith("data:image/")&&!badgeUrl.startsWith("asset://")){
      for(int attempt=0;attempt<3&&bitmap==null;attempt++){
       try{
        connection=(HttpURLConnection)new URL(badgeUrl).openConnection();
