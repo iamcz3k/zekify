@@ -86,6 +86,25 @@ jobs:
           grep -q 'LiveSourcePrefetchWorker' scripts/patch-native-android.mjs
           grep -q 'androidx.work:work-runtime:2.9.1' scripts/patch-native-android.mjs
           grep -q 'live_sources_v1_' native-android/LiveSourcePrefetchWorker.java
+      - name: Verify native football profiles, offline data, and original illustrations
+        run: |
+          grep -q 'FootballEntityActivity.kt' scripts/patch-native-android.mjs
+          grep -q 'android:name=".FootballEntityActivity"' scripts/patch-native-android.mjs
+          grep -q 'profile.putExtra("entity_type","team")' native-android/MainActivity.java
+          grep -q 'profile.putExtra("entity_type","competition")' native-android/MainActivity.java
+          grep -q 'Continue offline' native-android/MainActivity.java
+          grep -q 'matches_cached_at_' native-android/MainActivity.java
+          grep -q 'resolveBundledTeamBadge' native-android/TeamBadgeCatalog.kt
+          grep -q 'normalize' native-android/TeamBadgeCatalog.kt
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          for path in [
+              "native-android/res/drawable/zekify_illustration_offline.xml",
+              "native-android/res/drawable/zekify_illustration_empty_fixtures.xml",
+          ]:
+              ET.parse(path)
+              print("Valid vector drawable:", path)
+          PY
       - name: Apply native Android source
         run: node scripts/patch-native-android.mjs
       - name: Apply native playback compatibility patch
