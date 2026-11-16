@@ -98,23 +98,26 @@ jobs:
           test -s native-android/FollowedEntitiesActivity.kt
           grep -q 'FollowedEntitiesActivity' scripts/patch-native-android.mjs
           grep -q 'Followed teams & leagues' native-android/MainActivity.java
+          grep -q 'rm(appAssets+"/public"' scripts/patch-native-android.mjs
           test -s native-android/assets/football/badges/index.json
           python3 - <<'PY'
           import json, os
           with open('native-android/assets/football/badges/index.json', encoding='utf-8') as f:
               data = json.load(f)
-          count = data.get('bundled_team_badges', 0)
-          entries = data.get('teams', {})
-          assert count >= 3000, f'Expected at least 3,000 bundled team badges, got {count}'
-          assert len(entries) >= count, 'Badge identity index is smaller than the unique asset count'
-          for entry in entries.values():
-              if isinstance(entry, dict):
-                  asset = entry.get('path', '')
-                  assert asset.startswith('football/badges/') and '..' not in asset, f'Unsafe badge path: {asset}'
-                  assert os.path.isfile('native-android/assets/' + asset), f'Missing badge asset: {asset}'
-          print(f'Global bundled team badges verified: {count}; indexed identities: {len(entries)}')
-          PY
-          test -s native-android/res/drawable/zekify_illustration_offline.xml
+          team_count = data.get('bundled_team_badges', 0)
+          competition_count = data.get('bundled_competition_badges', 0)
+          assert team_count >= 3000, f'Expected at least 3,000 bundled team badges, got {team_count}'
+          assert competition_count >= 25, f'Expected at least 25 bundled league/competition badges, got {competition_count}'
+          for collection in ('teams', 'competitions'):
+              entries = data.get(collection, {})
+              assert entries, f'Empty {collection} badge index'
+              for entry in entries.values():
+                  if isinstance(entry, dict):
+                      asset = entry.get('path', '')
+                      assert asset.startswith('football/badges/') and '..' not in asset, f'Unsafe badge path: {asset}'
+                      assert os.path.isfile('native-android/assets/' + asset), f'Missing badge asset: {asset}'
+          print(f'Global badge bundle verified: {team_count} teams, {competition_count} competitions')
+          PY          test -s native-android/res/drawable/zekify_illustration_offline.xml
           test -s native-android/res/drawable/zekify_illustration_empty_fixtures.xml
           grep -q 'versionLabel=txt("v"+installedVersion' native-android/MainActivity.java
           grep -q 'Continue offline' native-android/MainActivity.java
@@ -123,6 +126,10 @@ jobs:
           git diff --exit-code bc25afe9928b408e87a055649b073bedee752f3d HEAD -- native-android/PlayerActivity.java scripts/fix-player-playback-state.mjs
       - name: Apply native Android source
         run: node scripts/patch-native-android.mjs
+      - name: Verify native-only app UI assets
+        run: |
+          test ! -d android/app/src/main/assets/public
+          ! grep -R -n 'file:///android_asset/public' native-android
       - name: Apply native playback compatibility patch
         run: node scripts/fix-player-playback-state.mjs
       - name: Validate update installer manifest
