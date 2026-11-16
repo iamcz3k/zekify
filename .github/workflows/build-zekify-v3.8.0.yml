@@ -1,4 +1,4 @@
-name: Build and publish Zekify v3.8.0
+name: Build and validate Zekify v3.8.0
 on:
   push:
     branches:
@@ -7,6 +7,9 @@ on:
     branches:
       - telegram-football-bot
   workflow_dispatch:
+concurrency:
+  group: zekify-v3.8.0-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: write
 jobs:
@@ -201,6 +204,7 @@ jobs:
           test "$CERT" = "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Zekify-v3.8.0-updater-test.apk | grep "package: name='com.v3x.zekify' versionCode='380' versionName='3.8.0'"
       - name: Publish verified v3.8.0 release
+        if: ${{ false }} # Keep interim builds as artifacts until the complete upgrade is approved.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
