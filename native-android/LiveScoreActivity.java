@@ -30,7 +30,7 @@ public class LiveScoreActivity extends Activity {
  private SharedPreferences prefs;
  private final Runnable refresh=new Runnable(){public void run(){if(isToday())load(false);handler.postDelayed(this,30000L);}};
 
- @Override public void onCreate(Bundle state){super.onCreate(state);if(!SecurityGuard.verify(this)){SecurityGuard.showBlocked(this);return;}getWindow().setStatusBarColor(Color.rgb(7,7,7));getWindow().setNavigationBarColor(Color.rgb(7,7,7));prefs=getSharedPreferences("zekify_livescore",MODE_PRIVATE);buildUi();load(true);handler.postDelayed(refresh,30000L);}
+ @Override public void onCreate(Bundle state){super.onCreate(state);getWindow().setBackgroundDrawable(new ColorDrawable(Color.rgb(5,5,5)));getWindow().setStatusBarColor(Color.rgb(7,7,7));getWindow().setNavigationBarColor(Color.rgb(7,7,7));if(!SecurityGuard.verify(this)){SecurityGuard.showBlocked(this);return;}prefs=getSharedPreferences("zekify_livescore",MODE_PRIVATE);buildUi();load(true);handler.postDelayed(refresh,30000L);}
  private int dp(float n){return (int)(n*getResources().getDisplayMetrics().density+.5f);}
  private GradientDrawable bg(int color,int radius){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(radius));return d;}
  private TextView label(String s,int size,int color,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextSize(size);t.setTextColor(color);if(bold)t.setTypeface(null,1);return t;}
