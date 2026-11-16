@@ -253,7 +253,9 @@ for (const icon of [
  "zekify_ic_volume_off.xml",
  "zekify_ic_lock.xml",
  "zekify_ic_unlock.xml",
- "zekify_ic_menu.xml"
+ "zekify_ic_menu.xml",
+ "zekify_illustration_offline.xml",
+ "zekify_illustration_empty_fixtures.xml"
 ]) {
  await copyFile("native-android/res/drawable/" + icon, drawableRoot + "/" + icon);
 }
