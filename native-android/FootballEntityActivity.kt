@@ -124,6 +124,11 @@ class FootballEntityActivity : Activity() {
                 background = rounded(surfaceColor, 16)
                 setPadding(dp(20), dp(22), dp(20), dp(22))
             }
+            val emptyArtId = resources.getIdentifier("zekify_illustration_empty_fixtures", "drawable", packageName)
+            if (emptyArtId != 0) {
+                val art = ImageView(this).apply { setImageResource(emptyArtId); scaleType = ImageView.ScaleType.FIT_CENTER }
+                empty.addView(art, LinearLayout.LayoutParams(dp(136), dp(104)))
+            }
             empty.addView(text("No saved fixtures yet", 14, Color.WHITE, true).apply { gravity = Gravity.CENTER })
             empty.addView(text("This section fills with the team's fixtures after Zekify loads matches online.", 11, mutedColor, false).apply {
                 gravity = Gravity.CENTER
