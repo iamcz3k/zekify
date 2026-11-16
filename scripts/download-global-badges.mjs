@@ -55,7 +55,7 @@ async function mapLimit(items, limit, worker) {
 }
 function discoverCountryPages(html) {
   const slugs = new Set();
-  for (const match of html.matchAll(/href\s*=\s*["']\/([a-z0-9-]+)\/["']/gi)) {
+  for (const match of html.matchAll(/href\s*=\s*["'](?:https:\/\/football-logos\.cc)?\/([a-z0-9-]+)\/["']/gi)) {
     const slug = match[1].toLowerCase();
     if (!RESERVED.has(slug)) slugs.add(slug);
   }
@@ -162,6 +162,26 @@ const index = {
   teams: {},
   competitions: {}
 };
+const commonAliases = {
+  manutd: "manchesterunited",
+  manunited: "manchesterunited",
+  manchesterunitedfc: "manchesterunited",
+  spurs: "tottenham",
+  tottenhamhotspur: "tottenham",
+  newcastleunited: "newcastle",
+  westhamunited: "westham",
+  wolves: "wolverhamptonwanderers",
+  afcbournemouth: "bournemouth",
+  brightonandhovealbion: "brighton",
+  psg: "parissaintgermain",
+  barca: "barcelona",
+  atletico: "atleticodemadrid",
+  atleticomadrid: "atleticodemadrid",
+  inter: "internazionale",
+  intermilan: "internazionale",
+  acmilan: "milan",
+  sportinglisbon: "sportingcp"
+};
 const downloads = records.map(record => {
   const category = record.category === "competitions" ? "competitions" : "teams";
   const country = normalize(record.country || "global") || "global";
@@ -180,6 +200,11 @@ const downloads = records.map(record => {
 
 const existing = await fs.readdir(ROOT);
 for (const file of existing) if (file.endsWith(".webp")) await fs.unlink(path.join(ROOT, file));
+
+for (const [alias, target] of Object.entries(commonAliases)) {
+  const targetPath = index.teams[normalize(target)];
+  if (targetPath) addIndexEntry(index.teams, alias, targetPath);
+}
 
 const downloaded = await mapLimit(downloads, IMAGE_CONCURRENCY, async item => {
   const pngUrl = item.sourceUrl.replace("/256x256/", "/128x128/");
