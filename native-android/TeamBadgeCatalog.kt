@@ -94,10 +94,13 @@ object TeamBadgeCatalog {
         }
     }
 
-    private fun firstValue(record: JSONObject, key: String): String? {
-        val raw = record.opt(key) ?: return null
-        val value = raw.toString().trim()
-        return value.takeIf { it.isNotEmpty() && it != "null" && it != "0" }
+    private fun firstValue(record: JSONObject, vararg keys: String): String? {
+        for (key in keys) {
+            val raw = record.opt(key) ?: continue
+            val value = raw.toString().trim()
+            if (value.isNotEmpty() && value != "null" && value != "0") return value
+        }
+        return null
     }
 
     private fun normalize(value: String): String =
