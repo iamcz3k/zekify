@@ -206,3 +206,5 @@ jobs:
           retention-days: 14
 
 # CI trigger refresh for the isolated app source.
+
+# Re-run Android validation against the latest isolated feature branch.
