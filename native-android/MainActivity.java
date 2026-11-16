@@ -177,9 +177,18 @@ public class MainActivity extends Activity {
   View origin=pendingMotionOrigin;String motion=pendingMotionKind;pendingMotionOrigin=null;pendingMotionKind="fade-through";
   int[] source=new int[2];final int[] sourceSize=new int[]{0,0};
   if(origin!=null&&origin.getWidth()>0&&origin.getHeight()>0){origin.getLocationOnScreen(source);sourceSize[0]=origin.getWidth();sourceSize[1]=origin.getHeight();}
-  setContentView(screen);
-  if(setting("reduce_motion",false)){screen.setAlpha(1f);screen.setTranslationX(0f);screen.setTranslationY(0f);screen.setScaleX(1f);screen.setScaleY(1f);return;}
   screen.animate().cancel();
+  screen.setBackgroundColor(BG);
+  if(setting("reduce_motion",false)){screen.setAlpha(1f);screen.setTranslationX(0f);screen.setTranslationY(0f);screen.setScaleX(1f);screen.setScaleY(1f);setContentView(screen);return;}
+  // Set the first animation frame BEFORE attaching the new screen. Posting the
+  // initial alpha/scale setup after setContentView caused a one-frame flash of
+  // the window's default grey background during navigation.
+  screen.setAlpha(0f);
+  if("shared-x".equals(motion))screen.setTranslationX(dp(30));
+  else if("shared-y".equals(motion))screen.setTranslationY(dp(26));
+  else if(!"container".equals(motion))screen.setScaleX(.96f);
+  if(!"container".equals(motion)){screen.setScaleY("shared-x".equals(motion)||"shared-y".equals(motion)?.985f:.96f);}
+  setContentView(screen);
   screen.post(()->{
    float w=Math.max(1,screen.getWidth()),h=Math.max(1,screen.getHeight());
    android.view.animation.Interpolator easing=new android.view.animation.PathInterpolator(.2f,0f,0f,1f);
@@ -188,15 +197,12 @@ public class MainActivity extends Activity {
     int[] pos=new int[2];screen.getLocationOnScreen(pos);
     float sx=Math.max(.08f,Math.min(1f,sourceSize[0]/w)),sy=Math.max(.08f,Math.min(1f,sourceSize[1]/h));
     float tx=(source[0]+sourceSize[0]/2f)-(pos[0]+w/2f),ty=(source[1]+sourceSize[1]/2f)-(pos[1]+h/2f);
-    screen.setAlpha(.72f);screen.setScaleX(sx);screen.setScaleY(sy);screen.setTranslationX(tx);screen.setTranslationY(ty);
+    screen.setScaleX(sx);screen.setScaleY(sy);screen.setTranslationX(tx);screen.setTranslationY(ty);
     screen.animate().alpha(1f).scaleX(1f).scaleY(1f).translationX(0f).translationY(0f).setDuration(340L).setInterpolator(easing).start();
    }else if("shared-x".equals(motion)||"shared-y".equals(motion)){
-    float dx="shared-x".equals(motion)?dp(30):0f,dy="shared-y".equals(motion)?dp(26):0f;
-    screen.setAlpha(0f);screen.setScaleX(.985f);screen.setScaleY(.985f);screen.setTranslationX(dx);screen.setTranslationY(dy);
     screen.animate().alpha(1f).scaleX(1f).scaleY(1f).translationX(0f).translationY(0f).setDuration(300L).setInterpolator(easing).start();
    }else{
-    screen.setAlpha(0f);screen.setScaleX(.96f);screen.setScaleY(.96f);screen.setTranslationX(0f);screen.setTranslationY(0f);
-    screen.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(260L).setInterpolator(easing).start();
+    screen.animate().alpha(1f).scaleX(1f).scaleY(1f).translationX(0f).translationY(0f).setDuration(260L).setInterpolator(easing).start();
    }
   });
  }
