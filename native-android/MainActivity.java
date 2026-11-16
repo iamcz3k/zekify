@@ -187,7 +187,9 @@ public class MainActivity extends Activity {
   if("shared-x".equals(motion))screen.setTranslationX(dp(30));
   else if("shared-y".equals(motion))screen.setTranslationY(dp(26));
   else if(!"container".equals(motion))screen.setScaleX(.96f);
-  if(!"container".equals(motion)){screen.setScaleY("shared-x".equals(motion)||"shared-y".equals(motion)?.985f:.96f);}
+  if("shared-x".equals(motion)||"shared-y".equals(motion)){screen.setScaleX(.985f);screen.setScaleY(.985f);}
+  else if(!"container".equals(motion)){screen.setScaleX(.96f);screen.setScaleY(.96f);}
+  if(getWindow()!=null)getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(BG));
   setContentView(screen);
   screen.post(()->{
    float w=Math.max(1,screen.getWidth()),h=Math.max(1,screen.getHeight());
