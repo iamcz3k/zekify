@@ -147,6 +147,7 @@ public class PlayerActivity extends Activity {
             setControlsVisible(!handedOffFromMain);
         } else if (sources.length() > 0) playSource();
         else showError("No stream sources are available.");
+        if (getIntent().getBooleanExtra("lockOnOpen", false)) lockScreen();
     }
 
     private void hideBars() {

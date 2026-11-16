@@ -38,10 +38,19 @@ jobs:
       - run: npx cap add android
       - run: npm run assets:generate
       - run: npx cap sync android
-      - name: Prove fullscreen implementation is unchanged
+      - name: Verify only the authorized fullscreen lock handoff changed
         run: |
-          git diff --exit-code d05b7577a753fe91394684ddc5205b380571e764...HEAD -- native-android/PlayerActivity.java scripts/fix-player-playback-state.mjs
-          echo "Fullscreen player and its compatibility patch are byte-for-byte unchanged from the 8:45 PM recovery checkpoint."
+          git diff --exit-code d05b7577a753fe91394684ddc5205b380571e764...HEAD -- scripts/fix-player-playback-state.mjs
+          python3 - <<'PY'
+          import subprocess
+          base = "d05b7577a753fe91394684ddc5205b380571e764"
+          diff = subprocess.check_output(["git", "diff", "--unified=0", f"{base}...HEAD", "--", "native-android/PlayerActivity.java"], text=True)
+          changed = [line for line in diff.splitlines() if line.startswith(("+", "-")) and not line.startswith(("+++", "---"))]
+          allowed = {'+        if (getIntent().getBooleanExtra("lockOnOpen", false)) lockScreen();'}
+          assert set(changed).issubset(allowed), "Unexpected fullscreen player changes detected: " + repr(changed)
+          assert changed, "Expected lock-on-open hook was not found"
+          print("Only the requested fullscreen lock-on-open hook changed.")
+          PY
       - name: Apply native Android source
         run: node scripts/patch-native-android.mjs
       - name: Apply native playback compatibility patch
@@ -132,6 +141,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
       - name: Publish v3.5.8 GitHub release
+        if: github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -140,7 +150,8 @@ jobs:
 
           ### Added
           - Fullscreen-matched mini-player controls, with transparent icons and a cleaner seek timeline.
-          - Buffered-stream progress indicator with light-grey buffered content and a dark-grey remaining track.
+          - Buffered-stream progress indicator with light-grey buffered content and a brighter, clearly visible grey remaining track.
+          - Mini-player lock button opens fullscreen with fullscreen controls locked automatically.
 
           ### Fixed
           - Mini-player loading and playback control visibility.
@@ -151,6 +162,7 @@ jobs:
           - Update logs now group changes into Added, Fixed, Improved and Removed sections.
           - Release notes are sanitized so account handles, repository details and author metadata are never displayed.
           - Mini-player control sizing and visual consistency.
+          - Automatic update prompts when a newer version is detected, with download/install actions restored.
           NOTES
           gh release view v3.5.8 --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 || gh release create v3.5.8 --repo "${GITHUB_REPOSITORY}" --title "Zekify v3.5.8" --notes-file release-notes.md --target "${GITHUB_SHA}"
           gh release upload v3.5.8 Zekify-v3.5.8.apk Zekify-v3.5.8.apk.sha256 --repo "${GITHUB_REPOSITORY}" --clobber
