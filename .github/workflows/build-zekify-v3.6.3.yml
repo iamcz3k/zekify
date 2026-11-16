@@ -179,36 +179,6 @@ jobs:
           CERT="$(awk '/Signer #1 certificate SHA-256 digest:/ {print $NF; exit}' signing-certificate.txt)"
           test "$CERT" = "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Zekify-v3.6.3-validation.apk | grep "package: name='com.v3x.zekify' versionCode='363' versionName='3.6.3'"
-      - name: Publish verified v3.6.1 release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          LATEST_SHA="$(git ls-remote origin refs/heads/feature/zekify-v3.6.3-global-native | awk '{print $1}')"
-          if [ "$GITHUB_SHA" != "$LATEST_SHA" ]; then echo "Superseded build; only the latest branch commit may publish."; exit 1; fi
-          cp Zekify-v3.6.3-validation.apk Zekify-v3.6.1.apk
-          sha256sum Zekify-v3.6.1.apk > Zekify-v3.6.1.apk.sha256
-          cat > release-notes-v3.6.1.md <<'NOTES'
-          Build code: 362
-
-          - Fixed updater certificate pre-check so Android's package installer performs the authoritative signing compatibility check.
-          - Updater verifies the APK checksum and package/build identity, then hands installation to Android.
-          - Added update-available notifications with Android 13+ permission handling.
-          - Released Zekify 3.6.1 with a new internal build code.
-          - Improved Material Motion navigation with overlapping shared-axis screen transitions to eliminate background flashes and smoother Live/Upcoming tab changes.
-          - Match detail opens directly into the mini-player; source discovery stays in the existing source selector instead of inserting a separate prompt block.
-          - Added persistent local caching for live-match stream sources across all supported sports.
-          - Added immediate foreground refresh plus scheduled WorkManager background refresh every 15 minutes when network is available, so cached sources are ready when users return.
-          - Cached sources load first and refresh quietly without interrupting an active mini-player stream.
-          - Retained AndroidX SplashScreen launch animation and predictive back integration.
-          - Preserved fullscreen player implementation and behaviour.
-          NOTES
-          if gh release view v3.6.1 --repo ${{ github.repository }} >/dev/null 2>&1; then
-            gh release upload v3.6.1 Zekify-v3.6.1.apk Zekify-v3.6.1.apk.sha256 --repo ${{ github.repository }} --clobber
-            gh release edit v3.6.1 --repo ${{ github.repository }} --title "Zekify v3.6.1" --notes-file release-notes-v3.6.1.md
-          else
-            gh release create v3.6.1 Zekify-v3.6.1.apk Zekify-v3.6.1.apk.sha256 --repo ${{ github.repository }} --target "$GITHUB_SHA" --title "Zekify v3.6.1" --notes-file release-notes-v3.6.1.md
-          fi
-          gh release view v3.6.1 --repo ${{ github.repository }} --json tagName,assets,body
       - name: Create validation checksum
         run: sha256sum Zekify-v3.6.3-validation.apk > Zekify-v3.6.3-validation.apk.sha256
       - name: Upload signed updater test APK
