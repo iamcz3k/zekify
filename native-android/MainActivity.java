@@ -185,7 +185,7 @@ public class MainActivity extends Activity {
    android.view.animation.Interpolator easing=new android.view.animation.PathInterpolator(.2f,0f,0f,1f);
    screen.setPivotX(w/2f);screen.setPivotY(h/2f);
    if("container".equals(motion)&&sourceW>0&&sourceH>0){
-    float[] pos=new float[2];screen.getLocationOnScreen(pos);
+    int[] pos=new int[2];screen.getLocationOnScreen(pos);
     float sx=Math.max(.08f,Math.min(1f,sourceW/w)),sy=Math.max(.08f,Math.min(1f,sourceH/h));
     float tx=(source[0]+sourceW/2f)-(pos[0]+w/2f),ty=(source[1]+sourceH/2f)-(pos[1]+h/2f);
     screen.setAlpha(.72f);screen.setScaleX(sx);screen.setScaleY(sy);screen.setTranslationX(tx);screen.setTranslationY(ty);
