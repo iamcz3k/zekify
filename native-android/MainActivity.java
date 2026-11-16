@@ -175,8 +175,8 @@ public class MainActivity extends Activity {
  private Button btn(String s,boolean primary){Button b=new Button(this);b.setText(s);b.setTextSize(12);b.setAllCaps(false);b.setTextColor(primary?Color.BLACK:Color.WHITE);b.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));b.setBackground(ripple(primary?ORANGE:0xff171717,20));b.setMinHeight(dp(46));b.setPadding(dp(16),0,dp(16),0);b.setOnTouchListener((v,e)->{if(e.getAction()==MotionEvent.ACTION_DOWN)v.animate().scaleX(.97f).scaleY(.97f).setDuration(75).start();else if(e.getAction()==MotionEvent.ACTION_UP||e.getAction()==MotionEvent.ACTION_CANCEL)v.animate().scaleX(1f).scaleY(1f).setDuration(130).setInterpolator(new android.view.animation.OvershootInterpolator(1.15f)).start();return false;});return b;}
  private void setAnimatedScreen(View screen){
   View origin=pendingMotionOrigin;String motion=pendingMotionKind;pendingMotionOrigin=null;pendingMotionKind="fade-through";
-  int[] source=new int[2];int sourceW=0,sourceH=0;
-  if(origin!=null&&origin.getWidth()>0&&origin.getHeight()>0){origin.getLocationOnScreen(source);sourceW=origin.getWidth();sourceH=origin.getHeight();}
+  int[] source=new int[2];final int[] sourceSize=new int[]{0,0};
+  if(origin!=null&&origin.getWidth()>0&&origin.getHeight()>0){origin.getLocationOnScreen(source);sourceSize[0]=origin.getWidth();sourceSize[1]=origin.getHeight();}
   setContentView(screen);
   if(setting("reduce_motion",false)){screen.setAlpha(1f);screen.setTranslationX(0f);screen.setTranslationY(0f);screen.setScaleX(1f);screen.setScaleY(1f);return;}
   screen.animate().cancel();
@@ -184,10 +184,10 @@ public class MainActivity extends Activity {
    float w=Math.max(1,screen.getWidth()),h=Math.max(1,screen.getHeight());
    android.view.animation.Interpolator easing=new android.view.animation.PathInterpolator(.2f,0f,0f,1f);
    screen.setPivotX(w/2f);screen.setPivotY(h/2f);
-   if("container".equals(motion)&&sourceW>0&&sourceH>0){
+   if("container".equals(motion)&&sourceSize[0]>0&&sourceSize[1]>0){
     int[] pos=new int[2];screen.getLocationOnScreen(pos);
-    float sx=Math.max(.08f,Math.min(1f,sourceW/w)),sy=Math.max(.08f,Math.min(1f,sourceH/h));
-    float tx=(source[0]+sourceW/2f)-(pos[0]+w/2f),ty=(source[1]+sourceH/2f)-(pos[1]+h/2f);
+    float sx=Math.max(.08f,Math.min(1f,sourceSize[0]/w)),sy=Math.max(.08f,Math.min(1f,sourceSize[1]/h));
+    float tx=(source[0]+sourceSize[0]/2f)-(pos[0]+w/2f),ty=(source[1]+sourceSize[1]/2f)-(pos[1]+h/2f);
     screen.setAlpha(.72f);screen.setScaleX(sx);screen.setScaleY(sy);screen.setTranslationX(tx);screen.setTranslationY(ty);
     screen.animate().alpha(1f).scaleX(1f).scaleY(1f).translationX(0f).translationY(0f).setDuration(340L).setInterpolator(easing).start();
    }else if("shared-x".equals(motion)||"shared-y".equals(motion)){
