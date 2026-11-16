@@ -47,6 +47,11 @@ class FollowedEntitiesActivity : Activity() {
         render()
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (::list.isInitialized) render()
+    }
+
     private fun render() {
         list.removeAllViews()
         val records = prefs.all.entries
