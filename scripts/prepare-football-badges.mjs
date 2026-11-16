@@ -13,7 +13,7 @@ execFileSync("git", ["clone", "--depth=1", "--filter=blob:none", "--sparse", sou
 execFileSync("git", ["-C", checkout, "sparse-checkout", "set", "logos"], { stdio: "inherit" });
 await mkdir(outputRoot, { recursive: true });
 
-const normalize = value => value.toLocaleLowerCase("en").normalize("NFKD").replace(/[\\u0300-\\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+const normalize = value => value.toLocaleLowerCase("en").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 const safeSlug = value => normalize(value) || "unknown";
 const teams = {};
 const files = [];
@@ -56,5 +56,5 @@ const index = {
   teams,
   competitions: {}
 };
-await writeFile(indexPath, JSON.stringify(index, null, 2) + "\\n");
+await writeFile(indexPath, JSON.stringify(index, null, 2) + "\n");
 console.log("Prepared " + copied + " country-qualified team badges.");
