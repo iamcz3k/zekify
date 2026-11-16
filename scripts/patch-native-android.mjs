@@ -6,6 +6,7 @@ const appAssets="android/app/src/main/assets";
 await mkdir(appAssets,{recursive:true});
 await writeFile(appAssets+"/zekify-integrity.bin","ZEKIFY-INTEGRITY-V1:official-native-build");
 await copyFile("native-android/MainActivity.java",root+"/MainActivity.java");
+await copyFile("native-android/MaterialMotion.java",root+"/MaterialMotion.java");
 await copyFile("native-android/SecurityGuard.java",root+"/SecurityGuard.java");
 await copyFile("native-android/PlayerActivity.java",root+"/PlayerActivity.java");
 await copyFile("native-android/FloatingPlayerService.java",root+"/FloatingPlayerService.java");
@@ -145,6 +146,7 @@ if (mainActivityTag) {
  else if (!/android:configChanges="[^"]*(smallestScreenSize|screenLayout)/.test(tag)) tag = tag.replace('android:configChanges="', 'android:configChanges="smallestScreenSize|screenLayout|');
  manifest = manifest.replace(mainActivityTag[0], tag);
 }
+if(!manifest.includes('android:enableOnBackInvokedCallback="true"'))manifest=manifest.replace("<application","<application android:enableOnBackInvokedCallback=\"true\"");
 if(!manifest.includes("android.permission.INTERNET")) manifest=manifest.replace("<application",'<uses-permission android:name="android.permission.INTERNET" />\n    <application');
 if(!manifest.includes("android.permission.ACCESS_NETWORK_STATE")) manifest=manifest.replace("<application",'<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />\n    <application');
 if(!manifest.includes("android.permission.POST_NOTIFICATIONS")) manifest=manifest.replace("<application",'<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <application');
@@ -167,11 +169,13 @@ const xmlRoot="android/app/src/main/res/xml";
 await mkdir(xmlRoot,{recursive:true});
 await writeFile(xmlRoot+"/zekify_file_paths.xml",'<?xml version="1.0" encoding="utf-8"?>\n<paths xmlns:android="http://schemas.android.com/apk/res/android"><cache-path name="shared_apks" path="shared/" /></paths>\n');
 // MainActivity is a real Android Activity, not Capacitor BridgeActivity. It must not keep the launch-only splash theme after startup.
-manifest=manifest.replace(/(<activity\b(?=[^>]*android:name="\.MainActivity")[^>]*?)android:theme="@style\/AppTheme\.NoActionBarLaunch"/, '$1android:theme="@style/AppTheme.NoActionBar"');
-if (manifest.includes('android:name=".MainActivity"') && manifest.includes('android:theme="@style/AppTheme.NoActionBarLaunch"')) throw new Error("Launcher activity still uses splash-only theme");
+manifest=manifest.replace(/(<activity\b(?=[^>]*android:name="\.MainActivity")[^>]*?)android:theme="@style\/AppTheme\.NoActionBarLaunch"/, '$1android:theme="@style/Zekify.Splash"');
+manifest=manifest.replace(/(<activity\b(?=[^>]*android:name="\.MainActivity")[^>]*?)android:theme="@style\/AppTheme\.NoActionBar"/, '$1android:theme="@style/Zekify.Splash"');
+if (manifest.includes('android:name=".MainActivity"') && !manifest.includes('android:theme="@style/Zekify.Splash"')) throw new Error("Launcher activity is missing the AndroidX splash theme");
 await writeFile(manifestPath,manifest);
 const gradlePath="android/app/build.gradle";
 let gradle=await readFile(gradlePath,"utf8");
+if(!gradle.includes("androidx.core:core-splashscreen"))gradle=gradle.replace(/dependencies\\s*\\{/, 'dependencies {\\n    implementation "androidx.core:core-splashscreen:1.0.1"');
 if(!gradle.includes("androidx.media3:media3-exoplayer")) {
  gradle=gradle.replace(/dependencies\s*\{/, 'dependencies {\n    implementation "androidx.media3:media3-exoplayer:1.5.1"\n    implementation "androidx.media3:media3-exoplayer-hls:1.5.1"\n    implementation "androidx.media3:media3-ui:1.5.1"');
 }
@@ -194,6 +198,8 @@ const resourceRoot = "android/app/src/main/res";
 await mkdir(resourceRoot + "/values", {recursive:true});
 const colorsPath = resourceRoot + "/values/zekify_colors.xml";
 await writeFile(colorsPath, '<?xml version="1.0" encoding="utf-8"?>\n<resources><color name="zekify_splash_black">#000000</color></resources>\n');
+const splashStylesPath = resourceRoot + "/values/zekify_splash_styles.xml";
+await writeFile(splashStylesPath, '<?xml version="1.0" encoding="utf-8"?>\\n<resources><style name="Zekify.Splash" parent="Theme.SplashScreen"><item name="windowSplashScreenBackground">@color/zekify_splash_black</item><item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item><item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item></style></resources>\\n');
 for (const folder of ["values","values-night","values-v31","values-night-v31"]) {
  const stylePath = resourceRoot + "/" + folder + "/styles.xml";
  try {

@@ -1,0 +1,189 @@
+name: Build and publish Zekify v3.6.0
+on:
+  push:
+    branches:
+      - feature/zekify-v3.6.0-smooth-navigation
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install Android SDK packages
+        run: |
+          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses
+          "$SDKMANAGER" --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+      - name: Install Node dependencies
+        env:
+          SHARP_IGNORE_GLOBAL_LIBVIPS: "1"
+          npm_config_fetch_retries: "3"
+          npm_config_fetch_timeout: "120000"
+        run: npm install --include=optional --no-audit --no-fund
+      - run: npm run build
+      - run: npx cap add android
+      - run: npm run assets:generate
+      - run: npx cap sync android
+      - name: Verify fullscreen changes are limited to the requested lock handoff
+        run: |
+          git diff --exit-code d05b7577a753fe91394684ddc5205b380571e764...HEAD -- scripts/fix-player-playback-state.mjs
+          python3 - <<'PY'
+          import subprocess
+          base = "d05b7577a753fe91394684ddc5205b380571e764"
+          diff = subprocess.check_output(["git", "diff", "--unified=0", f"{base}...HEAD", "--", "native-android/PlayerActivity.java"], text=True)
+          changed = [line for line in diff.splitlines() if line.startswith(("+", "-")) and not line.startswith(("+++", "---"))]
+          allowed = {
+              '+        if (getIntent().getBooleanExtra("lockOnOpen", false)) lockScreen();'
+          }
+          assert set(changed).issubset(allowed), "Unexpected fullscreen player changes detected: " + repr(changed)
+          assert changed, "Expected the explicitly requested lock handoff change was not found"
+          print("Only the requested fullscreen lock-on-open hook changed; all other fullscreen code remains untouched.")
+          PY
+      - name: Verify Material Motion, predictive back, and splash screen
+        run: |
+          grep -q 'setDuration(340L)' native-android/MainActivity.java
+          grep -q 'pendingMotionKind="container"' native-android/MainActivity.java
+          grep -q 'OnBackInvokedDispatcher' native-android/MainActivity.java
+          grep -q 'SplashScreen.installSplashScreen' native-android/MainActivity.java
+          grep -q 'Zekify.Splash' scripts/patch-native-android.mjs
+          grep -q 'MaterialMotion.java' scripts/patch-native-android.mjs
+          grep -q 'PathInterpolator' native-android/LiveScoreActivity.java
+      - name: Verify navigation transitions, mini-player unlock reset, and menu icon
+        run: |
+          grep -q 'setDuration(280L)' native-android/MainActivity.java
+          grep -q 'setAnimatedScreen(root)' native-android/MainActivity.java
+          grep -q 'returnedFromFullscreen' native-android/MainActivity.java
+          grep -q 'miniLocked=false;updateMiniLockState();' native-android/MainActivity.java
+          grep -q 'zekify_ic_menu' native-android/MainActivity.java
+          test -s native-android/res/drawable/zekify_ic_menu.xml
+          grep -q 'zekify_ic_menu.xml' scripts/patch-native-android.mjs
+          grep -q 'setDuration(280L)' native-android/LiveScoreActivity.java
+          grep -q 'setDuration(280L)' native-android/UpdateHistoryActivity.java
+      - name: Apply native Android source
+        run: node scripts/patch-native-android.mjs
+      - name: Apply native playback compatibility patch
+        run: node scripts/fix-player-playback-state.mjs
+      - name: Validate update installer manifest
+        run: |
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          root = ET.parse('android/app/src/main/AndroidManifest.xml').getroot()
+          ns = '{http://schemas.android.com/apk/res/android}'
+          providers = [node for node in root.findall('.//provider') if node.attrib.get(ns+'name') == 'androidx.core.content.FileProvider']
+          assert providers, 'FileProvider is missing'
+          assert providers[0].attrib.get(ns+'authorities') == '${applicationId}.fileprovider'
+          print('FileProvider verified')
+          PY
+      - name: Set test package version
+        run: |
+          sed -i 's/versionCode 1/versionCode 361/' android/app/build.gradle
+          sed -i 's/versionName "1.0"/versionName "3.6.0"/' android/app/build.gradle
+          grep -q 'versionCode 361' android/app/build.gradle
+          grep -q 'versionName "3.6.0"' android/app/build.gradle
+      - name: Verify updater handoff, notifications, and build metadata
+        run: |
+          grep -q 'parseBuildCode' native-android/ZekifyUpdateManager.java
+          grep -q 'pending_build_code' native-android/ZekifyUpdateManager.java
+          grep -q 'ACTION_INSTALL_PACKAGE' native-android/ZekifyUpdateManager.java
+          grep -q 'requestUpdateNotificationPermission' native-android/MainActivity.java
+          ! grep -q 'different certificate' native-android/ZekifyUpdateManager.java
+          grep -q 'POST_NOTIFICATIONS' scripts/patch-native-android.mjs
+      - name: Configure production signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE_BASE64"
+          test -n "$KEYSTORE_PASSWORD"
+          test -n "$KEY_ALIAS"
+          test -n "$KEY_PASSWORD"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > android/zekify-release.jks
+          cat >> android/app/build.gradle <<'GRADLE'
+          android {
+              signingConfigs {
+                  release {
+                      storeFile file("../zekify-release.jks")
+                      storePassword System.getenv("KEYSTORE_PASSWORD")
+                      keyAlias System.getenv("KEY_ALIAS")
+                      keyPassword System.getenv("KEY_PASSWORD")
+                  }
+              }
+              buildTypes {
+                  release {
+                      minifyEnabled true
+                      shrinkResources false
+                      proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+                      signingConfig signingConfigs.release
+                  }
+              }
+          }
+          GRADLE
+      - name: Build signed updater test APK
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk ../Zekify-v3.6.0-updater-test.apk
+          cd ..
+          rm -f android/zekify-release.jks
+          test -s Zekify-v3.6.0-updater-test.apk
+      - name: Verify production signing certificate and package version
+        run: |
+          set -o pipefail
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.6.0-updater-test.apk | tee signing-certificate.txt
+          CERT="$(awk '/Signer #1 certificate SHA-256 digest:/ {print $NF; exit}' signing-certificate.txt)"
+          test "$CERT" = "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Zekify-v3.6.0-updater-test.apk | grep "package: name='com.v3x.zekify' versionCode='361' versionName='3.6.0'"
+      - name: Publish verified v3.6.0 release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LATEST_SHA="$(git ls-remote origin refs/heads/feature/zekify-v3.6.0-smooth-navigation | awk '{print $1}')"
+          if [ "$GITHUB_SHA" != "$LATEST_SHA" ]; then echo "Superseded build; only the latest branch commit may publish."; exit 1; fi
+          cp Zekify-v3.6.0-updater-test.apk Zekify-v3.6.0.apk
+          sha256sum Zekify-v3.6.0.apk > Zekify-v3.6.0.apk.sha256
+          cat > release-notes-v3.6.0.md <<'NOTES'
+          Build code: 360
+
+          - Fixed updater certificate pre-check so Android's package installer performs the authoritative signing compatibility check.
+          - Updater verifies the APK checksum and package/build identity, then hands installation to Android.
+          - Added update-available notifications with Android 13+ permission handling.
+          - Preserved version name 3.6.0 while advancing the internal build code for this same-version repair.
+          - Added Material Motion: fade-through section changes, shared-axis navigation, and match-card container transforms.
+          - Added AndroidX SplashScreen launch animation and predictive back integration.
+          - Preserved fullscreen player implementation and existing mini-player behaviour.
+          NOTES
+          if gh release view v3.6.0 --repo ${{ github.repository }} >/dev/null 2>&1; then
+            gh release upload v3.6.0 Zekify-v3.6.0.apk Zekify-v3.6.0.apk.sha256 --repo ${{ github.repository }} --clobber
+            gh release edit v3.6.0 --repo ${{ github.repository }} --title "Zekify v3.6.0" --notes-file release-notes-v3.6.0.md
+          else
+            gh release create v3.6.0 Zekify-v3.6.0.apk Zekify-v3.6.0.apk.sha256 --repo ${{ github.repository }} --target "$GITHUB_SHA" --title "Zekify v3.6.0" --notes-file release-notes-v3.6.0.md
+          fi
+          gh release view v3.6.0 --repo ${{ github.repository }} --json tagName,assets,body
+      - name: Upload signed updater test APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: zekify-v3.6.0-release
+          path: Zekify-v3.6.0-updater-test.apk
+          if-no-files-found: error
+          retention-days: 14

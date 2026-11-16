@@ -82,6 +82,11 @@ public final class UpdateHistoryActivity extends Activity {
         scroll.addView(entries); root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
         setContentView(root);
         if (!getSharedPreferences("zekify_cache", MODE_PRIVATE).getBoolean("reduce_motion", false)) {
+            root.setAlpha(0f); root.setScaleX(.985f); root.setScaleY(.985f); root.setTranslationX(dp(22));
+            root.animate().alpha(1f).scaleX(1f).scaleY(1f).translationX(0f).setDuration(300L)
+                .setInterpolator(new android.view.animation.PathInterpolator(.2f,0f,0f,1f)).start();
+        }
+        if (!getSharedPreferences("zekify_cache", MODE_PRIVATE).getBoolean("reduce_motion", false)) {
             root.setAlpha(0f); root.setTranslationY(dp(14));
             root.animate().alpha(1f).translationY(0f).setDuration(280L)
                 .setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f)).start();

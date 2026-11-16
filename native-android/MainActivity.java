@@ -61,7 +61,16 @@ public class MainActivity extends Activity {
  private final int ORANGE=Color.rgb(255,138,61),BG=Color.rgb(5,5,5),PANEL=Color.rgb(17,17,17),MUTED=Color.rgb(145,145,145);
  private String destination="home",settingsReturnDestination="profile",detailTab="overview";
  private String matchReturnDestination="home";
- @Override public void onCreate(Bundle b){super.onCreate(b);appPrefs=getSharedPreferences("zekify_cache",MODE_PRIVATE);installCrashRecorder();pendingMatchId=getIntent().getStringExtra("matchId")==null?"":getIntent().getStringExtra("matchId");getWindow().setStatusBarColor(BG);getWindow().setNavigationBarColor(BG);getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR^View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);createReminderChannel();home();applySettings();showStartupSplash();registerNetworkRecovery();if(hasInternetConnection())load();else showOfflineGate();}
+ private View pendingMotionOrigin;
+ private String pendingMotionKind="fade-through";
+ private android.window.OnBackInvokedCallback predictiveBackCallback;
+ @Override public void onCreate(Bundle b){
+  androidx.core.splashscreen.SplashScreen splash=null;
+  if(Build.VERSION.SDK_INT>=31){splash=androidx.core.splashscreen.SplashScreen.installSplashScreen(this);splash.setOnExitAnimationListener(provider->{View icon=provider.getView();icon.animate().alpha(0f).scaleX(1.16f).scaleY(1.16f).setDuration(220L).setInterpolator(new android.view.animation.PathInterpolator(.2f,0f,0f,1f)).withEndAction(provider::remove).start();});}
+  super.onCreate(b);
+  if(Build.VERSION.SDK_INT>=33){predictiveBackCallback=this::handleBackNavigation;getOnBackInvokedDispatcher().registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,predictiveBackCallback);}
+  appPrefs=getSharedPreferences("zekify_cache",MODE_PRIVATE);installCrashRecorder();pendingMatchId=getIntent().getStringExtra("matchId")==null?"":getIntent().getStringExtra("matchId");getWindow().setStatusBarColor(BG);getWindow().setNavigationBarColor(BG);getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR^View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);createReminderChannel();home();applySettings();if(Build.VERSION.SDK_INT<31)showStartupSplash();registerNetworkRecovery();if(hasInternetConnection())load();else showOfflineGate();
+ }
  private void installCrashRecorder(){Thread.UncaughtExceptionHandler previous=Thread.getDefaultUncaughtExceptionHandler();Thread.setDefaultUncaughtExceptionHandler((thread,error)->{try{StringWriter trace=new StringWriter();error.printStackTrace(new PrintWriter(trace));recordBug("APP_CRASH",error,trace.toString());appPrefs.edit().putString("last_uncaught_error",trace.toString()).putLong("last_uncaught_error_at",System.currentTimeMillis()).apply();}catch(Exception ignored){}if(previous!=null)previous.uncaughtException(thread,error);else{android.os.Process.killProcess(android.os.Process.myPid());System.exit(10);}});}
  private boolean hasInternetConnection(){try{if(connectivityManager==null)connectivityManager=(ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);if(connectivityManager==null)return false;Network active=connectivityManager.getActiveNetwork();if(active==null)return false;android.net.NetworkCapabilities caps=connectivityManager.getNetworkCapabilities(active);return caps!=null&&caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)&&caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED);}catch(Exception ignored){return false;}}
  private void showOfflineGate(){
@@ -164,7 +173,33 @@ public class MainActivity extends Activity {
  private int dp(int n){return (int)(n*getResources().getDisplayMetrics().density+.5f);}
  private void safeScrollAdd(ScrollView scroll,View child){if(scroll==null||child==null)return;if(child.getParent() instanceof ViewGroup)((ViewGroup)child.getParent()).removeView(child);scroll.removeAllViews();scroll.addView(child,new ScrollView.LayoutParams(-1,-2));}
  private Button btn(String s,boolean primary){Button b=new Button(this);b.setText(s);b.setTextSize(12);b.setAllCaps(false);b.setTextColor(primary?Color.BLACK:Color.WHITE);b.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));b.setBackground(ripple(primary?ORANGE:0xff171717,20));b.setMinHeight(dp(46));b.setPadding(dp(16),0,dp(16),0);b.setOnTouchListener((v,e)->{if(e.getAction()==MotionEvent.ACTION_DOWN)v.animate().scaleX(.97f).scaleY(.97f).setDuration(75).start();else if(e.getAction()==MotionEvent.ACTION_UP||e.getAction()==MotionEvent.ACTION_CANCEL)v.animate().scaleX(1f).scaleY(1f).setDuration(130).setInterpolator(new android.view.animation.OvershootInterpolator(1.15f)).start();return false;});return b;}
- private void setAnimatedScreen(View screen){setContentView(screen);if(setting("reduce_motion",false)){screen.setAlpha(1f);screen.setTranslationY(0f);return;}screen.animate().cancel();screen.setAlpha(0f);screen.setTranslationY(dp(14));screen.animate().alpha(1f).translationY(0f).setDuration(280L).setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f)).start();}
+ private void setAnimatedScreen(View screen){
+  View origin=pendingMotionOrigin;String motion=pendingMotionKind;pendingMotionOrigin=null;pendingMotionKind="fade-through";
+  int[] source=new int[2];int sourceW=0,sourceH=0;
+  if(origin!=null&&origin.getWidth()>0&&origin.getHeight()>0){origin.getLocationOnScreen(source);sourceW=origin.getWidth();sourceH=origin.getHeight();}
+  setContentView(screen);
+  if(setting("reduce_motion",false)){screen.setAlpha(1f);screen.setTranslationX(0f);screen.setTranslationY(0f);screen.setScaleX(1f);screen.setScaleY(1f);return;}
+  screen.animate().cancel();
+  screen.post(()->{
+   float w=Math.max(1,screen.getWidth()),h=Math.max(1,screen.getHeight());
+   android.view.animation.Interpolator easing=new android.view.animation.PathInterpolator(.2f,0f,0f,1f);
+   screen.setPivotX(w/2f);screen.setPivotY(h/2f);
+   if("container".equals(motion)&&sourceW>0&&sourceH>0){
+    float[] pos=new float[2];screen.getLocationOnScreen(pos);
+    float sx=Math.max(.08f,Math.min(1f,sourceW/w)),sy=Math.max(.08f,Math.min(1f,sourceH/h));
+    float tx=(source[0]+sourceW/2f)-(pos[0]+w/2f),ty=(source[1]+sourceH/2f)-(pos[1]+h/2f);
+    screen.setAlpha(.72f);screen.setScaleX(sx);screen.setScaleY(sy);screen.setTranslationX(tx);screen.setTranslationY(ty);
+    screen.animate().alpha(1f).scaleX(1f).scaleY(1f).translationX(0f).translationY(0f).setDuration(340L).setInterpolator(easing).start();
+   }else if("shared-x".equals(motion)||"shared-y".equals(motion)){
+    float dx="shared-x".equals(motion)?dp(30):0f,dy="shared-y".equals(motion)?dp(26):0f;
+    screen.setAlpha(0f);screen.setScaleX(.985f);screen.setScaleY(.985f);screen.setTranslationX(dx);screen.setTranslationY(dy);
+    screen.animate().alpha(1f).scaleX(1f).scaleY(1f).translationX(0f).translationY(0f).setDuration(300L).setInterpolator(easing).start();
+   }else{
+    screen.setAlpha(0f);screen.setScaleX(.96f);screen.setScaleY(.96f);screen.setTranslationX(0f);screen.setTranslationY(0f);
+    screen.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(260L).setInterpolator(easing).start();
+   }
+  });
+ }
  private void home(){
   destination="home";
   root=col();root.setBackgroundColor(BG);
@@ -222,6 +257,7 @@ public class MainActivity extends Activity {
  }
  private void showDestination(String target){
   if(target==null)return;
+  pendingMotionKind=("settings".equals(target)||"profile".equals(target)||"schedule".equals(target))?"shared-y":"fade-through";
   if(!"home".equals(target)&&selected!=null){stopInlinePlayback();selected=null;detail=null;selectedSources=null;}
   destination=target;
   if("home".equals(target)){home();renderLeagues();render();return;}
@@ -330,7 +366,7 @@ public class MainActivity extends Activity {
   private void reportBug(JSONObject item){String body=bugText(item)+"\\n\\nPlease describe what you were doing when this happened:";try{Intent email=new Intent(Intent.ACTION_SENDTO,Uri.parse("mailto:laczekrsa@proton.me"));email.putExtra(Intent.EXTRA_SUBJECT,"Zekify bug report · "+item.optString("code"));email.putExtra(Intent.EXTRA_TEXT,body);startActivity(Intent.createChooser(email,"Send bug report"));}catch(Exception e){Toast.makeText(this,"No email app is available. Copy the report instead.",Toast.LENGTH_LONG).show();copyBug(bugText(item));}}
   private void copyBug(String value){android.content.ClipboardManager cm=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);if(cm!=null){cm.setPrimaryClip(ClipData.newPlainText("Zekify bug report",value));Toast.makeText(this,"Bug report copied.",Toast.LENGTH_SHORT).show();}}
   private void showBugReports(){Dialog d=new Dialog(this);LinearLayout panel=col();panel.setBackground(shape(0xff101010,20));pad(panel,18,16,18,16);LinearLayout head=row();head.addView(txt("BUG REPORTS",15,Color.WHITE,true),new LinearLayout.LayoutParams(0,-2,1));NativeIcon close=new NativeIcon(this,"close",Color.WHITE);head.addView(close,new LinearLayout.LayoutParams(dp(34),dp(34)));close.setOnClickListener(v->d.dismiss());panel.addView(head);TextView note=txt("Saved locally on this device. Reports are only sent when you choose Report.",10,MUTED,false);LinearLayout.LayoutParams noteP=new LinearLayout.LayoutParams(-1,-2);noteP.topMargin=dp(5);panel.addView(note,noteP);ScrollView scroll=new ScrollView(this);LinearLayout list=col();LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,0,1);sp.topMargin=dp(12);panel.addView(scroll,sp);scroll.addView(list);JSONArray logs=getBugLogs();for(int i=logs.length()-1;i>=0;i--){JSONObject entry=logs.optJSONObject(i);if(entry==null)continue;LinearLayout card=col();card.setBackground(shape(PANEL,13));pad(card,12,12,12,12);LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2);cp.bottomMargin=dp(8);list.addView(card,cp);card.addView(txt(entry.optString("code"),12,ORANGE,true));card.addView(txt(entry.optString("source")+" · "+entry.optString("type"),10,Color.WHITE,true));TextView message=txt(entry.optString("message"),11,MUTED,false);LinearLayout.LayoutParams mp=new LinearLayout.LayoutParams(-1,-2);mp.topMargin=dp(4);card.addView(message,mp);LinearLayout actions=row();LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(-1,-2);ap.topMargin=dp(9);card.addView(actions,ap);Button copy=btn("Copy code",false),full=btn("Copy log",false),send=btn("Report",true);actions.addView(copy,new LinearLayout.LayoutParams(0,dp(38),1));actions.addView(full,new LinearLayout.LayoutParams(0,dp(38),1));actions.addView(send,new LinearLayout.LayoutParams(0,dp(38),1));copy.setOnClickListener(v->copyBug(entry.optString("code")));full.setOnClickListener(v->copyBug(bugText(entry)));send.setOnClickListener(v->reportBug(entry));}if(logs.length()==0){TextView empty=txt("No errors have been logged. If something breaks, Zekify will save its error code here.",12,MUTED,false);pad(empty,8,24,8,24);list.addView(empty);}dialogWindow(d,panel,.92f,.78f);}
-  private void dialogWindow(Dialog d,View contentView,float width,float height){d.setContentView(contentView);d.show();Window w=d.getWindow();if(w!=null){w.setBackgroundDrawableResource(android.R.color.transparent);w.setLayout((int)(getResources().getDisplayMetrics().widthPixels*width),(int)(getResources().getDisplayMetrics().heightPixels*height));}}
+  private void dialogWindow(Dialog d,View contentView,float width,float height){d.setContentView(contentView);d.show();Window w=d.getWindow();if(w!=null){w.setBackgroundDrawableResource(android.R.color.transparent);w.setWindowAnimations(android.R.style.Animation_Dialog);w.setLayout((int)(getResources().getDisplayMetrics().widthPixels*width),(int)(getResources().getDisplayMetrics().heightPixels*height));}}
   private void clearTemporaryCache(){try{File dir=getCacheDir();File[] files=dir.listFiles();if(files!=null)for(File f:files)deleteRecursively(f);synchronized(badgeCache){badgeCache.evictAll();}appPrefs.edit().remove("matches_json").remove("matches_cached_at").apply();Toast.makeText(this,"Temporary cache cleared. Saved reminders and settings were kept.",Toast.LENGTH_LONG).show();if(matches.isEmpty())load();}catch(Exception e){recordBug("CACHE_CLEAR",e,null);Toast.makeText(this,"Could not clear all cache files.",Toast.LENGTH_LONG).show();}}
   private void deleteRecursively(File f){if(f==null||!f.exists())return;if(f.isDirectory()){File[] children=f.listFiles();if(children!=null)for(File child:children)deleteRecursively(child);}if(!f.delete())f.deleteOnExit();}
   private void showSettings(){settingsReturnDestination="profile";showDestination("settings");}
@@ -568,7 +604,7 @@ public class MainActivity extends Activity {
   LinearLayout timerRow=row();timerRow.setGravity(Gravity.CENTER);LinearLayout.LayoutParams timerRowP=new LinearLayout.LayoutParams(-1,-2);timerRowP.topMargin=dp(1);card.addView(timerRow,timerRowP);
   TextView timer=txt(finished?"Match finished":live?matchElapsed(m):"Match starting in "+timerText(m.optLong("date",0),false),10,live?0xffffaaa5:finished?MUTED:Color.WHITE,true);
   timer.setGravity(Gravity.CENTER);timer.setBackground(shape(0xff090d16,18));pad(timer,13,6,13,6);timerRow.addView(timer);bindCompactStatus(timer,m,live,finished);
-  card.setOnClickListener(v->{if(setting("haptics",true))v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);selectMatch(m);});
+  card.setOnClickListener(v->{if(setting("haptics",true))v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);pendingMotionOrigin=card;pendingMotionKind="container";selectMatch(m);});
   if(!setting("reduce_motion",false)){card.setAlpha(0f);card.setScaleY(.985f);card.animate().alpha(1f).scaleY(1f).setDuration(160L).start();}
   return card;
  }
@@ -711,6 +747,7 @@ public class MainActivity extends Activity {
   if(m==null)return;
   if(selected!=null&&selected.optString("id").equals(m.optString("id")))return;
   if(selected==null)matchReturnDestination=destination;
+  if(pendingMotionOrigin==null)pendingMotionKind="shared-x";
   stopInlinePlayback();selected=m;detail=null;selectedSources=null;selectedSourceIndex=0;detailTab="overview";inlineLoading=true;render();
   final String sport=selectedSport;apiIo.execute(()->{try{JSONObject p=request("/api/public/football-streams?mode=detail&sport="+URLEncoder.encode(sport,"UTF-8")+"&id="+URLEncoder.encode(m.optString("id"),"UTF-8"));JSONObject d=p.optJSONObject("data");JSONArray src=d==null?null:d.optJSONArray("sources");runOnUiThread(()->{if(selected==null||!selected.optString("id").equals(m.optString("id")))return;detail=d;selectedSources=src;inlineLoading=false;render();if(src!=null&&src.length()>0)startInlineSource(0);});}catch(Exception e){runOnUiThread(()->{if(selected==null||!selected.optString("id").equals(m.optString("id")))return;inlineLoading=false;recordBug("MATCH_DETAIL",e,null);render();});}});
  }
@@ -1013,11 +1050,13 @@ public class MainActivity extends Activity {
  private void registerNetworkRecovery(){connectivityManager=(ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);if(connectivityManager==null)return;networkCallback=new ConnectivityManager.NetworkCallback(){@Override public void onAvailable(Network network){inlineNetworkHandler.postDelayed(()->{if(isFinishing())return;if(!hasInternetConnection())return;hideOfflineGate();if(matches.isEmpty()||setting("auto_refresh",true))load();if(setting("auto_reconnect",true)&&selectedSources!=null&&inlineStatus!=null){String state=inlineStatus.getText().toString().toLowerCase(Locale.ROOT);if(state.contains("failed")||state.contains("timed out")||state.contains("stopped"))startInlineSource(selectedSourceIndex);}},1200L);}@Override public void onLost(Network network){inlineNetworkHandler.post(()->{if(!hasInternetConnection())showOfflineGate();});}};try{connectivityManager.registerDefaultNetworkCallback(networkCallback);}catch(RuntimeException ignored){networkCallback=null;}}
  private void homeAndRender(){String target=matchReturnDestination;stopInlinePlayback();selected=null;selectedSources=null;if("home".equals(target)){home();renderLeagues();render();}else showDestination(target);}
   private void returnHomeFromMiniPlayer(){matchReturnDestination="home";stopInlinePlayback();selected=null;detail=null;selectedSources=null;destination="home";home();renderLeagues();render();}
- @Override public void onBackPressed(){
-  if(selected!=null){homeAndRender();return;}
-  if(!"home".equals(destination)){showDestination("home");return;}
+ private void handleBackNavigation(){
+  if(selected!=null){pendingMotionKind="shared-x";homeAndRender();return;}
+  if(!"home".equals(destination)){pendingMotionKind="fade-through";showDestination("home");return;}
   if(setting("confirm_exit",false)){new AlertDialog.Builder(this).setTitle("Exit Zekify?").setMessage("Close the app now?").setNegativeButton("Stay",null).setPositiveButton("Exit",(d,w)->finish()).show();}else finish();
  }
+ @Override public void onBackPressed(){handleBackNavigation();}
+ @Override protected void onDestroy(){if(Build.VERSION.SDK_INT>=33&&predictiveBackCallback!=null){try{getOnBackInvokedDispatcher().unregisterOnBackInvokedCallback(predictiveBackCallback);}catch(Exception ignored){}}super.onDestroy();}
  @Override public void onUserLeaveHint(){
   super.onUserLeaveHint();
   if(!setting("floating_player",false)||selected==null||Build.VERSION.SDK_INT<26)return;
