@@ -141,7 +141,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
       - name: Publish v3.5.8 GitHub release
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[release-v3.5.8]')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
