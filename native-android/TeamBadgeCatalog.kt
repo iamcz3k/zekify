@@ -2,6 +2,7 @@ package com.v3x.zekify
 
 import android.content.Context
 import org.json.JSONObject
+import java.text.Normalizer
 
 /**
  * Global football identity resolver.
@@ -101,5 +102,8 @@ object TeamBadgeCatalog {
     }
 
     private fun normalize(value: String): String =
-        value.lowercase(java.util.Locale.ROOT).filter { it.isLetterOrDigit() }
+        Normalizer.normalize(value, Normalizer.Form.NFD)
+            .replace(Regex("\\p{Mn}+"), "")
+            .lowercase(java.util.Locale.ROOT)
+            .filter { it.isLetterOrDigit() }
 }
