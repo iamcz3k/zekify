@@ -45,6 +45,12 @@ for (const file of files) {
   const entry = { path: assetPath, name, country, source: "JoseArroyave/football-logos" };
   teams[countryKey + "::" + nameKey] = entry;
   if (!teams[nameKey]) teams[nameKey] = entry;
+  const aliasName = name.replace(/\\b(association football club|football club|athletic club|sporting club|fc|afc|cf|sc|ac|fk|sv|bk|cd|ud|rcd)\\b/gi, " ");
+  const aliasKey = safeSlug(aliasName);
+  if (aliasKey && aliasKey !== nameKey) {
+    teams[countryKey + "::" + aliasKey] = entry;
+    if (!teams[aliasKey]) teams[aliasKey] = entry;
+  }
   copied++;
 }
 if (copied < 1000) throw new Error("Expected at least 1,000 bundled team badges, found " + copied);
