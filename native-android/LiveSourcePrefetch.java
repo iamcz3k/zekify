@@ -25,6 +25,11 @@ public final class LiveSourcePrefetch {
             .setConstraints(constraints)
             .build();
         manager.enqueueUniquePeriodicWork(PERIODIC, ExistingPeriodicWorkPolicy.KEEP, periodic);
+        android.content.SharedPreferences prefs = context.getApplicationContext()
+            .getSharedPreferences("zekify_cache", Context.MODE_PRIVATE);
+        long lastQueued = prefs.getLong("live_source_prefetch_queued_at", 0L);
+        if (System.currentTimeMillis() - lastQueued < TimeUnit.MINUTES.toMillis(5)) return;
+        prefs.edit().putLong("live_source_prefetch_queued_at", System.currentTimeMillis()).apply();
         OneTimeWorkRequest immediate = new OneTimeWorkRequest.Builder(LiveSourcePrefetchWorker.class)
             .setConstraints(constraints)
             .setBackoffCriteria(androidx.work.BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
