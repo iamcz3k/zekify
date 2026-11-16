@@ -3,6 +3,9 @@ on:
   push:
     branches:
       - feature/zekify-v3.8.0-native-global
+  pull_request:
+    branches:
+      - telegram-football-bot
   workflow_dispatch:
 permissions:
   contents: write
