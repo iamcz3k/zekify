@@ -158,7 +158,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          LATEST_SHA="$(git ls-remote origin refs/heads/feature/zekify-v3.6.1-material-motion | awk '{print $1}')"
+          LATEST_SHA="$(git ls-remote origin refs/heads/feature/zekify-v3.6.1-smooth-navigation | awk '{print $1}')"
           if [ "$GITHUB_SHA" != "$LATEST_SHA" ]; then echo "Superseded build; only the latest branch commit may publish."; exit 1; fi
           cp Zekify-v3.6.1-updater-test.apk Zekify-v3.6.1.apk
           sha256sum Zekify-v3.6.1.apk > Zekify-v3.6.1.apk.sha256
