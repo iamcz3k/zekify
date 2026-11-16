@@ -97,6 +97,10 @@ jobs:
       - name: Verify native football profiles, offline data, and original illustrations
         run: |
           grep -q 'FootballEntityActivity.kt' scripts/patch-native-android.mjs
+          grep -q 'FollowedEntitiesActivity.kt' scripts/patch-native-android.mjs
+          grep -q 'android:name=".FollowedEntitiesActivity"' scripts/patch-native-android.mjs
+          grep -q 'Followed teams & leagues' native-android/MainActivity.java
+          grep -q 'offlineMotion.cancel' native-android/MainActivity.java
           grep -q 'android:name=".FootballEntityActivity"' scripts/patch-native-android.mjs
           grep -q 'profile.putExtra("entity_type","team")' native-android/MainActivity.java
           grep -q 'profile.putExtra("entity_type","competition")' native-android/MainActivity.java
