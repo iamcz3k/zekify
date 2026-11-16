@@ -194,7 +194,7 @@ const downloaded = await mapLimit(downloads, IMAGE_CONCURRENCY, async item => {
   return item;
 });
 
-const good = downloaded.filter(Boolean);
+const good = downloaded.filter(item => item && !item.error);
 const failedImages = downloaded.length - good.length;
 const validFiles = new Set(await fs.readdir(ROOT));
 for (const collection of [index.teams, index.competitions]) {
