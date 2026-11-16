@@ -119,6 +119,8 @@ await writeFile(playerActivityPath, playerActivity);
 await copyFile("native-android/MatchReminderReceiver.java",root+"/MatchReminderReceiver.java");
 await copyFile("native-android/MatchReminderBootReceiver.java",root+"/MatchReminderBootReceiver.java");
 await copyFile("native-android/ZekifyUpdateManager.java",root+"/ZekifyUpdateManager.java");
+await copyFile("native-android/LiveSourcePrefetchWorker.java",root+"/LiveSourcePrefetchWorker.java");
+await copyFile("native-android/LiveSourcePrefetch.java",root+"/LiveSourcePrefetch.java");
 
 const sportsAssetsSource = "native-android/assets/sports";
 const sportsAssetsTarget = "android/app/src/main/assets/sports";
@@ -182,6 +184,7 @@ if(!gradle.includes("androidx.media3:media3-exoplayer")) {
 if(!gradle.includes("androidx.media3:media3-exoplayer-hls")) {
  gradle=gradle.replace(/dependencies\s*\{/, 'dependencies {\n    implementation "androidx.media3:media3-exoplayer-hls:1.5.1"');
 }
+if(!gradle.includes("androidx.work:work-runtime"))gradle=gradle.replace(/dependencies\s*\{/, 'dependencies {\n    implementation "androidx.work:work-runtime:2.9.1"');
 if(!gradle.includes("com.caverock:androidsvg-aar")) {
  gradle=gradle.replace(/dependencies\s*\{/, 'dependencies {\n    implementation "com.caverock:androidsvg-aar:1.4"');
 }
