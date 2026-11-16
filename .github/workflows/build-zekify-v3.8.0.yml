@@ -1,11 +1,10 @@
-name: Build and publish Zekify v3.8.0
+name: Validate Zekify v3.8.0 native upgrade
 on:
   push:
     branches:
       - feature/zekify-v3.8.0-native-football
   pull_request:
     branches:
-      - telegram-football-bot
   workflow_dispatch:
 concurrency:
   group: zekify-v3.8.0-${{ github.ref }}
@@ -208,6 +207,7 @@ jobs:
           test "$CERT" = "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Zekify-v3.8.0-updater-test.apk | grep "package: name='com.v3x.zekify' versionCode='380' versionName='3.8.0'"
       - name: Publish verified v3.8.0 release
+        if: ${{ false }} # Default-branch copy validates only; the feature-branch workflow publishes.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
