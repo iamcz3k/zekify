@@ -929,13 +929,14 @@ public class MainActivity extends Activity {
  private void createReminderChannel(){if(Build.VERSION.SDK_INT>=26){NotificationManager manager=getSystemService(NotificationManager.class);if(manager!=null){NotificationChannel channel=new NotificationChannel("zekify_match_reminders_v2","Match reminders",NotificationManager.IMPORTANCE_HIGH);channel.setDescription("Kickoff reminders for matches selected in Zekify");channel.setSound(android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION),new android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION).setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION).build());channel.enableVibration(true);manager.createNotificationChannel(channel);}}}
  private boolean hasNotificationPermission(){return Build.VERSION.SDK_INT<33||checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)==android.content.pm.PackageManager.PERMISSION_GRANTED;}
   private void requestNotificationPermission(){if(Build.VERSION.SDK_INT>=33&&!hasNotificationPermission())requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS},4102);}
+  private void requestUpdateNotificationPermission(){if(Build.VERSION.SDK_INT>=33&&!hasNotificationPermission()&&!appPrefs.getBoolean("update_notification_permission_asked",false)){appPrefs.edit().putBoolean("update_notification_permission_asked",true).apply();requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS},4103);}}
   @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){super.onRequestPermissionsResult(requestCode,permissions,grantResults);if(requestCode==4102){if(grantResults.length>0&&grantResults[0]==android.content.pm.PackageManager.PERMISSION_GRANTED)Toast.makeText(this,"Notifications enabled. Tap the match bell again to schedule it.",Toast.LENGTH_LONG).show();else Toast.makeText(this,"Notifications are blocked. Enable them in Android app settings to receive match alerts.",Toast.LENGTH_LONG).show();}if(requestCode==4103){if(grantResults.length>0&&grantResults[0]==android.content.pm.PackageManager.PERMISSION_GRANTED)checkForUpdates(true);else Toast.makeText(this,"Allow notifications to receive Zekify update alerts.",Toast.LENGTH_LONG).show();}}
  private void checkForUpdates(boolean showUpToDate){
   if(isFinishing()||isDestroyed())return;
   ZekifyUpdateManager.check(this,(update,error)->{
    if(isFinishing()||isDestroyed())return;
    if(error!=null&&!error.trim().isEmpty()){if(showUpToDate)Toast.makeText(this,"Update check failed: "+error,Toast.LENGTH_LONG).show();return;}
-   if(update!=null){ZekifyUpdateManager.showRequiredUpdate(this,update);return;}
+   if(update!=null){requestUpdateNotificationPermission();ZekifyUpdateManager.showRequiredUpdate(this,update);return;}
    if(showUpToDate)Toast.makeText(this,"You're using the latest Zekify version.",Toast.LENGTH_SHORT).show();
   });
  }
@@ -947,9 +948,11 @@ public class MainActivity extends Activity {
   appPrefs.edit().putLong("updater_last_auto_check",now).apply();
   ZekifyUpdateManager.check(this,(update,error)->{
    if(isFinishing()||isDestroyed()||error!=null||update==null)return;
+   requestUpdateNotificationPermission();
+   String updateKey=update.version+":"+update.buildCode;
    String prompted=appPrefs.getString("updater_prompted_version","");
-   if(update.version.equals(prompted))return;
-   appPrefs.edit().putString("updater_prompted_version",update.version).apply();
+   if(updateKey.equals(prompted))return;
+   appPrefs.edit().putString("updater_prompted_version",updateKey).apply();
    ZekifyUpdateManager.showRequiredUpdate(this,update);
   });
  }

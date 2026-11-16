@@ -81,10 +81,18 @@ jobs:
           PY
       - name: Set test package version
         run: |
-          sed -i 's/versionCode 1/versionCode 359/' android/app/build.gradle
+          sed -i 's/versionCode 1/versionCode 360/' android/app/build.gradle
           sed -i 's/versionName "1.0"/versionName "3.5.9"/' android/app/build.gradle
-          grep -q 'versionCode 359' android/app/build.gradle
+          grep -q 'versionCode 360' android/app/build.gradle
           grep -q 'versionName "3.5.9"' android/app/build.gradle
+      - name: Verify updater handoff, notifications, and same-version build metadata
+        run: |
+          grep -q 'parseBuildCode' native-android/ZekifyUpdateManager.java
+          grep -q 'pending_build_code' native-android/ZekifyUpdateManager.java
+          grep -q 'ACTION_INSTALL_PACKAGE' native-android/ZekifyUpdateManager.java
+          grep -q 'requestUpdateNotificationPermission' native-android/MainActivity.java
+          ! grep -q 'different certificate' native-android/ZekifyUpdateManager.java
+          grep -q 'POST_NOTIFICATIONS' scripts/patch-native-android.mjs
       - name: Configure production signing
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -136,7 +144,7 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.5.9-updater-test.apk | tee signing-certificate.txt
           CERT="$(awk '/Signer #1 certificate SHA-256 digest:/ {print $NF; exit}' signing-certificate.txt)"
           test "$CERT" = "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119"
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Zekify-v3.5.9-updater-test.apk | grep "package: name='com.v3x.zekify' versionCode='359' versionName='3.5.9'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Zekify-v3.5.9-updater-test.apk | grep "package: name='com.v3x.zekify' versionCode='360' versionName='3.5.9'"
       - name: Publish verified v3.5.9 release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -145,12 +153,22 @@ jobs:
           if [ "$GITHUB_SHA" != "$LATEST_SHA" ]; then echo "Superseded build; only the latest branch commit may publish."; exit 1; fi
           cp Zekify-v3.5.9-updater-test.apk Zekify-v3.5.9.apk
           sha256sum Zekify-v3.5.9.apk > Zekify-v3.5.9.apk.sha256
+          cat > release-notes-v3.5.9.md <<'NOTES'
+          Build code: 360
+
+          - Fixed updater certificate pre-check so Android's package installer performs the authoritative signing compatibility check.
+          - Updater verifies the APK checksum and package/build identity, then hands installation to Android.
+          - Added update-available notifications with Android 13+ permission handling.
+          - Preserved version name 3.5.9 while advancing the internal build code for this same-version repair.
+          - Retained smooth navigation and mini-player unlock fixes.
+          NOTES
           if gh release view v3.5.9 --repo ${{ github.repository }} >/dev/null 2>&1; then
             gh release upload v3.5.9 Zekify-v3.5.9.apk Zekify-v3.5.9.apk.sha256 --repo ${{ github.repository }} --clobber
+            gh release edit v3.5.9 --repo ${{ github.repository }} --title "Zekify v3.5.9" --notes-file release-notes-v3.5.9.md
           else
-            gh release create v3.5.9 Zekify-v3.5.9.apk Zekify-v3.5.9.apk.sha256 --repo ${{ github.repository }} --target "$GITHUB_SHA" --title "Zekify v3.5.9" --notes "Smooth app navigation transitions, corrected fullscreen-to-mini-player unlock state, and updated home menu icon."
+            gh release create v3.5.9 Zekify-v3.5.9.apk Zekify-v3.5.9.apk.sha256 --repo ${{ github.repository }} --target "$GITHUB_SHA" --title "Zekify v3.5.9" --notes-file release-notes-v3.5.9.md
           fi
-          gh release view v3.5.9 --repo ${{ github.repository }} --json tagName,assets
+          gh release view v3.5.9 --repo ${{ github.repository }} --json tagName,assets,body
       - name: Upload signed updater test APK
         uses: actions/upload-artifact@v4
         with:

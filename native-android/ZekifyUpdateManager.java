@@ -17,7 +17,6 @@ import android.content.Intent;
 import android.content.ClipData;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
-import android.content.pm.Signature;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
@@ -37,9 +36,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.MessageDigest;
-import java.util.HashSet;
 import java.util.Locale;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -55,15 +52,18 @@ public final class ZekifyUpdateManager {
 
     public static final class Update {
         public final String version;
+        public final long buildCode;
         public final String notes;
         final String apkUrl;
         final String checksumUrl;
-        Update(String version, String notes, String apkUrl, String checksumUrl) {
+        Update(String version, long buildCode, String notes, String apkUrl, String checksumUrl) {
             this.version = version;
+            this.buildCode = buildCode;
             this.notes = notes;
             this.apkUrl = apkUrl;
             this.checksumUrl = checksumUrl;
         }
+        String notificationKey() { return version + ":" + buildCode; }
     }
 
     public interface CheckCallback {
@@ -81,10 +81,17 @@ public final class ZekifyUpdateManager {
                 String tag = release.optString("tag_name", "").trim();
                 String latest = tag.startsWith("v") ? tag.substring(1) : tag;
                 String installed;
+                long installedBuildCode;
                 try {
                     PackageInfo info = activity.getPackageManager().getPackageInfo(activity.getPackageName(), 0);
                     installed = info.versionName == null ? "0.0.0" : info.versionName;
-                } catch (Exception e) { installed = "0.0.0"; }
+                    installedBuildCode = getVersionCode(info);
+                } catch (Exception e) { installed = "0.0.0"; installedBuildCode = 0L; }
+                String releaseNotes = release.optString("body", "Bug fixes and improvements.");
+                long latestBuildCode = parseBuildCode(releaseNotes);
+                boolean newer = latestBuildCode > 0L
+                    ? latestBuildCode > installedBuildCode
+                    : compareVersions(latest, installed) > 0;
                 JSONArray assets = release.optJSONArray("assets");
                 String apk = "", checksum = "";
                 if (assets != null) {
@@ -97,9 +104,9 @@ public final class ZekifyUpdateManager {
                         if (name.endsWith(".sha256") || name.endsWith(".sha256sum")) checksum = url;
                     }
                 }
-                if (compareVersions(latest, installed) > 0 && !apk.isEmpty() && !checksum.isEmpty()) {
-                    update = new Update(latest, release.optString("body", "Bug fixes and improvements."), apk, checksum);
-                } else if (compareVersions(latest, installed) > 0) {
+                if (newer && !apk.isEmpty() && !checksum.isEmpty()) {
+                    update = new Update(latest, latestBuildCode, releaseNotes, apk, checksum);
+                } else if (newer) {
                     error = "The latest release is missing its APK or checksum file.";
                 }
             } catch (Exception e) {
@@ -132,7 +139,7 @@ public final class ZekifyUpdateManager {
             manager.createNotificationChannel(channel);
         }
         android.content.SharedPreferences prefs = activity.getSharedPreferences(PREFS, Activity.MODE_PRIVATE);
-        if (update.version.equals(prefs.getString("last_notified_version", ""))) return;
+        if (update.notificationKey().equals(prefs.getString("last_notified_version", ""))) return;
         Intent openUpdate = new Intent(activity, MainActivity.class);
         openUpdate.setAction("com.v3x.zekify.OPEN_UPDATE");
         openUpdate.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
@@ -151,7 +158,7 @@ public final class ZekifyUpdateManager {
             .setAutoCancel(true)
             .setPriority(Notification.PRIORITY_DEFAULT);
         manager.notify(UPDATE_NOTIFICATION_ID, notification.build());
-        prefs.edit().putString("last_notified_version", update.version).apply();
+        prefs.edit().putString("last_notified_version", update.notificationKey()).apply();
     }
 
     private static int compareVersions(String left, String right) {
@@ -441,12 +448,13 @@ public final class ZekifyUpdateManager {
                 if (!partial.isFile() || partial.length() < 1024L * 1024L) throw new Exception("The downloaded APK is incomplete or empty.");
                 String actual = sha256(partial);
                 if (!actual.equals(expected)) throw new Exception("APK checksum verification failed. The file was rejected.");
-                verifyPackageAndSignature(activity, partial);
+                verifyPackageAndVersion(activity, partial);
                 if (apk.exists() && !apk.delete()) throw new Exception("Could not replace the previous update file.");
                 if (!partial.renameTo(apk)) throw new Exception("Could not finalize the verified update file.");
                 activity.getSharedPreferences(PREFS, Activity.MODE_PRIVATE).edit()
                     .putString("pending_apk", apk.getAbsolutePath())
                     .putString("pending_version", update.version)
+                    .putLong("pending_build_code", update.buildCode)
                     .apply();
             } catch (Exception e) {
                 failure = e.getMessage() == null ? "Update download failed. Tap Retry." : e.getMessage();
@@ -465,7 +473,7 @@ public final class ZekifyUpdateManager {
                     actionButton.setEnabled(true);
                     actionButton.setOnClickListener(v -> download(activity, update));
                 } else {
-                    status.setText("Download complete. Checksum and signing certificate verified. Opening Android installer…");
+                    status.setText("Download complete. Checksum and package verified. Opening Android installer…");
                     progress.setProgress(100);
                     actionButton.setText("Opening installer…");
                     actionButton.setEnabled(false);
@@ -501,39 +509,29 @@ public final class ZekifyUpdateManager {
         return result.toString();
     }
 
-    private static Set<String> certificateDigests(PackageInfo info) throws Exception {
-        Signature[] signatures;
-        if (Build.VERSION.SDK_INT >= 28 && info.signingInfo != null) {
-            signatures = info.signingInfo.getApkContentsSigners();
-        } else {
-            signatures = info.signatures;
-        }
-        Set<String> result = new HashSet<>();
-        if (signatures != null) {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            for (Signature signature : signatures) {
-                byte[] bytes = digest.digest(signature.toByteArray());
-                StringBuilder hex = new StringBuilder();
-                for (byte b : bytes) hex.append(String.format(Locale.ROOT, "%02x", b));
-                result.add(hex.toString());
-            }
-        }
-        return result;
+    private static long getVersionCode(PackageInfo info) {
+        return Build.VERSION.SDK_INT >= 28 ? info.getLongVersionCode() : info.versionCode;
     }
 
-    private static void verifyPackageAndSignature(Activity activity, File apk) throws Exception {
+    private static long parseBuildCode(String notes) {
+        if (notes == null) return 0L;
+        java.util.regex.Matcher matcher = java.util.regex.Pattern
+            .compile("(?im)^\\s*Build code\\s*:\\s*(\\d+)\\s*$").matcher(notes);
+        if (!matcher.find()) return 0L;
+        try { return Long.parseLong(matcher.group(1)); }
+        catch (NumberFormatException ignored) { return 0L; }
+    }
+
+    // The Android package installer is the authority for signing-certificate compatibility.
+    // Zekify verifies the download checksum and package identity, then hands installation to Android.
+    private static void verifyPackageAndVersion(Activity activity, File apk) throws Exception {
         PackageManager pm = activity.getPackageManager();
-        int flags = Build.VERSION.SDK_INT >= 28 ? PackageManager.GET_SIGNING_CERTIFICATES : PackageManager.GET_SIGNATURES;
-        PackageInfo current = pm.getPackageInfo(activity.getPackageName(), flags);
-        PackageInfo candidate = pm.getPackageArchiveInfo(apk.getAbsolutePath(), flags);
+        PackageInfo current = pm.getPackageInfo(activity.getPackageName(), 0);
+        PackageInfo candidate = pm.getPackageArchiveInfo(apk.getAbsolutePath(), 0);
         if (candidate == null || !activity.getPackageName().equals(candidate.packageName))
             throw new Exception("This APK is not a Zekify update.");
-        if (candidate.versionName == null || compareVersions(candidate.versionName, current.versionName) <= 0)
-            throw new Exception("The downloaded APK is not newer than the installed version.");
-        Set<String> installedCertificates = certificateDigests(current);
-        Set<String> updateCertificates = certificateDigests(candidate);
-        if (installedCertificates.isEmpty() || !installedCertificates.equals(updateCertificates))
-            throw new Exception("The update was signed with a different certificate and cannot replace this installation.");
+        if (candidate.versionName == null || getVersionCode(candidate) <= getVersionCode(current))
+            throw new Exception("The downloaded APK is not newer than the installed build.");
     }
 
     public static void resumeInstall(Activity activity) {
@@ -542,11 +540,16 @@ public final class ZekifyUpdateManager {
         if (path == null || path.isEmpty()) return;
         File apk = new File(path);
         if (!apk.isFile()) return;
-        String version = activity.getSharedPreferences(PREFS, Activity.MODE_PRIVATE).getString("pending_version", "");
+        android.content.SharedPreferences prefs = activity.getSharedPreferences(PREFS, Activity.MODE_PRIVATE);
+        String version = prefs.getString("pending_version", "");
+        long pendingBuildCode = prefs.getLong("pending_build_code", 0L);
         try {
-            String installed = activity.getPackageManager().getPackageInfo(activity.getPackageName(), 0).versionName;
-            if (version != null && !version.isEmpty() && compareVersions(installed, version) >= 0) {
-                activity.getSharedPreferences(PREFS, Activity.MODE_PRIVATE).edit().remove("pending_apk").remove("pending_version").remove("awaiting_install_permission").apply();
+            PackageInfo installed = activity.getPackageManager().getPackageInfo(activity.getPackageName(), 0);
+            boolean alreadyInstalled = pendingBuildCode > 0L
+                ? getVersionCode(installed) >= pendingBuildCode
+                : version != null && !version.isEmpty() && compareVersions(installed.versionName, version) >= 0;
+            if (alreadyInstalled) {
+                prefs.edit().remove("pending_apk").remove("pending_version").remove("pending_build_code").remove("awaiting_install_permission").apply();
                 apk.delete();
                 return;
             }
@@ -572,7 +575,7 @@ public final class ZekifyUpdateManager {
         try {
             activity.getSharedPreferences(PREFS, Activity.MODE_PRIVATE).edit().remove("awaiting_install_permission").apply();
             if (apk == null || !apk.isFile() || apk.length() == 0) throw new Exception("The verified update file is no longer available. Download it again.");
-            verifyPackageAndSignature(activity, apk);
+            verifyPackageAndVersion(activity, apk);
             Uri uri = FileProvider.getUriForFile(activity, activity.getPackageName() + ".fileprovider", apk);
             Intent intent = new Intent(Intent.ACTION_INSTALL_PACKAGE);
             intent.setData(uri);
