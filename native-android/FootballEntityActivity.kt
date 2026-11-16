@@ -248,9 +248,26 @@ class FootballEntityActivity : Activity() {
     private fun favouriteStoreKey(): String = if (entityType == "competition") "competitions" else "teams"
     private fun isFavourite(): Boolean = favouriteSet().contains(favouriteKey())
     private fun saveFavourite(enabled: Boolean) {
+        val store = getSharedPreferences("zekify_favourites", MODE_PRIVATE)
+        val key = favouriteKey()
         val values = favouriteSet().toMutableSet()
-        if (enabled) values.add(favouriteKey()) else values.remove(favouriteKey())
-        getSharedPreferences("zekify_favourites", MODE_PRIVATE).edit().putStringSet(favouriteStoreKey(), values).apply()
+        val recordKey = "entity_" + favouriteStoreKey() + "_" + key
+        val editor = store.edit()
+        if (enabled) {
+            values.add(key)
+            val record = JSONObject()
+                .put("type", favouriteStoreKey())
+                .put("name", entityName)
+                .put("country", first(entity, "country", "countryName", "country_name", "area"))
+                .put("key", key)
+                .put("sport", sport)
+                .put("entity_json", entity.toString())
+            editor.putString(recordKey, record.toString())
+        } else {
+            values.remove(key)
+            editor.remove(recordKey)
+        }
+        editor.putStringSet(favouriteStoreKey(), values).apply()
     }
     private fun favouriteSet(): Set<String> =
         getSharedPreferences("zekify_favourites", MODE_PRIVATE).getStringSet(favouriteStoreKey(), emptySet()) ?: emptySet()
