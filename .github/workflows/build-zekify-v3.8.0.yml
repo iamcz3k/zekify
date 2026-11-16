@@ -1,4 +1,4 @@
-name: Build and validate Zekify v3.8.0
+name: Build and publish Zekify v3.8.0
 on:
   push:
     branches:
@@ -208,7 +208,6 @@ jobs:
           test "$CERT" = "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Zekify-v3.8.0-updater-test.apk | grep "package: name='com.v3x.zekify' versionCode='380' versionName='3.8.0'"
       - name: Publish verified v3.8.0 release
-        if: ${{ false }} # Keep interim builds as artifacts until the complete upgrade is approved.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -219,12 +218,19 @@ jobs:
           cat > release-notes-v3.8.0.md <<'NOTES'
           Build code: 380
 
-          - Added a native Kotlin team profile screen opened directly from match team badges.
-          - Team profiles show matching cached fixtures and remain usable offline.
-          - Added local follow/unfollow controls for teams, stored independently from temporary cache clearing.
-          - Added native entrance motion and badge loading with on-device image caching.
-          - Preserved the existing native match centre, reminders, updater, mini-player and playback flows.
+          - Bundled 5,083 team badges and 216 competition badges from a global collection spanning 235 country/region pages, national teams and tournaments.
+          - Optimized the 128px transparent WebP badge library for local/offline use, with stable-ID and country-aware name matching plus common aliases.
+          - Kept genuine provider-logo fetching and persistent on-device caching as the fallback for badges not in the bundle.
+          - Added native Kotlin team and competition profiles with cached fixture history.
+          - Added a native Followed Teams & Competitions screen with locally stored favourites.
+          - Added Continue Offline, cached fixture access, connection refresh, Wi-Fi settings and mobile-data settings.
+          - Added the installed app version to the splash screen and original native vector illustrations with subtle motion.
+          - Removed the unused bundled Vite website UI from the APK. Native Android screens remain; WebViews are retained only for remote streaming providers.
+          - Preserved existing match navigation, reminders, updater, mini-player and streaming behaviour.
           - Preserved the existing fullscreen player implementation and behaviour.
+
+          Badge artwork source: https://football-logos.cc/
+          This collection is used under the source's non-commercial informational/editorial/fan-project terms. Zekify remains free and ad-free; all club and competition marks remain owned by their respective rights holders.
           NOTES
           if gh release view v3.8.0 --repo ${{ github.repository }} >/dev/null 2>&1; then
             gh release upload v3.8.0 Zekify-v3.8.0.apk Zekify-v3.8.0.apk.sha256 --repo ${{ github.repository }} --clobber
