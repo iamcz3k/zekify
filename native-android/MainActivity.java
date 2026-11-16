@@ -1046,43 +1046,65 @@ public class MainActivity extends Activity {
  private void showSpeedTest(){
   Dialog d=new Dialog(this);LinearLayout panel=col();panel.setBackground(shape(0xff101010,22));pad(panel,18,16,18,16);
   LinearLayout head=row();head.addView(txt("NETWORK SPEED TEST",15,Color.WHITE,true),new LinearLayout.LayoutParams(0,-2,1));NativeIcon close=new NativeIcon(this,"close",Color.WHITE);head.addView(close,new LinearLayout.LayoutParams(dp(34),dp(34)));close.setOnClickListener(v->d.dismiss());panel.addView(head);
-  TextView intro=txt("A short test using Cloudflare's public speed-test service. It uses mobile data if Wi-Fi is unavailable.",10,MUTED,false);LinearLayout.LayoutParams ip=new LinearLayout.LayoutParams(-1,-2);ip.topMargin=dp(5);panel.addView(intro,ip);
-  LinearLayout metrics=row();LinearLayout.LayoutParams mp=new LinearLayout.LayoutParams(-1,dp(112));mp.topMargin=dp(18);panel.addView(metrics,mp);
-  TextView ping=metricValue("—","PING","ms");TextView jitter=metricValue("—","JITTER","ms");TextView down=metricValue("—","DOWNLOAD","Mbps");TextView up=metricValue("—","UPLOAD","Mbps");
-  metrics.addView(metricTile(ping,"PING","ms"),new LinearLayout.LayoutParams(0,-1,1));metrics.addView(metricTile(jitter,"JITTER","ms"),new LinearLayout.LayoutParams(0,-1,1));metrics.addView(metricTile(down,"DOWNLOAD","Mbps"),new LinearLayout.LayoutParams(0,-1,1));metrics.addView(metricTile(up,"UPLOAD","Mbps"),new LinearLayout.LayoutParams(0,-1,1));
-  TextView status=txt("Ready to test. Uses real network traffic and continues until the measured speed stabilizes.",10,MUTED,false);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,-2);sp.topMargin=dp(16);panel.addView(status,sp);
-  Button start=btn("Start speed test",true);LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(-1,dp(48));bp.topMargin=dp(14);panel.addView(start,bp);
-  start.setOnClickListener(v->{start.setEnabled(false);start.setText("Testing…");ping.setText("…");jitter.setText("…");down.setText("…");up.setText("…");status.setText("Measuring latency…");
+  TextView intro=txt("Real-time connection test powered by Cloudflare. Uses your active Wi-Fi or mobile data connection.",10,MUTED,false);LinearLayout.LayoutParams ip=new LinearLayout.LayoutParams(-1,-2);ip.topMargin=dp(4);panel.addView(intro,ip);
+  LinearLayout latency=row();LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(58));lp.topMargin=dp(14);panel.addView(latency,lp);
+  TextView ping=metricValue("—","PING","ms"),jitter=metricValue("—","JITTER","ms");
+  latency.addView(metricTile(ping,"PING","ms"),new LinearLayout.LayoutParams(0,-1,1));latency.addView(metricTile(jitter,"JITTER","ms"),new LinearLayout.LayoutParams(0,-1,1));
+  SpeedGaugeView gauge=new SpeedGaugeView(this);LinearLayout.LayoutParams gp=new LinearLayout.LayoutParams(-1,dp(270));gp.topMargin=dp(3);panel.addView(gauge,gp);
+  LinearLayout throughput=row();LinearLayout.LayoutParams tp=new LinearLayout.LayoutParams(-1,dp(64));tp.topMargin=dp(2);panel.addView(throughput,tp);
+  TextView down=metricValue("—","DOWNLOAD","Mbps"),up=metricValue("—","UPLOAD","Mbps");
+  throughput.addView(metricTile(down,"DOWNLOAD","Mbps"),new LinearLayout.LayoutParams(0,-1,1));throughput.addView(metricTile(up,"UPLOAD","Mbps"),new LinearLayout.LayoutParams(0,-1,1));
+  TextView status=txt("Ready to test. The gauge follows measured network speed in real time.",10,MUTED,false);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,-2);sp.topMargin=dp(12);panel.addView(status,sp);
+  Button start=btn("Start speed test",true);LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(-1,dp(46));bp.topMargin=dp(12);panel.addView(start,bp);
+  start.setOnClickListener(v->{start.setEnabled(false);start.setText("Testing…");ping.setText("…");jitter.setText("…");down.setText("…");up.setText("…");gauge.setSpeed(0);gauge.setCaption("MEASURING LATENCY");status.setText("Measuring ping and jitter…");
    apiIo.execute(()->{String error=null;double p=0,j=0,dl=0,ul=0;try{
     ArrayList<Long> samples=new ArrayList<>();for(int n=0;n<4;n++){HttpURLConnection c=(HttpURLConnection)new URL("https://speed.cloudflare.com/__down?bytes=0").openConnection();c.setConnectTimeout(10000);c.setReadTimeout(10000);c.setRequestMethod("GET");long t=System.nanoTime();int code=c.getResponseCode();if(code<200||code>=400)throw new IOException("Ping endpoint returned "+code);try(InputStream in=c.getInputStream()){while(in.read()!=-1){}}finally{c.disconnect();}samples.add((System.nanoTime()-t)/1000000L);}
     long total=0;for(long x:samples)total+=x;p=total/(double)samples.size();double dev=0;for(long x:samples)dev+=Math.abs(x-p);j=dev/samples.size();
-    runOnUiThread(()->status.setText("Testing download…"));
-    long downloadTotal=0;long downloadNanos=0;ArrayList<Double> downloadRates=new ArrayList<>();int downloadBytes=10*1024*1024;
+    final double pingResult=p,jitterResult=j;runOnUiThread(()->{if(d.isShowing()){ping.setText(String.format(Locale.US,"%.0f",pingResult));jitter.setText(String.format(Locale.US,"%.0f",jitterResult));gauge.setCaption("DOWNLOAD SPEED");status.setText("Testing download speed…");}});
+    long downloadTotal=0;long downloadNanos=0;ArrayList<Double> downloadRates=new ArrayList<>();int downloadBytes=10*1024*1024;long lastGaugeUpdate=0;
     do {
      HttpURLConnection dc=(HttpURLConnection)new URL("https://speed.cloudflare.com/__down?bytes="+downloadBytes).openConnection();dc.setConnectTimeout(15000);dc.setReadTimeout(60000);long dt=System.nanoTime();int received=0;
-     try(InputStream in=dc.getInputStream()){byte[] b=new byte[65536];int n;while((n=in.read(b))!=-1){received+=n;long elapsed=System.nanoTime()-dt;double live=received*8.0/Math.max(.001,elapsed/1e9)/1000000.0;final double rate=live;runOnUiThread(()->{if(d.isShowing())down.setText(String.format(Locale.US,"%.1f",rate));});}}
+     try(InputStream in=dc.getInputStream()){byte[] b=new byte[65536];int n;while((n=in.read(b))!=-1){received+=n;long elapsed=System.nanoTime()-dt;double live=received*8.0/Math.max(.001,elapsed/1e9)/1000000.0;if(elapsed-lastGaugeUpdate>100_000_000L){lastGaugeUpdate=elapsed;final double rate=live;runOnUiThread(()->{if(d.isShowing()){gauge.setSpeed(rate);down.setText(String.format(Locale.US,"%.1f",rate));}});}}}
      finally{dc.disconnect();}
      long elapsed=System.nanoTime()-dt;if(received<=0)throw new IOException("Download returned no data");downloadTotal+=received;downloadNanos+=elapsed;downloadRates.add(received*8.0/Math.max(.001,elapsed/1e9)/1000000.0);
      dl=downloadTotal*8.0/Math.max(.001,downloadNanos/1e9)/1000000.0;
-     final double current=dl;final int downloadSampleCount=downloadRates.size();runOnUiThread(()->{if(d.isShowing())status.setText("Measuring download… "+downloadSampleCount+" samples · "+String.format(Locale.US,"%.1f Mbps",current));});
+     final double current=dl;final int downloadSampleCount=downloadRates.size();runOnUiThread(()->{if(d.isShowing()){gauge.setSpeed(current);down.setText(String.format(Locale.US,"%.1f",current));status.setText("Measuring download… "+downloadSampleCount+" samples");}});
     } while(downloadNanos<10_000_000_000L || !speedSamplesStable(downloadRates));
-    final double finalDownload=dl;runOnUiThread(()->{if(d.isShowing())down.setText(String.format(Locale.US,"%.1f",finalDownload));status.setText("Download measured. Testing upload…");});
-    runOnUiThread(()->status.setText("Testing upload…"));
-    byte[] payload=new byte[5*1024*1024];new Random().nextBytes(payload);long uploadTotal=0;long uploadNanos=0;ArrayList<Double> uploadRates=new ArrayList<>();
+    final double finalDownload=dl;runOnUiThread(()->{if(d.isShowing()){down.setText(String.format(Locale.US,"%.1f",finalDownload));gauge.setCaption("UPLOAD SPEED");gauge.setSpeed(0);status.setText("Download complete. Testing upload…");}});
+    byte[] payload=new byte[5*1024*1024];new Random().nextBytes(payload);long uploadTotal=0;long uploadNanos=0;ArrayList<Double> uploadRates=new ArrayList<>();lastGaugeUpdate=0;
     do {
      HttpURLConnection uc=(HttpURLConnection)new URL("https://speed.cloudflare.com/__up").openConnection();uc.setConnectTimeout(15000);uc.setReadTimeout(60000);uc.setRequestMethod("POST");uc.setDoOutput(true);uc.setFixedLengthStreamingMode(payload.length);uc.setRequestProperty("Content-Type","application/octet-stream");long ut=System.nanoTime();
-     try(OutputStream out=uc.getOutputStream()){int sent=0;while(sent<payload.length){int chunk=Math.min(65536,payload.length-sent);out.write(payload,sent,chunk);sent+=chunk;long elapsed=System.nanoTime()-ut;double live=sent*8.0/Math.max(.001,elapsed/1e9)/1000000.0;final double rate=live;runOnUiThread(()->{if(d.isShowing())up.setText(String.format(Locale.US,"%.1f",rate));});}}
+     try(OutputStream out=uc.getOutputStream()){int sent=0;while(sent<payload.length){int chunk=Math.min(65536,payload.length-sent);out.write(payload,sent,chunk);sent+=chunk;long elapsed=System.nanoTime()-ut;double live=sent*8.0/Math.max(.001,elapsed/1e9)/1000000.0;if(elapsed-lastGaugeUpdate>100_000_000L){lastGaugeUpdate=elapsed;final double rate=live;runOnUiThread(()->{if(d.isShowing()){gauge.setSpeed(rate);up.setText(String.format(Locale.US,"%.1f",rate));}});}}}
      int response=uc.getResponseCode();try(InputStream in=(response>=400?uc.getErrorStream():uc.getInputStream())){if(in!=null)while(in.read()!=-1){}}finally{uc.disconnect();}
      if(response<200||response>=400)throw new IOException("Upload endpoint returned "+response);
      long elapsed=System.nanoTime()-ut;uploadTotal+=payload.length;uploadNanos+=elapsed;uploadRates.add(payload.length*8.0/Math.max(.001,elapsed/1e9)/1000000.0);
      ul=uploadTotal*8.0/Math.max(.001,uploadNanos/1e9)/1000000.0;
-     final double current=ul;final int uploadSampleCount=uploadRates.size();runOnUiThread(()->{if(d.isShowing())status.setText("Measuring upload… "+uploadSampleCount+" samples · "+String.format(Locale.US,"%.1f Mbps",current));});
+     final double current=ul;final int uploadSampleCount=uploadRates.size();runOnUiThread(()->{if(d.isShowing()){gauge.setSpeed(current);up.setText(String.format(Locale.US,"%.1f",current));status.setText("Measuring upload… "+uploadSampleCount+" samples");}});
     } while(uploadNanos<10_000_000_000L || !speedSamplesStable(uploadRates));
    }catch(Exception e){error=e.getMessage()==null?"Speed test failed.":e.getMessage();}
-   final String failure=error;final double fp=p,fj=j,fd=dl,fu=ul;runOnUiThread(()->{if(!d.isShowing())return;start.setEnabled(true);start.setText("Run again");if(failure!=null){status.setText("Test incomplete: "+failure);ping.setText("—");jitter.setText("—");down.setText("—");up.setText("—");}else{ping.setText(String.format(Locale.US,"%.0f",fp));jitter.setText(String.format(Locale.US,"%.0f",fj));down.setText(String.format(Locale.US,"%.1f",fd));up.setText(String.format(Locale.US,"%.1f",fu));status.setText("Test complete · Results are estimates and vary with network conditions.");}});
+   final String failure=error;final double fp=p,fj=j,fd=dl,fu=ul;runOnUiThread(()->{if(!d.isShowing())return;start.setEnabled(true);start.setText("Run again");if(failure!=null){gauge.setCaption("TEST INCOMPLETE");status.setText("Test incomplete: "+failure);}else{ping.setText(String.format(Locale.US,"%.0f",fp));jitter.setText(String.format(Locale.US,"%.0f",fj));down.setText(String.format(Locale.US,"%.1f",fd));up.setText(String.format(Locale.US,"%.1f",fu));gauge.setCaption("DOWNLOAD RESULT");gauge.setSpeed(fd);status.setText("Test complete · Results are estimates and vary with network conditions.");}});
    });
   });
-  dialogWindow(d,panel,.94f,.48f);
+  dialogWindow(d,panel,.94f,.84f);
+ }
+ private class SpeedGaugeView extends View{
+  private final Paint paint=new Paint(Paint.ANTI_ALIAS_FLAG);private double displayedSpeed=0,targetSpeed=0;private String caption="READY TO TEST";private final int cyan=0xff19d6d0,track=0xff28263f;
+  SpeedGaugeView(Context context){super(context);setLayerType(View.LAYER_TYPE_SOFTWARE,null);}
+  void setSpeed(double value){targetSpeed=Math.max(0,Math.min(1000,value));postInvalidate();}
+  void setCaption(String value){caption=value;postInvalidate();}
+  @Override protected void onDraw(Canvas canvas){super.onDraw(canvas);float w=getWidth(),h=getHeight(),cx=w/2f,cy=h*.51f,r=Math.min(w*.43f,h*.47f);float stroke=dp(15);RectF arc=new RectF(cx-r,cy-r,cx+r,cy+r);
+   paint.setShader(null);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(stroke);paint.setStrokeCap(Paint.Cap.ROUND);paint.setColor(track);canvas.drawArc(arc,135,270,false,paint);
+   double delta=targetSpeed-displayedSpeed;if(Math.abs(delta)>.05){displayedSpeed+=delta*.17;postInvalidateDelayed(16);}else displayedSpeed=targetSpeed;
+   float progress=(float)(Math.log1p(displayedSpeed)/Math.log1p(1000));paint.setColor(cyan);paint.setStrokeCap(Paint.Cap.ROUND);if(progress>.001f)canvas.drawArc(arc,135,270*progress,false,paint);
+   paint.setStyle(Paint.Style.FILL);paint.setColor(0xffa8a8a8);paint.setTypeface(Typeface.create("sans-serif",Typeface.BOLD));paint.setTextSize(dp(11));
+   int[] marks={0,5,10,50,100,250,500,750,1000};for(int mark:marks){float q=(float)(Math.log1p(mark)/Math.log1p(1000));double angle=Math.toRadians(135+270*q);float tx=cx+(float)Math.cos(angle)*(r*.77f);float ty=cy+(float)Math.sin(angle)*(r*.77f)+dp(4);String label=String.valueOf(mark);if(mark==0||mark==5||mark==10||mark==50||mark==100){paint.setColor(0xffeeeeee);}else paint.setColor(0xff777777);canvas.drawText(label,tx-paint.measureText(label)/2f,ty,paint);}
+   double needleAngle=Math.toRadians(135+270*progress);float nx=cx+(float)Math.cos(needleAngle)*r*.69f,ny=cy+(float)Math.sin(needleAngle)*r*.69f;
+   paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(7));paint.setStrokeCap(Paint.Cap.ROUND);paint.setColor(0xffbdbdbd);canvas.drawLine(cx,cy,nx,ny,paint);
+   paint.setStyle(Paint.Style.FILL);paint.setColor(0xffdddddd);canvas.drawCircle(cx,cy,dp(7),paint);paint.setColor(0xff555555);canvas.drawCircle(cx,cy,dp(3),paint);
+   paint.setColor(0xffa0a0a0);paint.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));paint.setTextSize(dp(10));canvas.drawText(caption,cx-paint.measureText(caption)/2f,dp(17),paint);
+   paint.setColor(Color.WHITE);paint.setTypeface(Typeface.create("sans-serif-light",Typeface.NORMAL));paint.setTextSize(dp(35));String value=String.format(Locale.US,"%.1f",displayedSpeed);canvas.drawText(value,cx-paint.measureText(value)/2f,cy+r*.62f,paint);
+   paint.setColor(cyan);paint.setTypeface(Typeface.create("sans-serif",Typeface.NORMAL));paint.setTextSize(dp(13));String unit="↓ Mbps";canvas.drawText(unit,cx-paint.measureText(unit)/2f,cy+r*.62f+dp(22),paint);
+  }
  }
  private boolean speedSamplesStable(ArrayList<Double> rates){if(rates.size()<3)return false;int n=rates.size();double a=rates.get(n-1),b=rates.get(n-2),d=rates.get(n-3);double mean=(a+b+d)/3.0;if(mean<=0)return false;double spread=Math.max(Math.max(Math.abs(a-mean),Math.abs(b-mean)),Math.abs(d-mean))/mean;return spread<=0.08;}
  private TextView metricValue(String value,String label,String unit){TextView t=txt(value,18,Color.WHITE,true);t.setGravity(Gravity.CENTER);return t;}
