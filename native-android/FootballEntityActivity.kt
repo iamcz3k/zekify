@@ -63,7 +63,7 @@ class FootballEntityActivity : Activity() {
         body = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
         }
-        scroll.addView(body, ScrollView.LayoutParams(-1, -2))
+        scroll.addView(body, android.widget.FrameLayout.LayoutParams(-1, -2))
         setContentView(scroll)
 
         val header = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
