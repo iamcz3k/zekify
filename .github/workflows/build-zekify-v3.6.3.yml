@@ -92,6 +92,9 @@ jobs:
           test -s native-android/OfflineMatchStore.kt
           test -s native-android/TeamBadgeCatalog.kt
           test -s native-android/FootballEntityActivity.kt
+          test -s native-android/FollowedEntitiesActivity.kt
+          grep -q 'FollowedEntitiesActivity' scripts/patch-native-android.mjs
+          grep -q 'Followed teams & leagues' native-android/MainActivity.java
           test -s native-android/assets/football/badges/index.json
           test -s native-android/res/drawable/zekify_illustration_offline.xml
           test -s native-android/res/drawable/zekify_illustration_empty_fixtures.xml
