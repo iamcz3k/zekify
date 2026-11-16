@@ -234,10 +234,18 @@ for (const collection of [index.teams, index.competitions]) {
     if (!validFiles.has(path.basename(assetPath))) delete collection[key];
   }
 }
+const referencedFiles = new Set(
+  [...Object.values(index.teams), ...Object.values(index.competitions)].map(assetPath => path.basename(assetPath))
+);
+for (const item of good) {
+  if (!referencedFiles.has(item.fileName)) {
+    await fs.unlink(path.join(ROOT, item.fileName)).catch(() => {});
+  }
+}
 index.counts = {
   bundled_team_badges: new Set(Object.values(index.teams)).size,
   bundled_competition_badges: new Set(Object.values(index.competitions)).size,
-  downloaded_assets: good.length,
+  downloaded_assets: referencedFiles.size,
   failed_assets: failedImages,
   failed_country_pages: failedPages
 };
