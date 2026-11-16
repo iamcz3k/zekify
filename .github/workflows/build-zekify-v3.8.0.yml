@@ -110,6 +110,10 @@ jobs:
               ET.parse(path)
               print("Valid vector drawable:", path)
           PY
+      - name: Test and build the global team and league badge bundle
+        run: |
+          node scripts/download-global-badges.mjs --self-test
+          node scripts/download-global-badges.mjs
       - name: Apply native Android source
         run: node scripts/patch-native-android.mjs
       - name: Apply native playback compatibility patch
