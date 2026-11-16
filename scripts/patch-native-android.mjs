@@ -1,12 +1,18 @@
-import { readFile, writeFile, mkdir, copyFile, readdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, copyFile, readdir, rm } from "node:fs/promises";
 const pkg="com.v3x.zekify";
 const root="android/app/src/main/java/"+pkg.replaceAll(".","/");
 await mkdir(root,{recursive:true});
 const appAssets="android/app/src/main/assets";
 await mkdir(appAssets,{recursive:true});
+// MainActivity and feature screens are native Android. Keep WebView only for remote stream providers, not a bundled website UI.
+await rm(appAssets+"/public",{recursive:true,force:true});
 await writeFile(appAssets+"/zekify-integrity.bin","ZEKIFY-INTEGRITY-V1:official-native-build");
 await copyFile("native-android/MainActivity.java",root+"/MainActivity.java");
 await copyFile("native-android/MaterialMotion.java",root+"/MaterialMotion.java");
+await copyFile("native-android/OfflineMatchStore.kt",root+"/OfflineMatchStore.kt");
+await copyFile("native-android/TeamBadgeCatalog.kt",root+"/TeamBadgeCatalog.kt");
+await copyFile("native-android/FootballEntityActivity.kt",root+"/FootballEntityActivity.kt");
+await copyFile("native-android/FollowedEntitiesActivity.kt",root+"/FollowedEntitiesActivity.kt");
 await copyFile("native-android/SecurityGuard.java",root+"/SecurityGuard.java");
 await copyFile("native-android/PlayerActivity.java",root+"/PlayerActivity.java");
 await copyFile("native-android/FloatingPlayerService.java",root+"/FloatingPlayerService.java");
@@ -130,6 +136,14 @@ for (const asset of await readdir(sportsAssetsSource)) {
 }
 await copyFile(sportsAssetsSource + "/LICENSE", sportsAssetsTarget + "/LICENSE");
 await copyFile(sportsAssetsSource + "/README.md", sportsAssetsTarget + "/ATTRIBUTION.txt");
+const footballBadgesSource="native-android/assets/football/badges";
+const footballBadgesTarget="android/app/src/main/assets/football/badges";
+await mkdir(footballBadgesTarget,{recursive:true});
+for(const asset of await readdir(footballBadgesSource)){
+ if(asset.endsWith(".svg")||asset.endsWith(".webp")||asset.endsWith(".png")||asset.endsWith(".json")||asset.endsWith(".md")){
+  await copyFile(footballBadgesSource+"/"+asset,footballBadgesTarget+"/"+asset);
+ }
+}
 
 const manifestPath="android/app/src/main/AndroidManifest.xml";
 let manifest=await readFile(manifestPath,"utf8");
@@ -160,6 +174,8 @@ if(!manifest.includes("android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK")) m
 if(!manifest.includes('android:name=".FloatingPlayerService"')) manifest=manifest.replace("</application>",'    <service android:name=".FloatingPlayerService" android:enabled="true" android:exported="false" android:foregroundServiceType="mediaPlayback" />\n    </application>');
 if(!manifest.includes('android:name=".LiveScoreActivity"')) manifest=manifest.replace("</application>",'    <activity android:name=".LiveScoreActivity" android:exported="false" android:screenOrientation="unspecified" />\n    </application>');
 if(!manifest.includes('android:name=".UpdateHistoryActivity"')) manifest=manifest.replace("</application>",'    <activity android:name=".UpdateHistoryActivity" android:exported="false" android:screenOrientation="unspecified" />\n    </application>');
+if(!manifest.includes('android:name=".FootballEntityActivity"')) manifest=manifest.replace("</application>",'    <activity android:name=".FootballEntityActivity" android:exported="false" android:screenOrientation="unspecified" />\n    </application>');
+if(!manifest.includes('android:name=".FollowedEntitiesActivity"')) manifest=manifest.replace("</application>",'    <activity android:name=".FollowedEntitiesActivity" android:exported="false" android:screenOrientation="unspecified" />\n    </application>');
 if(manifest.includes('android:name="androidx.core.content.FileProvider"')){
  const providerAt=manifest.indexOf('android:name="androidx.core.content.FileProvider"');
  const resourceAt=manifest.indexOf('android:resource="@xml/',providerAt);
@@ -175,8 +191,20 @@ manifest=manifest.replace(/(<activity\b(?=[^>]*android:name="\.MainActivity")[^>
 manifest=manifest.replace(/(<activity\b(?=[^>]*android:name="\.MainActivity")[^>]*?)android:theme="@style\/AppTheme\.NoActionBar"/, '$1android:theme="@style/Zekify.Splash"');
 if (manifest.includes('android:name=".MainActivity"') && !manifest.includes('android:theme="@style/Zekify.Splash"')) throw new Error("Launcher activity is missing the AndroidX splash theme");
 await writeFile(manifestPath,manifest);
+const rootGradlePath="android/build.gradle";
+let rootGradle=await readFile(rootGradlePath,"utf8");
+if(!rootGradle.includes("kotlin-gradle-plugin")){
+ if(!rootGradle.includes("dependencies {"))throw new Error("Could not add Kotlin Gradle plugin to Android root build");
+ rootGradle=rootGradle.replace("dependencies {","dependencies {\n        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.0'");
+ await writeFile(rootGradlePath,rootGradle);
+}
 const gradlePath="android/app/build.gradle";
 let gradle=await readFile(gradlePath,"utf8");
+if(!gradle.includes("org.jetbrains.kotlin.android")&&!gradle.includes("kotlin-android")){
+ if(gradle.includes("apply plugin: 'com.android.application'"))gradle=gradle.replace("apply plugin: 'com.android.application'","apply plugin: 'com.android.application'\napply plugin: 'org.jetbrains.kotlin.android'");
+ else if(gradle.includes("plugins {"))gradle=gradle.replace("plugins {","plugins {\n    id 'org.jetbrains.kotlin.android' version '2.1.0'");
+ else throw new Error("Could not enable Kotlin Android plugin");
+}
 if(!gradle.includes("androidx.core:core-splashscreen"))gradle=gradle.replace(/dependencies\s*\{/, 'dependencies {\n    implementation "androidx.core:core-splashscreen:1.0.1"');
 if(!gradle.includes("androidx.media3:media3-exoplayer")) {
  gradle=gradle.replace(/dependencies\s*\{/, 'dependencies {\n    implementation "androidx.media3:media3-exoplayer:1.5.1"\n    implementation "androidx.media3:media3-exoplayer-hls:1.5.1"\n    implementation "androidx.media3:media3-ui:1.5.1"');
@@ -229,7 +257,9 @@ for (const icon of [
  "zekify_ic_volume_off.xml",
  "zekify_ic_lock.xml",
  "zekify_ic_unlock.xml",
- "zekify_ic_menu.xml"
+ "zekify_ic_menu.xml",
+ "zekify_illustration_offline.xml",
+ "zekify_illustration_empty_fixtures.xml"
 ]) {
  await copyFile("native-android/res/drawable/" + icon, drawableRoot + "/" + icon);
 }
