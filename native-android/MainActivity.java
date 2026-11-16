@@ -53,6 +53,7 @@ public class MainActivity extends Activity {
  private final java.util.concurrent.ConcurrentHashMap<String,java.util.concurrent.CopyOnWriteArrayList<java.lang.ref.WeakReference<FrameLayout>>> badgeWaiters=new java.util.concurrent.ConcurrentHashMap<>();
  private final ArrayList<JSONObject> matches=new ArrayList<>();
  private LinearLayout root,content,leagueRow;
+ private FrameLayout motionHost;
  private ScrollView matchesScroll;
  private EditText search;
  private String tab="live",league="All",query="",selectedSport="football";
@@ -174,37 +175,67 @@ public class MainActivity extends Activity {
  private void safeScrollAdd(ScrollView scroll,View child){if(scroll==null||child==null)return;if(child.getParent() instanceof ViewGroup)((ViewGroup)child.getParent()).removeView(child);scroll.removeAllViews();scroll.addView(child,new ScrollView.LayoutParams(-1,-2));}
  private Button btn(String s,boolean primary){Button b=new Button(this);b.setText(s);b.setTextSize(12);b.setAllCaps(false);b.setTextColor(primary?Color.BLACK:Color.WHITE);b.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));b.setBackground(ripple(primary?ORANGE:0xff171717,20));b.setMinHeight(dp(46));b.setPadding(dp(16),0,dp(16),0);b.setOnTouchListener((v,e)->{if(e.getAction()==MotionEvent.ACTION_DOWN)v.animate().scaleX(.97f).scaleY(.97f).setDuration(75).start();else if(e.getAction()==MotionEvent.ACTION_UP||e.getAction()==MotionEvent.ACTION_CANCEL)v.animate().scaleX(1f).scaleY(1f).setDuration(130).setInterpolator(new android.view.animation.OvershootInterpolator(1.15f)).start();return false;});return b;}
  private void setAnimatedScreen(View screen){
-  View origin=pendingMotionOrigin;String motion=pendingMotionKind;pendingMotionOrigin=null;pendingMotionKind="fade-through";
+  if(screen==null)return;
+  View origin=pendingMotionOrigin;String motion=pendingMotionKind;
+  pendingMotionOrigin=null;pendingMotionKind="shared-x";
   int[] source=new int[2];final int[] sourceSize=new int[]{0,0};
   if(origin!=null&&origin.getWidth()>0&&origin.getHeight()>0){origin.getLocationOnScreen(source);sourceSize[0]=origin.getWidth();sourceSize[1]=origin.getHeight();}
-  screen.animate().cancel();
+  boolean reduce=setting("reduce_motion",false);
+  if(getWindow()!=null)getWindow().setBackgroundDrawable(new ColorDrawable(BG));
+  if(motionHost==null){
+   ViewGroup contentRoot=findViewById(android.R.id.content);
+   View first=contentRoot!=null&&contentRoot.getChildCount()>0?contentRoot.getChildAt(0):null;
+   motionHost=new FrameLayout(this);motionHost.setBackgroundColor(BG);
+   if(first!=null){contentRoot.removeView(first);if(first.getParent() instanceof ViewGroup)((ViewGroup)first.getParent()).removeView(first);motionHost.addView(first,new FrameLayout.LayoutParams(-1,-1));}
+   setContentView(motionHost);
+  }
+  // If another navigation happens mid-transition, keep only the latest visible
+  // screen and cancel the older animation instead of exposing the window.
+  for(int i=motionHost.getChildCount()-2;i>=0;i--){View stale=motionHost.getChildAt(i);stale.animate().cancel();motionHost.removeViewAt(i);}
+  View outgoing=motionHost.getChildCount()>0?motionHost.getChildAt(0):null;
+  if(outgoing==screen)return;
+  if(screen.getParent() instanceof ViewGroup)((ViewGroup)screen.getParent()).removeView(screen);
   screen.setBackgroundColor(BG);
-  if(setting("reduce_motion",false)){screen.setAlpha(1f);screen.setTranslationX(0f);screen.setTranslationY(0f);screen.setScaleX(1f);screen.setScaleY(1f);setContentView(screen);return;}
-  // Set the first animation frame BEFORE attaching the new screen. Posting the
-  // initial alpha/scale setup after setContentView caused a one-frame flash of
-  // the window's default grey background during navigation.
-  screen.setAlpha(0f);
-  if("shared-x".equals(motion))screen.setTranslationX(dp(30));
-  else if("shared-y".equals(motion))screen.setTranslationY(dp(26));
-  else if(!"container".equals(motion))screen.setScaleX(.96f);
-  if("shared-x".equals(motion)||"shared-y".equals(motion)){screen.setScaleX(.985f);screen.setScaleY(.985f);}
-  else if(!"container".equals(motion)){screen.setScaleX(.96f);screen.setScaleY(.96f);}
-  if(getWindow()!=null)getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(BG));
-  setContentView(screen);
-  screen.post(()->{
+  screen.animate().cancel();
+  screen.setAlpha(1f);screen.setTranslationX(0f);screen.setTranslationY(0f);screen.setScaleX(1f);screen.setScaleY(1f);
+  motionHost.addView(screen,new FrameLayout.LayoutParams(-1,-1));
+  if(outgoing==null||reduce){
+   if(outgoing!=null)motionHost.removeView(outgoing);
+   return;
+  }
+  android.view.animation.Interpolator easing=new android.view.animation.PathInterpolator(.2f,0f,0f,1f);
+  screen.bringToFront();
+  if("container".equals(motion)&&sourceSize[0]>0&&sourceSize[1]>0){
    float w=Math.max(1,screen.getWidth()),h=Math.max(1,screen.getHeight());
-   android.view.animation.Interpolator easing=new android.view.animation.PathInterpolator(.2f,0f,0f,1f);
-   screen.setPivotX(w/2f);screen.setPivotY(h/2f);
-   if("container".equals(motion)&&sourceSize[0]>0&&sourceSize[1]>0){
-    int[] pos=new int[2];screen.getLocationOnScreen(pos);
-    float sx=Math.max(.08f,Math.min(1f,sourceSize[0]/w)),sy=Math.max(.08f,Math.min(1f,sourceSize[1]/h));
-    float tx=(source[0]+sourceSize[0]/2f)-(pos[0]+w/2f),ty=(source[1]+sourceSize[1]/2f)-(pos[1]+h/2f);
-    screen.setScaleX(sx);screen.setScaleY(sy);screen.setTranslationX(tx);screen.setTranslationY(ty);
-    screen.animate().alpha(1f).scaleX(1f).scaleY(1f).translationX(0f).translationY(0f).setDuration(340L).setInterpolator(easing).start();
-   }else if("shared-x".equals(motion)||"shared-y".equals(motion)){
-    screen.animate().alpha(1f).scaleX(1f).scaleY(1f).translationX(0f).translationY(0f).setDuration(300L).setInterpolator(easing).start();
-   }else{
-    screen.animate().alpha(1f).scaleX(1f).scaleY(1f).translationX(0f).translationY(0f).setDuration(260L).setInterpolator(easing).start();
+   if(w<=1||h<=1){screen.post(()->animateScreenPair(outgoing,screen,motion,source,sourceSize,easing));}
+   else animateScreenPair(outgoing,screen,motion,source,sourceSize,easing);
+  }else animateScreenPair(outgoing,screen,motion,source,sourceSize,easing);
+ }
+ private void animateScreenPair(View outgoing,View incoming,String motion,int[] source,int[] sourceSize,android.view.animation.Interpolator easing){
+  if(outgoing==null||incoming==null||outgoing.getParent()!=motionHost||incoming.getParent()!=motionHost)return;
+  if("container".equals(motion)&&sourceSize[0]>0&&sourceSize[1]>0){
+   int[] pos=new int[2];incoming.getLocationOnScreen(pos);
+   float w=Math.max(1,incoming.getWidth()),h=Math.max(1,incoming.getHeight());
+   float sx=Math.max(.88f,Math.min(1f,sourceSize[0]/w)),sy=Math.max(.88f,Math.min(1f,sourceSize[1]/h));
+   float tx=(source[0]+sourceSize[0]/2f)-(pos[0]+w/2f),ty=(source[1]+sourceSize[1]/2f)-(pos[1]+h/2f);
+   incoming.setPivotX(w/2f);incoming.setPivotY(h/2f);incoming.setScaleX(sx);incoming.setScaleY(sy);incoming.setTranslationX(tx);incoming.setTranslationY(ty);
+   incoming.animate().alpha(1f).scaleX(1f).scaleY(1f).translationX(0f).translationY(0f).setDuration(340L).setInterpolator(easing).start();
+   outgoing.animate().alpha(.94f).setDuration(220L).setInterpolator(easing).start();
+  }else{
+   // Shared-axis X: both pages coexist throughout the motion, so no grey/black
+   // window frame can flash between the old and new destinations.
+   incoming.setTranslationX(dp(34));incoming.setAlpha(1f);
+   outgoing.setTranslationX(0f);outgoing.setAlpha(1f);
+   incoming.animate().translationX(0f).setDuration(300L).setInterpolator(easing).start();
+   outgoing.animate().translationX(-dp(18)).setDuration(300L).setInterpolator(easing).start();
+  }
+  outgoing.animate().setListener(new android.animation.AnimatorListenerAdapter(){
+   @Override public void onAnimationEnd(android.animation.Animator animation){
+    if(outgoing.getParent()==motionHost)motionHost.removeView(outgoing);
+    outgoing.animate().setListener(null);outgoing.setTranslationX(0f);outgoing.setAlpha(1f);
+   }
+   @Override public void onAnimationCancel(android.animation.Animator animation){
+    outgoing.animate().setListener(null);
    }
   });
  }
