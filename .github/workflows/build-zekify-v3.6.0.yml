@@ -64,15 +64,15 @@ jobs:
           grep -q 'PathInterpolator' native-android/LiveScoreActivity.java
       - name: Verify navigation transitions, mini-player unlock reset, and menu icon
         run: |
-          grep -q 'setDuration(280L)' native-android/MainActivity.java
+          grep -q 'setDuration(340L)' native-android/MainActivity.java
           grep -q 'setAnimatedScreen(root)' native-android/MainActivity.java
           grep -q 'returnedFromFullscreen' native-android/MainActivity.java
           grep -q 'miniLocked=false;updateMiniLockState();' native-android/MainActivity.java
           grep -q 'zekify_ic_menu' native-android/MainActivity.java
           test -s native-android/res/drawable/zekify_ic_menu.xml
           grep -q 'zekify_ic_menu.xml' scripts/patch-native-android.mjs
-          grep -q 'setDuration(280L)' native-android/LiveScoreActivity.java
-          grep -q 'setDuration(280L)' native-android/UpdateHistoryActivity.java
+          grep -q 'setDuration(300L)' native-android/LiveScoreActivity.java
+          grep -q 'PathInterpolator' native-android/UpdateHistoryActivity.java
       - name: Apply native Android source
         run: node scripts/patch-native-android.mjs
       - name: Apply native playback compatibility patch
