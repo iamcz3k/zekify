@@ -55,7 +55,7 @@ jobs:
           PY
       - name: Verify Material Motion, predictive back, and splash screen
         run: |
-          grep -q 'setDuration(340L)' native-android/MainActivity.java
+          grep -q 'setDuration(300L)' native-android/MainActivity.java
           grep -q 'pendingMotionKind="container"' native-android/MainActivity.java
           grep -q 'OnBackInvokedDispatcher' native-android/MainActivity.java
           grep -q 'SplashScreen.installSplashScreen' native-android/MainActivity.java
@@ -64,7 +64,7 @@ jobs:
           grep -q 'PathInterpolator' native-android/LiveScoreActivity.java
       - name: Verify navigation transitions, mini-player unlock reset, and menu icon
         run: |
-          grep -q 'setDuration(340L)' native-android/MainActivity.java
+          grep -q 'setDuration(300L)' native-android/MainActivity.java
           grep -q 'setAnimatedScreen(root)' native-android/MainActivity.java
           grep -q 'returnedFromFullscreen' native-android/MainActivity.java
           grep -q 'miniLocked=false;updateMiniLockState();' native-android/MainActivity.java
