@@ -105,6 +105,11 @@ jobs:
               ET.parse(path)
               print("Valid vector drawable:", path)
           PY
+      - name: Strip unused website bundle from native APK
+        run: |
+          rm -rf android/app/src/main/assets/public
+          test ! -e android/app/src/main/assets/public/index.html
+          echo "Native Activity screens and remote provider WebViews are retained; bundled Vite website UI is excluded."
       - name: Test and build the global team and league badge bundle
         run: |
           node scripts/download-global-badges.mjs --self-test
