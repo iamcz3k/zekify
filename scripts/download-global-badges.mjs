@@ -214,8 +214,8 @@ for (const [alias, target] of Object.entries(commonAliases)) {
 }
 
 const downloaded = await mapLimit(downloads, IMAGE_CONCURRENCY, async item => {
-  const pngUrl = item.sourceUrl.replace("/256x256/", "/128x128/");
-  const png = await request(pngUrl, true);
+  // The source catalogue publishes the 256px master reliably; resize locally to balanced 128px WebP.
+  const png = await request(item.sourceUrl, true);
   if (png.length < 100 || png[0] !== 0x89 || png[1] !== 0x50 || png[2] !== 0x4e || png[3] !== 0x47) {
     throw new Error("Invalid PNG: " + pngUrl);
   }
