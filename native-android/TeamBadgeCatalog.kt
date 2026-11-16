@@ -4,11 +4,12 @@ import android.content.Context
 import org.json.JSONObject
 
 /**
- * Stable-ID-first resolver for bundled team and competition badge assets.
+ * Global football identity resolver.
  *
- * Add verified, licensed assets to assets/football/badges and register their
- * provider IDs in index.json. Missing entries deliberately fall back to the
- * match provider's genuine logo URL in MainActivity.
+ * Provider IDs are authoritative. When a provider has no stable ID in the
+ * event payload, the resolver tries country-qualified names, aliases and
+ * normalized slugs. Missing images are intentionally left to MainActivity's
+ * existing real-URL fetch and persistent badge cache.
  */
 object TeamBadgeCatalog {
     private const val INDEX_PATH = "football/badges/index.json"
@@ -25,27 +26,57 @@ object TeamBadgeCatalog {
 
     private fun resolve(context: Context, record: JSONObject?, collection: String): String {
         if (record == null) return ""
-        val id = firstValue(
-            record,
-            "id", "teamId", "team_id", "competitionId", "competition_id",
-            "tournamentId", "tournament_id", "uid", "providerId", "provider_id", "slug"
-        ) ?: return ""
         val index = loadIndex(context) ?: return ""
         val entries = index.optJSONObject(collection) ?: return ""
-        val value = entries.opt(id) ?: return ""
-        val path = when (value) {
-            is JSONObject -> value.optString("path", "")
-            is String -> value
-            else -> ""
-        }.trim()
-        if (!path.startsWith("football/badges/") || path.contains("..") || path.startsWith("/")) return ""
-        return try {
-            context.assets.open(path).use { }
-            "asset://$path"
-        } catch (_: Exception) {
-            ""
+        val candidates = LinkedHashSet<String>()
+
+        listOf(
+            "id", "teamId", "team_id", "competitionId", "competition_id",
+            "tournamentId", "tournament_id", "leagueId", "league_id",
+            "uid", "providerId", "provider_id", "slug"
+        ).forEach { key -> firstValue(record, key)?.let(candidates::add) }
+
+        val name = firstValue(record, "name", "teamName", "team_name", "displayName", "title", "league")
+        val country = firstValue(record, "country", "countryName", "country_name", "area")
+        if (!name.isNullOrBlank()) {
+            val normalizedName = normalize(name)
+            if (normalizedName.isNotBlank()) {
+                candidates.add(normalizedName)
+                if (!country.isNullOrBlank()) candidates.add(normalize(country) + "::" + normalizedName)
+            }
         }
+
+        record.optJSONArray("aliases")?.let { aliases ->
+            for (i in 0 until aliases.length()) {
+                val alias = aliases.optString(i, "")
+                if (alias.isNotBlank()) candidates.add(normalize(alias))
+            }
+        }
+
+        for (candidate in candidates) {
+            val value = entries.opt(candidate) ?: continue
+            val path = when (value) {
+                is JSONObject -> value.optString("path", "")
+                is String -> value
+                else -> ""
+            }.trim()
+            if (!isSafeAssetPath(path)) continue
+            try {
+                context.assets.open(path).use { }
+                return "asset://$path"
+            } catch (_: Exception) {
+                // Stale catalogue entry: continue to another identity key.
+            }
+        }
+
+        val nested = record.optJSONObject("team") ?: record.optJSONObject("club")
+            ?: record.optJSONObject("competition")
+        if (nested != null && nested !== record) return resolve(context, nested, collection)
+        return ""
     }
+
+    private fun isSafeAssetPath(path: String): Boolean =
+        path.startsWith("football/badges/") && !path.contains("..") && !path.startsWith("/")
 
     private fun loadIndex(context: Context): JSONObject? {
         cachedIndex?.let { return it }
@@ -63,12 +94,12 @@ object TeamBadgeCatalog {
         }
     }
 
-    private fun firstValue(record: JSONObject, vararg keys: String): String? {
-        for (key in keys) {
-            val raw = record.opt(key) ?: continue
-            val value = raw.toString().trim()
-            if (value.isNotEmpty() && value != "null" && value != "0") return value
-        }
-        return null
+    private fun firstValue(record: JSONObject, key: String): String? {
+        val raw = record.opt(key) ?: return null
+        val value = raw.toString().trim()
+        return value.takeIf { it.isNotEmpty() && it != "null" && it != "0" }
     }
+
+    private fun normalize(value: String): String =
+        value.lowercase(java.util.Locale.ROOT).filter { it.isLetterOrDigit() }
 }
