@@ -44,6 +44,10 @@ class FootballEntityActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.statusBarColor = Color.rgb(7, 7, 7)
+        window.navigationBarColor = Color.BLACK
+        window.decorView.systemUiVisibility = 0
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(backgroundColor))
         entityName = intent.getStringExtra("entity_name") ?: "Team"
         entityType = intent.getStringExtra("entity_type") ?: "team"
         sport = intent.getStringExtra("sport") ?: "football"
@@ -64,6 +68,7 @@ class FootballEntityActivity : Activity() {
             orientation = LinearLayout.VERTICAL
         }
         scroll.addView(body, ViewGroup.LayoutParams(-1, -2))
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(backgroundColor))
         setContentView(scroll)
 
         val header = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
