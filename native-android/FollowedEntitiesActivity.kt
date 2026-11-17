@@ -115,7 +115,7 @@ class FollowedEntitiesActivity : Activity() {
         header.addView(heading, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(12) })
         root.addView(header)
 
-        val search = EditText(this).apply { hint = "Search teams and leagues"; setHintTextColor(0xff777777.toInt()); setTextColor(Color.WHITE); textSize = 14f; singleLine = true; setPadding(dp(14), 0, dp(14), 0); background = rounded(Color.rgb(17,17,17), 13); addTextChangedListener(object : android.text.TextWatcher { override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {} ; override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { searchQuery = s?.toString().orEmpty(); refreshList() }; override fun afterTextChanged(s: android.text.Editable?) {} }) }
+        val search = EditText(this).apply { hint = "Search teams and leagues"; setHintTextColor(0xff777777.toInt()); setTextColor(Color.WHITE); textSize = 14f; isSingleLine = true; setPadding(dp(14), 0, dp(14), 0); background = rounded(Color.rgb(17,17,17), 13); addTextChangedListener(object : android.text.TextWatcher { override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {} ; override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { searchQuery = s?.toString().orEmpty(); refreshList() }; override fun afterTextChanged(s: android.text.Editable?) {} }) }
         root.addView(search, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(14) })
 
         val tabs = LinearLayout(this).apply {
@@ -222,7 +222,7 @@ class FollowedEntitiesActivity : Activity() {
                 if (activeTab == "live") {
                     val watch = text("▶  Watch Live", 12, Color.WHITE, true).apply {
                         gravity = Gravity.CENTER
-                        background = rounded(0xff292929, 11)
+                        background = rounded(0xff292929.toInt(), 11)
                         setPadding(dp(14), dp(11), dp(14), dp(11))
                         setOnClickListener {
                             val open = android.content.Intent(this@FollowedEntitiesActivity, MainActivity::class.java)
