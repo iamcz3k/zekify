@@ -259,9 +259,8 @@ class FollowedEntitiesActivity : Activity() {
                 setPadding(0, dp(7), 0, 0)
             })
             listHost.addView(empty)
-            return
         }
-        listHost.addView(text(if (activeTab == "teams") "YOUR TEAMS" else "YOUR COMPETITIONS", 10, orange, true).apply {
+        if (filtered.isNotEmpty()) listHost.addView(text(if (activeTab == "teams") "YOUR TEAMS" else "YOUR COMPETITIONS", 10, orange, true).apply {
             setPadding(0, 0, 0, dp(10))
         })
         for ((key, entity) in filtered) {
@@ -293,6 +292,48 @@ class FollowedEntitiesActivity : Activity() {
             identity.addView(text("›", 26, muted, false))
             card.addView(identity)
             listHost.addView(card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(9) })
+        }
+        val suggested = linkedMapOf<String, JSONObject>()
+        for (i in 0 until matches.length()) {
+            val match = matches.optJSONObject(i) ?: continue
+            if (activeTab == "teams") {
+                val sides = match.optJSONObject("teams")
+                for (side in listOf("home", "away")) {
+                    val team = sides?.optJSONObject(side) ?: match.optJSONObject(side) ?: match.optJSONObject(side + "Team") ?: continue
+                    val name = first(team, "name", "teamName", "team_name", "displayName")
+                    val key = first(team, "id", "teamId", "team_id", "providerId", "provider_id").ifBlank { normalize(name) }
+                    if (name.isNotBlank() && key.isNotBlank() && !teams.containsKey(key) && name.contains(searchQuery, true)) suggested[key] = team
+                }
+            } else {
+                val comp = match.optJSONObject("competition") ?: match.optJSONObject("leagueData") ?: match.optJSONObject("tournament")
+                val name = first(comp, "name", "title", "displayName").ifBlank { first(match, "league", "competitionName", "competition_name") }
+                val key = first(comp, "id", "competitionId", "competition_id", "leagueId", "league_id").ifBlank { normalize(name) }
+                if (name.isNotBlank() && key.isNotBlank() && !competitions.containsKey(key) && name.contains(searchQuery, true)) suggested[key] = comp ?: JSONObject().put("name", name).put("id", key)
+            }
+            if (suggested.size >= 6) break
+        }
+        if (suggested.isNotEmpty()) {
+            listHost.addView(text("SUGGESTED " + if (activeTab == "teams") "TEAMS" else "LEAGUES", 10, Color.WHITE, true).apply { setPadding(0, dp(18), 0, dp(10)) })
+            for ((_, entity) in suggested) {
+                val name = first(entity, "name", "teamName", "team_name", "title")
+                val card = LinearLayout(this).apply {
+                    gravity = Gravity.CENTER_VERTICAL
+                    background = rounded(panel, 14)
+                    setPadding(dp(13), dp(11), dp(13), dp(11))
+                    setOnClickListener {
+                        val intent = android.content.Intent(this@FollowedEntitiesActivity, FootballEntityActivity::class.java)
+                        intent.putExtra("entity_type", if (activeTab == "teams") "team" else "competition")
+                        intent.putExtra("entity_name", name)
+                        intent.putExtra("entity_json", entity.toString())
+                        intent.putExtra("sport", "football")
+                        startActivity(intent)
+                    }
+                }
+                card.addView(entityBadge(entity, name), LinearLayout.LayoutParams(dp(40), dp(40)))
+                card.addView(text(name, 13, Color.WHITE, true), LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(12) })
+                card.addView(text("＋", 20, muted, true))
+                listHost.addView(card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(7) })
+            }
         }
     }
 
