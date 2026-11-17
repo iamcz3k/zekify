@@ -20,9 +20,12 @@ public class MatchReminderReceiver extends BroadcastReceiver {
         String title = intent.getStringExtra("matchTitle");
         String kind = intent.getStringExtra("kind");
         if (id == null || id.isEmpty()) return;
-        Set<String> scheduled = context.getSharedPreferences("zekify_cache", Context.MODE_PRIVATE)
-            .getStringSet("scheduled_match_ids", java.util.Collections.emptySet());
-        if (scheduled == null || !scheduled.contains(id)) return;
+        android.content.SharedPreferences prefs = context.getSharedPreferences("zekify_cache", Context.MODE_PRIVATE);
+        Set<String> scheduled = prefs.getStringSet("scheduled_match_ids", java.util.Collections.emptySet());
+        Set<String> followed = prefs.getStringSet("followed_match_ids", java.util.Collections.emptySet());
+        boolean manual = scheduled != null && scheduled.contains(id);
+        boolean automatic = followed != null && followed.contains(id);
+        if (!manual && !automatic) return;
         if ("reminder".equals(kind)) {
             show(context, id, title, "Kickoff in 15 minutes. Get ready to watch.", 1);
         } else if ("kickoff".equals(kind) || "kickoff-check".equals(kind)) {
