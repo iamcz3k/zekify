@@ -111,10 +111,10 @@ class FollowedEntitiesActivity : Activity() {
             background = rounded(panel, 14)
             setPadding(dp(4), dp(4), dp(4), dp(4))
         }
-        val teamTab = tab("Teams", "teams")
-        val competitionTab = tab("Competitions", "competitions")
-        tabs.addView(teamTab, LinearLayout.LayoutParams(0, dp(42), 1f))
-        tabs.addView(competitionTab, LinearLayout.LayoutParams(0, dp(42), 1f))
+        tabs.addView(tab("Live", "live"), LinearLayout.LayoutParams(0, dp(42), 1f))
+        tabs.addView(tab("Upcoming", "upcoming"), LinearLayout.LayoutParams(0, dp(42), 1f))
+        tabs.addView(tab("Teams", "teams"), LinearLayout.LayoutParams(0, dp(42), 1f))
+        tabs.addView(tab("Leagues", "competitions"), LinearLayout.LayoutParams(0, dp(42), 1f))
         root.addView(tabs, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(20) })
 
         val scroll = ScrollView(this).apply {
@@ -146,6 +146,65 @@ class FollowedEntitiesActivity : Activity() {
 
     private fun refreshList() {
         listHost.removeAllViews()
+        if (activeTab == "live" || activeTab == "upcoming") {
+            val prefs = getSharedPreferences("zekify_favourites", MODE_PRIVATE)
+            val teamKeys = prefs.getStringSet("teams", emptySet()) ?: emptySet()
+            val leagueKeys = prefs.getStringSet("competitions", emptySet()) ?: emptySet()
+            val selected = mutableListOf<JSONObject>()
+            for (i in 0 until matches.length()) {
+                val match = matches.optJSONObject(i) ?: continue
+                val status = first(match, "status", "statusText", "state").lowercase(Locale.ROOT)
+                val kickoff = match.optLong("date", 0L)
+                val live = status.contains("live") || status.contains("in play") || status == "1h" || status == "2h" || status == "ht"
+                val finished = status.contains("finished") || status == "ft" || status.contains("ended") || status.contains("full time")
+                if (activeTab == "live" && !live) continue
+                if (activeTab == "upcoming" && (live || finished || kickoff <= System.currentTimeMillis())) continue
+                var followed = false
+                val matchTeams = match.optJSONObject("teams")
+                for (side in listOf("home", "away")) {
+                    val team = matchTeams?.optJSONObject(side) ?: match.optJSONObject(side)
+                        ?: match.optJSONObject(side + "Team") ?: match.optJSONObject(side + "_team")
+                    val id = first(team, "id", "teamId", "team_id", "providerId", "provider_id")
+                    val name = first(team, "name", "teamName", "team_name", "displayName")
+                    if (teamKeys.contains(id.ifBlank { normalize(name) })) followed = true
+                }
+                val competition = match.optJSONObject("competition") ?: match.optJSONObject("leagueData") ?: match.optJSONObject("tournament")
+                val compId = first(competition, "id", "competitionId", "competition_id", "leagueId", "league_id", "providerId", "provider_id")
+                val compName = first(competition, "name", "title", "displayName", "league").ifBlank { first(match, "league", "competitionName", "competition_name") }
+                if (leagueKeys.contains(compId.ifBlank { normalize(compName) })) followed = true
+                if (followed) selected.add(match)
+            }
+            if (selected.isEmpty()) {
+                listHost.addView(text(if (activeTab == "live") "No followed teams are live right now" else "No upcoming followed fixtures", 14, Color.WHITE, true).apply {
+                    gravity = Gravity.CENTER
+                    setPadding(dp(12), dp(28), dp(12), dp(28))
+                })
+                return
+            }
+            listHost.addView(text(if (activeTab == "live") "LIVE NOW" else "UPCOMING FIXTURES", 10, Color.WHITE, true).apply { setPadding(0, 0, 0, dp(10)) })
+            for (match in selected) {
+                val teams = match.optJSONObject("teams")
+                val home = teams?.optJSONObject("home") ?: match.optJSONObject("home") ?: match.optJSONObject("homeTeam")
+                val away = teams?.optJSONObject("away") ?: match.optJSONObject("away") ?: match.optJSONObject("awayTeam")
+                val title = first(home, "name", "teamName").ifBlank { "Home" } + " vs " + first(away, "name", "teamName").ifBlank { "Away" }
+                val status = first(match, "status", "statusText", "state").ifBlank { if (activeTab == "live") "LIVE" else "Upcoming" }
+                val card = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    background = rounded(panel, 15)
+                    setPadding(dp(14), dp(13), dp(14), dp(13))
+                    setOnClickListener {
+                        val open = android.content.Intent(this@FollowedEntitiesActivity, MainActivity::class.java)
+                        open.putExtra("matchId", match.optString("id", ""))
+                        open.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        startActivity(open)
+                    }
+                }
+                card.addView(text(title, 13, Color.WHITE, true))
+                card.addView(text(first(match, "league", "competitionName").ifBlank { status }, 10, muted, false).apply { setPadding(0, dp(5), 0, 0) })
+                listHost.addView(card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
+            }
+            return
+        }
         val items = if (activeTab == "teams") teams else competitions
         if (items.isEmpty()) {
             val empty = LinearLayout(this).apply {
