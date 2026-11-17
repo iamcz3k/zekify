@@ -20,7 +20,7 @@ class FollowedEntitiesActivity : Activity() {
     private val bg = Color.rgb(7, 7, 7)
     private val panel = Color.rgb(20, 20, 20)
     private val muted = Color.rgb(155, 155, 155)
-    private val orange = Color.rgb(255, 138, 61)
+    private val orange = Color.WHITE
     private lateinit var listHost: LinearLayout
     private var activeTab = "teams"
     private var matches = JSONArray()
