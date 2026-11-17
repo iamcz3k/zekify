@@ -31,6 +31,9 @@ class FollowedEntitiesActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.statusBarColor = Color.rgb(7, 7, 7)
+        window.navigationBarColor = Color.BLACK
+        window.decorView.systemUiVisibility = 0
         matches = JSONArray()
         val cache = getSharedPreferences("zekify_cache", MODE_PRIVATE)
         for ((key, value) in cache.all) {
