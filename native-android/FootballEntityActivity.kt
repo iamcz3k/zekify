@@ -113,7 +113,10 @@ class FootballEntityActivity : Activity() {
         hero.addView(favourite, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(17) })
         body.addView(hero, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(20) })
 
-        body.addView(text("Cached fixtures", 17, Color.WHITE, true).apply {
+        addTeamOverview()
+        addRecentFormAndH2H()
+
+        body.addView(text("Fixtures & results", 17, Color.WHITE, true).apply {
             setPadding(0, dp(25), 0, dp(10))
         })
         val related = findRelatedMatches()
@@ -162,6 +165,80 @@ class FootballEntityActivity : Activity() {
         body.alpha = 0f
         body.translationY = dp(10).toFloat()
         body.animate().alpha(1f).translationY(0f).setDuration(260L).start()
+    }
+
+    private fun addTeamOverview() {
+        body.addView(text("OVERVIEW", 10, Color.WHITE, true).apply { setPadding(0, dp(22), 0, dp(9)) })
+        val fields = listOf(
+            "Country" to first(entity, "country", "countryName", "country_name", "area"),
+            "Competition" to first(entity, "league", "competition", "tournament"),
+            "Stadium" to first(entity, "venue", "stadium", "ground"),
+            "Manager" to first(entity, "manager", "coach", "headCoach"),
+            "Founded" to first(entity, "founded", "yearFounded", "established"),
+            "Sport" to sport
+        ).filter { it.second.isNotBlank() }
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = rounded(surfaceColor, 15)
+            setPadding(dp(14), dp(8), dp(14), dp(8))
+        }
+        if (fields.isEmpty()) {
+            card.addView(text("Official team details will appear when supplied by the sports data provider.", 11, mutedColor, false).apply { setPadding(0, dp(8), 0, dp(8)) })
+        } else fields.forEach { (label, value) ->
+            val line = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(7), 0, dp(7)) }
+            line.addView(text(label, 11, mutedColor, false), LinearLayout.LayoutParams(0, -2, 1f))
+            line.addView(text(value, 11, Color.WHITE, true))
+            card.addView(line)
+        }
+        body.addView(card)
+    }
+
+    private fun addRecentFormAndH2H() {
+        val related = findRelatedMatches()
+        body.addView(text("RECENT FORM", 10, Color.WHITE, true).apply { setPadding(0, dp(22), 0, dp(9)) })
+        if (related.length() == 0) {
+            body.addView(text("Recent results will appear when the provider supplies fixtures.", 11, mutedColor, false))
+        } else {
+            for (i in 0 until minOf(5, related.length())) {
+                val match = related.optJSONObject(i) ?: continue
+                val title = matchTitle(match)
+                val status = first(match, "status", "statusText", "state").ifBlank { "Fixture" }
+                val card = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    background = rounded(surfaceColor, 13)
+                    setPadding(dp(13), dp(11), dp(13), dp(11))
+                }
+                card.addView(text(title, 12, Color.WHITE, true))
+                card.addView(text(status, 10, mutedColor, false).apply { setPadding(0, dp(4), 0, 0) })
+                body.addView(card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(7) })
+            }
+        }
+        body.addView(text("SQUAD & LINEUPS", 10, Color.WHITE, true).apply { setPadding(0, dp(22), 0, dp(9)) })
+        val squad = entity.optJSONArray("players") ?: entity.optJSONArray("squad") ?: entity.optJSONArray("roster")
+        if (squad == null || squad.length() == 0) {
+            body.addView(text("Player and lineup details appear here when available from the provider.", 11, mutedColor, false))
+        } else {
+            val card = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                background = rounded(surfaceColor, 14)
+                setPadding(dp(14), dp(8), dp(14), dp(8))
+            }
+            for (i in 0 until minOf(30, squad.length())) {
+                val player = squad.optJSONObject(i)
+                val name = if (player == null) squad.optString(i) else first(player, "name", "playerName", "displayName")
+                if (name.isNotBlank()) card.addView(text(name, 11, Color.WHITE, false).apply { setPadding(0, dp(5), 0, dp(5)) })
+            }
+            body.addView(card)
+        }
+        body.addView(text("HEAD-TO-HEAD", 10, Color.WHITE, true).apply { setPadding(0, dp(22), 0, dp(9)) })
+        val h2h = entity.optJSONArray("h2h") ?: entity.optJSONArray("headToHead") ?: entity.optJSONArray("head_to_head")
+        if (h2h == null || h2h.length() == 0) {
+            body.addView(text("Previous meetings will appear when the match provider supplies H2H data.", 11, mutedColor, false))
+        } else for (i in 0 until minOf(10, h2h.length())) {
+            val item = h2h.optJSONObject(i)
+            val label = if (item == null) h2h.optString(i) else first(item, "name", "title", "match", "event")
+            if (label.isNotBlank()) body.addView(text(label, 11, Color.WHITE, false).apply { setPadding(0, dp(5), 0, dp(5)) })
+        }
     }
 
     private fun findRelatedMatches(): JSONArray {
