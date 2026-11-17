@@ -608,7 +608,7 @@ public class MainActivity extends Activity {
   meta.addView(leagueLabel,new LinearLayout.LayoutParams(0,-2,1));
   if(isHotMatch(m)){TextView hot=txt("HOT 🔥",9,Color.WHITE,true);hot.setBackground(shape(0xff174f91,30));pad(hot,9,4,9,4);meta.addView(hot);}else if(featured){TextView popular=txt("POPULAR",8,Color.WHITE,true);popular.setBackground(shape(0xff252016,30));pad(popular,8,4,8,4);meta.addView(popular);}
   if(upcoming){NativeIcon bell=new NativeIcon(this,isMatchScheduled(m)?"bell-on":"bell",isMatchScheduled(m)?ORANGE:MUTED);bell.setContentDescription(isMatchScheduled(m)?"Remove match reminder":"Notify me about this match");LinearLayout.LayoutParams bellP=new LinearLayout.LayoutParams(dp(28),dp(28));bellP.leftMargin=dp(5);meta.addView(bell,bellP);bell.setOnClickListener(v->{toggleMatchReminder(m);bell.setIconColor(isMatchScheduled(m)?ORANGE:MUTED);});}
-  NativeIcon followHeart=new NativeIcon(this,isMatchFollowed(m)?"heart-filled":"heart",isMatchFollowed(m)?0xffff6475:MUTED);followHeart.setContentDescription("Follow teams or competition");LinearLayout.LayoutParams followP=new LinearLayout.LayoutParams(dp(28),dp(28));followP.leftMargin=dp(5);meta.addView(followHeart,followP);followHeart.setOnClickListener(v->showFollowPicker(m));
+  
    card.addView(meta);
   if(!eventStyle(m)){
    LinearLayout teams=row();teams.setGravity(Gravity.CENTER_VERTICAL);teams.setBaselineAligned(false);teams.setWeightSum(2f);pad(teams,0,13,0,10);
@@ -848,7 +848,7 @@ public class MainActivity extends Activity {
   private void renderMiniSources(){
    if(inlineSources==null)return;inlineSources.removeAllViews();
    if(selectedSources==null||selectedSources.length()==0){inlineSources.addView(txt(inlineLoading?"Fetching sources…":"No sources available",11,MUTED,false));return;}
-   for(int i=0;i<selectedSources.length();i++){JSONObject source=selectedSources.optJSONObject(i);if(source==null)continue;final int ix=i;boolean active=i==selectedSourceIndex;TextView chip=txt(source.optString("source","Source "+(i+1)),11,Color.WHITE,true);chip.setGravity(Gravity.CENTER);chip.setBackground(shape(active?ORANGE:0xff222222,18));pad(chip,15,0,15,0);LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-2,dp(40));cp.rightMargin=dp(8);inlineSources.addView(chip,cp);chip.setOnClickListener(v->{selectedSourceIndex=ix;startInlineSource(ix);renderMiniSources();});}
+   for(int i=0;i<selectedSources.length();i++){JSONObject source=selectedSources.optJSONObject(i);if(source==null)continue;final int ix=i;boolean active=i==selectedSourceIndex;TextView chip=txt(source.optString("source","Source "+(i+1)).replaceAll("(?i)fctv33","Zekify"),11,Color.WHITE,true);chip.setGravity(Gravity.CENTER);chip.setBackground(shape(active?ORANGE:0xff222222,18));pad(chip,15,0,15,0);LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-2,dp(40));cp.rightMargin=dp(8);inlineSources.addView(chip,cp);chip.setOnClickListener(v->{selectedSourceIndex=ix;startInlineSource(ix);renderMiniSources();});}
   }
   private void toggleMiniPlayback(){
    if(inlinePlayer!=null){if(inlinePlayer.isPlaying())inlinePlayer.pause();else inlinePlayer.play();if(miniPlayButton!=null)miniPlayButton.setName(inlinePlayer.isPlaying()?"pause":"play");return;}
