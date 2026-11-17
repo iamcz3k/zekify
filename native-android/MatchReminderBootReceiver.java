@@ -19,7 +19,9 @@ public class MatchReminderBootReceiver extends BroadcastReceiver {
             && !Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)) return;
         SharedPreferences prefs = context.getSharedPreferences("zekify_cache", Context.MODE_PRIVATE);
         Set<String> saved = prefs.getStringSet("scheduled_match_ids", Collections.emptySet());
+        Set<String> followed = prefs.getStringSet("followed_match_ids", Collections.emptySet());
         Set<String> ids = saved == null ? new HashSet<>() : new HashSet<>(saved);
+        if (followed != null) ids.addAll(followed);
         if (ids.isEmpty()) return;
         String raw = prefs.getString("scheduled_match_records", "{}");
         try {
