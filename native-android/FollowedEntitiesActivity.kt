@@ -4,6 +4,10 @@ import android.app.Activity
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.graphics.BitmapFactory
+import android.widget.ImageView
+import java.net.HttpURLConnection
+import java.net.URL
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
@@ -207,8 +211,28 @@ class FollowedEntitiesActivity : Activity() {
                         startActivity(open)
                     }
                 }
-                card.addView(text(title, 13, Color.WHITE, true))
-                card.addView(text(first(match, "league", "competitionName").ifBlank { status }, 10, muted, false).apply { setPadding(0, dp(5), 0, 0) })
+                val matchup = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
+                matchup.addView(entityBadge(home, title.substringBefore(" vs ")), LinearLayout.LayoutParams(dp(38), dp(38)))
+                val names = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_VERTICAL }
+                names.addView(text(title, 13, Color.WHITE, true))
+                names.addView(text(first(match, "league", "competitionName").ifBlank { status }, 10, muted, false).apply { setPadding(0, dp(4), 0, 0) })
+                matchup.addView(names, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(10); rightMargin = dp(8) })
+                matchup.addView(entityBadge(away, title.substringAfter(" vs ")), LinearLayout.LayoutParams(dp(38), dp(38)))
+                card.addView(matchup)
+                if (activeTab == "live") {
+                    val watch = text("▶  Watch Live", 12, Color.WHITE, true).apply {
+                        gravity = Gravity.CENTER
+                        background = rounded(0xff292929, 11)
+                        setPadding(dp(14), dp(11), dp(14), dp(11))
+                        setOnClickListener {
+                            val open = android.content.Intent(this@FollowedEntitiesActivity, MainActivity::class.java)
+                            open.putExtra("matchId", match.optString("id", ""))
+                            open.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                            startActivity(open)
+                        }
+                    }
+                    card.addView(watch, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
+                }
                 listHost.addView(card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
             }
             return
@@ -258,12 +282,45 @@ class FollowedEntitiesActivity : Activity() {
                     startActivity(intent)
                 }
             }
-            card.addView(text(name, 15, Color.WHITE, true))
-            card.addView(text(country.ifBlank { first(entity, "sport").ifBlank { if (activeTab == "teams") "Sports team" else "Competition" } }, 11, muted, false).apply {
+            val identity = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
+            identity.addView(entityBadge(entity, name), LinearLayout.LayoutParams(dp(54), dp(54)))
+            val words = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+            words.addView(text(name, 15, Color.WHITE, true))
+            words.addView(text(country.ifBlank { first(entity, "sport").ifBlank { if (activeTab == "teams") "Sports team" else "Competition" } }, 11, muted, false).apply {
                 setPadding(0, dp(5), 0, 0)
             })
+            identity.addView(words, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(13) })
+            identity.addView(text("›", 26, muted, false))
+            card.addView(identity)
             listHost.addView(card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(9) })
         }
+    }
+
+    private fun entityBadge(entity: JSONObject?, label: String): ImageView {
+        val image = ImageView(this).apply {
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            setPadding(dp(5), dp(5), dp(5), dp(5))
+            background = rounded(Color.rgb(34, 34, 34), 50)
+            contentDescription = label + " badge"
+        }
+        val source = first(entity, "badge", "badgeUrl", "badge_url", "logo", "logoUrl", "logo_url", "image", "imageUrl", "image_url", "crest", "crestUrl", "crest_url")
+        if (source.startsWith("http")) {
+            Thread {
+                var connection: HttpURLConnection? = null
+                try {
+                    connection = URL(source).openConnection() as HttpURLConnection
+                    connection.connectTimeout = 5000
+                    connection.readTimeout = 7000
+                    connection.instanceFollowRedirects = true
+                    connection.inputStream.use { stream ->
+                        val bitmap = BitmapFactory.decodeStream(stream)
+                        if (bitmap != null) runOnUiThread { if (!isFinishing) image.setImageBitmap(bitmap) }
+                    }
+                } catch (_: Exception) {
+                } finally { connection?.disconnect() }
+            }.start()
+        }
+        return image
     }
 
     private fun first(obj: JSONObject?, vararg keys: String): String {
