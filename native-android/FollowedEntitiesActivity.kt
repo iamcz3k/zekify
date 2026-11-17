@@ -9,6 +9,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
+import android.widget.EditText
 import android.widget.ScrollView
 import android.widget.TextView
 import org.json.JSONArray
@@ -21,6 +22,7 @@ class FollowedEntitiesActivity : Activity() {
     private val panel = Color.rgb(20, 20, 20)
     private val muted = Color.rgb(155, 155, 155)
     private val orange = Color.WHITE
+    private var searchQuery = ""
     private lateinit var listHost: LinearLayout
     private var activeTab = "teams"
     private var matches = JSONArray()
@@ -105,6 +107,9 @@ class FollowedEntitiesActivity : Activity() {
         heading.addView(text("Teams & competitions", 19, Color.WHITE, true))
         header.addView(heading, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(12) })
         root.addView(header)
+
+        val search = EditText(this).apply { hint = "Search teams and leagues"; setHintTextColor(0xff777777.toInt()); setTextColor(Color.WHITE); textSize = 14f; singleLine = true; setPadding(dp(14), 0, dp(14), 0); background = rounded(Color.rgb(17,17,17), 13); addTextChangedListener(object : android.text.TextWatcher { override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {} ; override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { searchQuery = s?.toString().orEmpty(); refreshList() }; override fun afterTextChanged(s: android.text.Editable?) {} }) }
+        root.addView(search, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(14) })
 
         val tabs = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -206,7 +211,8 @@ class FollowedEntitiesActivity : Activity() {
             return
         }
         val items = if (activeTab == "teams") teams else competitions
-        if (items.isEmpty()) {
+        val filtered = items.filterValues { first(it, "name", "teamName", "team_name", "title").contains(searchQuery, true) }
+        if (filtered.isEmpty()) {
             val empty = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
@@ -231,7 +237,7 @@ class FollowedEntitiesActivity : Activity() {
         listHost.addView(text(if (activeTab == "teams") "YOUR TEAMS" else "YOUR COMPETITIONS", 10, orange, true).apply {
             setPadding(0, 0, 0, dp(10))
         })
-        for ((key, entity) in items) {
+        for ((key, entity) in filtered) {
             val name = first(entity, "name", "teamName", "team_name", "title").ifBlank { key }
             val country = first(entity, "country", "countryName", "country_name")
             val card = LinearLayout(this).apply {
