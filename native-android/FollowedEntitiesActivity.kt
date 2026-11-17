@@ -29,7 +29,18 @@ class FollowedEntitiesActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        matches = OfflineMatchStore.readMatches(this, "football") ?: JSONArray()
+        matches = JSONArray()
+        val cache = getSharedPreferences("zekify_cache", MODE_PRIVATE)
+        for ((key, value) in cache.all) {
+            if (!key.startsWith("matches_json_") || value !is String) continue
+            try {
+                val batch = JSONArray(value)
+                for (i in 0 until batch.length()) batch.optJSONObject(i)?.let { match ->
+                    match.put("_zekify_sport", key.removePrefix("matches_json_"))
+                    matches.put(match)
+                }
+            } catch (_: Exception) { }
+        }
         collectFollowedEntities()
         render()
     }
@@ -38,6 +49,12 @@ class FollowedEntitiesActivity : Activity() {
         val prefs = getSharedPreferences("zekify_favourites", MODE_PRIVATE)
         val teamKeys = prefs.getStringSet("teams", emptySet()) ?: emptySet()
         val competitionKeys = prefs.getStringSet("competitions", emptySet()) ?: emptySet()
+        for (key in teamKeys) {
+            try { teams[key] = JSONObject(prefs.getString("team_meta_$key", "{}") ?: "{}") } catch (_: Exception) { }
+        }
+        for (key in competitionKeys) {
+            try { competitions[key] = JSONObject(prefs.getString("competition_meta_$key", "{}") ?: "{}") } catch (_: Exception) { }
+        }
         for (index in 0 until matches.length()) {
             val match = matches.optJSONObject(index) ?: continue
             val matchTeams = match.optJSONObject("teams")
@@ -174,7 +191,7 @@ class FollowedEntitiesActivity : Activity() {
                 }
             }
             card.addView(text(name, 15, Color.WHITE, true))
-            card.addView(text(country.ifBlank { if (activeTab == "teams") "Football team" else "Football competition" }, 11, muted, false).apply {
+            card.addView(text(country.ifBlank { first(entity, "sport").ifBlank { if (activeTab == "teams") "Sports team" else "Competition" } }, 11, muted, false).apply {
                 setPadding(0, dp(5), 0, 0)
             })
             listHost.addView(card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(9) })
