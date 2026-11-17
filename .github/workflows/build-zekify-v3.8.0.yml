@@ -107,6 +107,13 @@ jobs:
           grep -q 'case "broadcast"' native-android/MainActivity.java
           grep -q 'configureTeamName(eventName)' native-android/MainActivity.java
           grep -q 'dp(32),dp(32)' native-android/MainActivity.java
+          grep -q 'Follows' native-android/MainActivity.java
+          grep -q 'showFollowPicker' native-android/MainActivity.java
+          grep -q 'heart-filled' native-android/MainActivity.java
+          grep -q 'followed_match_ids' native-android/MatchReminderReceiver.java
+          grep -q 'followed_match_ids' native-android/MatchReminderBootReceiver.java
+          grep -q 'HEAD-TO-HEAD' native-android/FootballEntityActivity.kt
+          grep -q 'RECENT FORM' native-android/FootballEntityActivity.kt
           python3 - <<'PY'
           import xml.etree.ElementTree as ET
           for path in [
@@ -142,9 +149,9 @@ jobs:
           PY
       - name: Set test package version
         run: |
-          sed -i 's/versionCode 1/versionCode 380/' android/app/build.gradle
+          sed -i 's/versionCode 1/versionCode 381/' android/app/build.gradle
           sed -i 's/versionName "1.0"/versionName "3.8.0"/' android/app/build.gradle
-          grep -q 'versionCode 380' android/app/build.gradle
+          grep -q 'versionCode 381' android/app/build.gradle
           grep -q 'versionName "3.8.0"' android/app/build.gradle
       - name: Verify updater handoff, notifications, and build metadata
         run: |
