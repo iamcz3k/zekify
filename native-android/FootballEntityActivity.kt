@@ -32,7 +32,7 @@ class FootballEntityActivity : Activity() {
     private val backgroundColor = Color.rgb(7, 7, 7)
     private val surfaceColor = Color.rgb(20, 20, 20)
     private val mutedColor = Color.rgb(155, 155, 155)
-    private val accentColor = Color.rgb(255, 138, 61)
+    private val accentColor = Color.WHITE
     private val mainHandler = Handler(Looper.getMainLooper())
     private lateinit var entity: JSONObject
     private lateinit var entityName: String
