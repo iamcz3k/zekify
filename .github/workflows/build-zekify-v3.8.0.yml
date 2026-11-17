@@ -212,7 +212,7 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.8.0-updater-test.apk | tee signing-certificate.txt
           CERT="$(awk '/Signer #1 certificate SHA-256 digest:/ {print $NF; exit}' signing-certificate.txt)"
           test "$CERT" = "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119"
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Zekify-v3.8.0-updater-test.apk | grep "package: name='com.v3x.zekify' versionCode='380' versionName='3.8.0'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Zekify-v3.8.0-updater-test.apk | grep "versionCode='381' versionName='3.8.0'"
       - name: Publish verified v3.8.0 release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -222,7 +222,7 @@ jobs:
           cp Zekify-v3.8.0-updater-test.apk Zekify-v3.8.0.apk
           sha256sum Zekify-v3.8.0.apk > Zekify-v3.8.0.apk.sha256
           cat > release-notes-v3.8.0.md <<'NOTES'
-          Build code: 380
+          Build code: 381
 
           - Bundled 5,083 team badges and 216 competition badges from a global collection spanning 235 country/region pages, national teams and tournaments.
           - Optimized the 128px transparent WebP badge library for local/offline use, with stable-ID and country-aware name matching plus common aliases.
