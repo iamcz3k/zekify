@@ -355,6 +355,7 @@ public class MainActivity extends Activity {
   wrap.addView(profileAction("Update Logs","Browse every published Zekify version","activity",()->startActivity(new Intent(this,UpdateHistoryActivity.class))));
   wrap.addView(profileAction("Check for updates","Check for the latest Zekify version","refresh",()->checkForUpdates(true)));
   TextView connect=txt("CONNECT",10,Color.WHITE,true);LinearLayout.LayoutParams connectP=new LinearLayout.LayoutParams(-1,-2);connectP.topMargin=dp(22);connectP.bottomMargin=dp(8);wrap.addView(connect,connectP);
+  wrap.addView(profileAction("Website","Visit zekify.cc.cd","globe",()->openExternal("https://zekify.cc.cd")));
   wrap.addView(profileAction("X / Twitter","@iam_czek","x",()->openExternal("https://x.com/iam_czek")));
   wrap.addView(profileAction("Instagram","@iamczek","instagram",()->openExternal("https://www.instagram.com/iamczek")));
   wrap.addView(profileAction("TikTok","@iamczek","tiktok",()->openExternal("https://www.tiktok.com/@iamczek")));
@@ -1019,13 +1020,22 @@ public class MainActivity extends Activity {
   private void requestNotificationPermission(){if(Build.VERSION.SDK_INT>=33&&!hasNotificationPermission())requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS},4102);}
   private void requestUpdateNotificationPermission(){if(Build.VERSION.SDK_INT>=33&&!hasNotificationPermission()&&!appPrefs.getBoolean("update_notification_permission_asked",false)){appPrefs.edit().putBoolean("update_notification_permission_asked",true).apply();requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS},4103);}}
   @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){super.onRequestPermissionsResult(requestCode,permissions,grantResults);if(requestCode==4102){if(grantResults.length>0&&grantResults[0]==android.content.pm.PackageManager.PERMISSION_GRANTED)Toast.makeText(this,"Notifications enabled. Tap the match bell again to schedule it.",Toast.LENGTH_LONG).show();else Toast.makeText(this,"Notifications are blocked. Enable them in Android app settings to receive match alerts.",Toast.LENGTH_LONG).show();}if(requestCode==4103){if(grantResults.length>0&&grantResults[0]==android.content.pm.PackageManager.PERMISSION_GRANTED)checkForUpdates(true);else Toast.makeText(this,"Allow notifications to receive Zekify update alerts.",Toast.LENGTH_LONG).show();}}
+ private void showWebsiteUpdateDialog(){
+  if(isFinishing()||isDestroyed())return;Dialog dialog=new Dialog(this);LinearLayout panel=col();panel.setBackground(shape(0xff11151d,25));pad(panel,22,22,22,18);
+  LinearLayout logo=new LinearLayout(this);logo.setGravity(Gravity.CENTER);logo.setBackground(shape(Color.BLACK,20));logo.addView(new Ball(this),new LinearLayout.LayoutParams(dp(54),dp(54)));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(70),dp(70));lp.gravity=Gravity.CENTER;lp.bottomMargin=dp(15);panel.addView(logo,lp);
+  TextView title=txt("You're up to date",19,Color.WHITE,true);title.setGravity(Gravity.CENTER);panel.addView(title);
+  TextView body=txt("Discover the latest from Zekify on our website.",12,MUTED,false);body.setGravity(Gravity.CENTER);LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(-1,-2);bp.topMargin=dp(7);panel.addView(body,bp);
+  TextView visit=txt("◎   Visit our website",14,Color.WHITE,true);visit.setGravity(Gravity.CENTER);visit.setBackground(ripple(ORANGE,15));LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,dp(50));vp.topMargin=dp(20);panel.addView(visit,vp);visit.setOnClickListener(v->{dialog.dismiss();openExternal("https://zekify.cc.cd");});
+  TextView close=txt("Close",12,MUTED,true);close.setGravity(Gravity.CENTER);panel.addView(close,new LinearLayout.LayoutParams(-1,dp(42)));close.setOnClickListener(v->dialog.dismiss());
+  dialog.setContentView(panel);dialog.show();Window w=dialog.getWindow();if(w!=null){w.setBackgroundDrawableResource(android.R.color.transparent);w.setLayout(Math.min(getResources().getDisplayMetrics().widthPixels-dp(48),dp(380)),-2);}
+ }
  private void checkForUpdates(boolean showUpToDate){
   if(isFinishing()||isDestroyed())return;
   ZekifyUpdateManager.check(this,(update,error)->{
    if(isFinishing()||isDestroyed())return;
    if(error!=null&&!error.trim().isEmpty()){if(showUpToDate)Toast.makeText(this,"Update check failed: "+error,Toast.LENGTH_LONG).show();return;}
    if(update!=null){requestUpdateNotificationPermission();ZekifyUpdateManager.showRequiredUpdate(this,update);return;}
-   if(showUpToDate)Toast.makeText(this,"You're using the latest Zekify version.",Toast.LENGTH_SHORT).show();
+   if(showUpToDate)showWebsiteUpdateDialog();
   });
  }
  private void checkForUpdatesAutomatically(){
