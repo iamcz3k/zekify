@@ -914,7 +914,7 @@ public class PlayerActivity extends Activity {
                             if (steps != 0) {
                                 int target = Math.max(0, Math.min(max, current + steps));
                                 audio.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, target, 0);
-                                if (target > 0 && muted) {
+                                if (target > 0 && muted && steps > 0) {
                                     muted = false;
                                     if (player != null) player.setVolume(1f);
                                     applyMuteToWebView();
