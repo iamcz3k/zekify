@@ -121,7 +121,12 @@ jobs:
           grep -q 'sourceChoicePending' native-android/MainActivity.java
           grep -q 'sourceChoicePending=false;dialog.dismiss();render();startInlineSource(ix)' native-android/MainActivity.java
           grep -q 'updateMeterHaptics' native-android/PlayerActivity.java
-          grep -q '"-20", "-40", "-60", "-80", "-100"' native-android/PlayerActivity.java
+          grep -q 'performMeterHaptic' native-android/PlayerActivity.java
+          grep -q 'setting_haptics' native-android/PlayerActivity.java
+          grep -q 'VibrationEffect.createOneShot' native-android/PlayerActivity.java
+          grep -q 'android.permission.VIBRATE' scripts/patch-native-android.mjs
+          ! grep -q '"-20"' native-android/PlayerActivity.java
+          ! grep -q '"-100"' native-android/PlayerActivity.java
           ! grep -q 'Brightness  ' native-android/PlayerActivity.java
           ! grep -q '☀  Brightness' native-android/PlayerActivity.java
           ! grep -q '♪  Volume' native-android/PlayerActivity.java

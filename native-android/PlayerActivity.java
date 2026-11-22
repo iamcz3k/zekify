@@ -13,6 +13,8 @@ import android.net.ConnectivityManager;
 import android.net.Network;
 import android.os.Bundle;
 import android.os.Build;
+import android.os.Vibrator;
+import android.os.VibrationEffect;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.*;
@@ -89,6 +91,7 @@ public class PlayerActivity extends Activity {
     private View gestureIndicator;
     private SeekBar gestureProgress;
     private int lastMeterTick = -1;
+    private Vibrator meterVibrator;
     private final Handler gestureHandler = new Handler(Looper.getMainLooper());
     private final Runnable hideGestureIndicator = () -> { if (gestureIndicator != null) gestureIndicator.setVisibility(View.GONE); };
     private JSONArray sources;
@@ -110,6 +113,7 @@ public class PlayerActivity extends Activity {
     public void onCreate(Bundle state) {
         super.onCreate(state);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        meterVibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
         if (android.os.Build.VERSION.SDK_INT >= 30) getWindow().setDecorFitsSystemWindows(false);
         if (android.os.Build.VERSION.SDK_INT >= 28) {
             WindowManager.LayoutParams windowParams = getWindow().getAttributes();
@@ -803,7 +807,7 @@ public class PlayerActivity extends Activity {
 
     private void buildGestureIndicator() {
         LinearLayout panel = new LinearLayout(this);
-        panel.setOrientation(LinearLayout.HORIZONTAL);
+        panel.setOrientation(LinearLayout.VERTICAL);
         panel.setGravity(Gravity.CENTER);
         panel.setPadding(dp(9), dp(10), dp(9), dp(10));
         panel.setBackground(panel(0xe6111111, 22));
@@ -811,7 +815,7 @@ public class PlayerActivity extends Activity {
 
         FrameLayout track = new FrameLayout(this);
         LinearLayout.LayoutParams trackParams = new LinearLayout.LayoutParams(dp(28), dp(120));
-        trackParams.rightMargin = dp(7);
+        trackParams.gravity = Gravity.CENTER;
         panel.addView(track, trackParams);
         gestureProgress = new SeekBar(this);
         gestureProgress.setMax(100);
@@ -822,21 +826,8 @@ public class PlayerActivity extends Activity {
         gestureProgress.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(0xff444444));
         gestureProgress.setThumbTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
         gestureProgress.setSplitTrack(false);
+        gestureProgress.setHapticFeedbackEnabled(true);
         track.addView(gestureProgress, new FrameLayout.LayoutParams(dp(116), dp(28), Gravity.CENTER));
-
-        LinearLayout scale = new LinearLayout(this);
-        scale.setOrientation(LinearLayout.VERTICAL);
-        scale.setGravity(Gravity.CENTER);
-        panel.addView(scale, new LinearLayout.LayoutParams(dp(30), dp(120)));
-        String[] marks = {"-20", "-40", "-60", "-80", "-100"};
-        for (String mark : marks) {
-            TextView tick = new TextView(this);
-            tick.setText(mark);
-            tick.setTextColor(0xffc8c8c8);
-            tick.setTextSize(9);
-            tick.setGravity(Gravity.CENTER_VERTICAL | Gravity.RIGHT);
-            scale.addView(tick, new LinearLayout.LayoutParams(-1, 0, 1f));
-        }
 
         gestureProgress.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
@@ -872,9 +863,22 @@ public class PlayerActivity extends Activity {
             return;
         }
         if (mark != lastMeterTick) {
-            if (gestureProgress != null) gestureProgress.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK);
+            performMeterHaptic();
             lastMeterTick = mark;
         }
+    }
+
+    private void performMeterHaptic() {
+        boolean enabled = getSharedPreferences("zekify_cache", MODE_PRIVATE)
+            .getBoolean("setting_haptics", true);
+        if (!enabled || meterVibrator == null || !meterVibrator.hasVibrator()) return;
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                meterVibrator.vibrate(VibrationEffect.createOneShot(14L, 110));
+            } else {
+                meterVibrator.vibrate(14L);
+            }
+        } catch (RuntimeException ignored) { }
     }
 
     private void showGestureLevel(boolean brightness, int percent) {
