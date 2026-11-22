@@ -367,7 +367,6 @@ class FollowedEntitiesActivity : Activity() {
                 } catch (_: Exception) {
                 } finally { connection?.disconnect() }
             }.start()
-        }
         } else if (bundled.startsWith("asset://")) {
             try {
                 assets.open(bundled.removePrefix("asset://")).use { stream ->
