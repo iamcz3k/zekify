@@ -352,7 +352,7 @@ class FollowedEntitiesActivity : Activity() {
         }
         val source = first(entity, "badge", "badgeUrl", "badge_url", "logo", "logoUrl", "logo_url", "image", "imageUrl", "image_url", "crest", "crestUrl", "crest_url")
         val bundled = TeamBadgeCatalog.resolveBundledTeamBadge(this, entity).ifBlank { TeamBadgeCatalog.resolveBundledCompetitionBadge(this, entity) }
-        if (source.startsWith("http")) {
+        if (source.startsWith("http") && !bundled.startsWith("asset://")) {
             Thread {
                 var connection: HttpURLConnection? = null
                 try {
