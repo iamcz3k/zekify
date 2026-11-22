@@ -115,6 +115,16 @@ jobs:
               ET.parse(path)
               print("Valid vector drawable:", path)
           PY
+      - name: Verify requested source selection, Followed, and website features
+        run: |
+          grep -q 'showMatchSourcePicker' native-android/MainActivity.java
+          grep -q 'preferred_source_' native-android/MainActivity.java
+          grep -q 'Multiple links available' native-android/MainActivity.java
+          grep -q 'https://zekify.cc.cd' native-android/MainActivity.java
+          grep -q 'https://zekify.cc.cd' native-android/ZekifyUpdateManager.java
+          grep -q 'Visit our website' native-android/MainActivity.java
+          grep -q 'resolveBundledTeamBadge' native-android/FollowedEntitiesActivity.kt
+          grep -q 'Search matches, teams and leagues' native-android/FollowedEntitiesActivity.kt
       - name: Strip unused website bundle from native APK
         run: |
           rm -rf android/app/src/main/assets/public
@@ -141,9 +151,9 @@ jobs:
           PY
       - name: Set test package version
         run: |
-          sed -i 's/versionCode 1/versionCode 381/' android/app/build.gradle
+          sed -i 's/versionCode 1/versionCode 382/' android/app/build.gradle
           sed -i 's/versionName "1.0"/versionName "3.8.0"/' android/app/build.gradle
-          grep -q 'versionCode 381' android/app/build.gradle
+          grep -q 'versionCode 382' android/app/build.gradle
           grep -q 'versionName "3.8.0"' android/app/build.gradle
       - name: Verify updater handoff, notifications, and build metadata
         run: |
@@ -204,7 +214,7 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs Zekify-v3.8.0-updater-test.apk | tee signing-certificate.txt
           CERT="$(awk '/Signer #1 certificate SHA-256 digest:/ {print $NF; exit}' signing-certificate.txt)"
           test "$CERT" = "f8f7f6f4ee9dabfb6004af5862edffbe78fd48622d90a8ac6eb79128a63f7119"
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Zekify-v3.8.0-updater-test.apk | grep "versionCode='381' versionName='3.8.0'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging Zekify-v3.8.0-updater-test.apk | grep "versionCode='382' versionName='3.8.0'"
       - name: Publish verified v3.8.0 release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -214,7 +224,7 @@ jobs:
           cp Zekify-v3.8.0-updater-test.apk Zekify-v3.8.0.apk
           sha256sum Zekify-v3.8.0.apk > Zekify-v3.8.0.apk.sha256
           cat > release-notes-v3.8.0.md <<'NOTES'
-          Build code: 381
+          Build code: 382
 
           - Bundled 5,083 team badges and 216 competition badges from a global collection spanning 235 country/region pages, national teams and tournaments.
           - Optimized the 128px transparent WebP badge library for local/offline use, with stable-ID and country-aware name matching plus common aliases.
