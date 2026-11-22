@@ -36,7 +36,9 @@ class FollowedEntitiesActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.statusBarColor = Color.rgb(7, 7, 7)
-        window.navigationBarColor = Color.BLACK
+        window.navigationBarColor = bg
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(bg))
+        window.decorView.setBackgroundColor(bg)
         window.decorView.systemUiVisibility = 0
         matches = JSONArray()
         val cache = getSharedPreferences("zekify_cache", MODE_PRIVATE)
@@ -115,7 +117,7 @@ class FollowedEntitiesActivity : Activity() {
         header.addView(heading, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(12) })
         root.addView(header)
 
-        val search = EditText(this).apply { hint = "Search teams and leagues"; setHintTextColor(0xff777777.toInt()); setTextColor(Color.WHITE); textSize = 14f; isSingleLine = true; setPadding(dp(14), 0, dp(14), 0); background = rounded(Color.rgb(17,17,17), 13); addTextChangedListener(object : android.text.TextWatcher { override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {} ; override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { searchQuery = s?.toString().orEmpty(); refreshList() }; override fun afterTextChanged(s: android.text.Editable?) {} }) }
+        val search = EditText(this).apply { hint = "Search matches, teams and leagues"; setHintTextColor(0xff777777.toInt()); setTextColor(Color.WHITE); textSize = 14f; isSingleLine = true; setPadding(dp(14), 0, dp(14), 0); background = rounded(Color.rgb(17,17,17), 13); addTextChangedListener(object : android.text.TextWatcher { override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {} ; override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { searchQuery = s?.toString().orEmpty(); refreshList() }; override fun afterTextChanged(s: android.text.Editable?) {} }) }
         root.addView(search, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(14) })
 
         val tabs = LinearLayout(this).apply {
@@ -142,9 +144,8 @@ class FollowedEntitiesActivity : Activity() {
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         setContentView(root)
         refreshList()
-        root.alpha = 0f
-        root.translationY = dp(8).toFloat()
-        root.animate().alpha(1f).translationY(0f).setDuration(220L).start()
+        root.alpha = 1f
+        root.translationY = 0f
     }
 
     private fun tab(title: String, key: String): TextView = text(title, 13, Color.WHITE, true).apply {
@@ -184,7 +185,12 @@ class FollowedEntitiesActivity : Activity() {
                 val compId = first(competition, "id", "competitionId", "competition_id", "leagueId", "league_id", "providerId", "provider_id")
                 val compName = first(competition, "name", "title", "displayName", "league").ifBlank { first(match, "league", "competitionName", "competition_name") }
                 if (leagueKeys.contains(compId.ifBlank { normalize(compName) })) followed = true
-                if (followed) selected.add(match)
+                if (followed) {
+                    val homeName = first(matchTeams?.optJSONObject("home") ?: match.optJSONObject("home"), "name", "teamName", "team_name")
+                    val awayName = first(matchTeams?.optJSONObject("away") ?: match.optJSONObject("away"), "name", "teamName", "team_name")
+                    val searchable = (homeName + " " + awayName + " " + compName + " " + first(match, "league", "competitionName", "competition_name")).lowercase(Locale.ROOT)
+                    if (searchQuery.isBlank() || searchable.contains(searchQuery.lowercase(Locale.ROOT))) selected.add(match)
+                }
             }
             if (selected.isEmpty()) {
                 listHost.addView(text(if (activeTab == "live") "No followed teams are live right now" else "No upcoming followed fixtures", 14, Color.WHITE, true).apply {
@@ -345,6 +351,7 @@ class FollowedEntitiesActivity : Activity() {
             contentDescription = label + " badge"
         }
         val source = first(entity, "badge", "badgeUrl", "badge_url", "logo", "logoUrl", "logo_url", "image", "imageUrl", "image_url", "crest", "crestUrl", "crest_url")
+        val bundled = TeamBadgeCatalog.resolveBundledTeamBadge(this, entity).ifBlank { TeamBadgeCatalog.resolveBundledCompetitionBadge(this, entity) }
         if (source.startsWith("http")) {
             Thread {
                 var connection: HttpURLConnection? = null
@@ -360,6 +367,14 @@ class FollowedEntitiesActivity : Activity() {
                 } catch (_: Exception) {
                 } finally { connection?.disconnect() }
             }.start()
+        }
+        } else if (bundled.startsWith("asset://")) {
+            try {
+                assets.open(bundled.removePrefix("asset://")).use { stream ->
+                    val bitmap = BitmapFactory.decodeStream(stream)
+                    if (bitmap != null) image.setImageBitmap(bitmap)
+                }
+            } catch (_: Exception) { }
         }
         return image
     }
