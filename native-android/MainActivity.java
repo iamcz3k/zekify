@@ -789,19 +789,39 @@ public class MainActivity extends Activity {
   final String matchId=match.optString("id");apiIo.execute(()->{try{
    JSONObject p=request("/api/public/football-streams?mode=detail&sport="+URLEncoder.encode(sport,"UTF-8")+"&id="+URLEncoder.encode(matchId,"UTF-8"));
    JSONObject d=p.optJSONObject("data");JSONArray src=d==null?null:d.optJSONArray("sources");saveCachedMatchDetail(sport,matchId,d);
-   runOnUiThread(()->{if(selected==null||!selected.optString("id").equals(matchId)||!selectedSport.equals(sport))return;boolean hadSources=selectedSources!=null&&selectedSources.length()>0;detail=d;if(src!=null&&src.length()>0){selectedSources=src;inlineLoading=false;renderMiniSources();if(startIfNeeded&&!hadSources&&inlinePlayer==null&&inlineWebView==null)startInlineSource(0);}else if(!hadSources){selectedSources=src;inlineLoading=false;renderMiniSources();}});
+   runOnUiThread(()->{if(selected==null||!selected.optString("id").equals(matchId)||!selectedSport.equals(sport))return;boolean hadSources=selectedSources!=null&&selectedSources.length()>0;detail=d;if(src!=null&&src.length()>0){selectedSources=src;inlineLoading=false;renderMiniSources();if(startIfNeeded&&!hadSources&&inlinePlayer==null&&inlineWebView==null)openSelectedMatchSources();}else if(!hadSources){selectedSources=src;inlineLoading=false;renderMiniSources();}});
   }catch(Exception e){runOnUiThread(()->{if(selected!=null&&selected.optString("id").equals(matchId)&&selectedSport.equals(sport)){inlineLoading=false;renderMiniSources();}});}});
  }
+ private String sourcePreferenceKey(JSONObject match){return "preferred_source_"+selectedSport+"_"+match.optString("id","");}
+ private int preferredSourceIndex(JSONArray list,JSONObject match){if(list==null||match==null)return 0;String saved=appPrefs.getString(sourcePreferenceKey(match),"");for(int i=0;i<list.length();i++){JSONObject s=list.optJSONObject(i);if(s!=null&&!saved.isEmpty()&&saved.equals(s.optString("source","")))return i;}return 0;}
+ private void rememberSelectedSource(int index){if(selected==null||selectedSources==null||index<0||index>=selectedSources.length())return;JSONObject s=selectedSources.optJSONObject(index);if(s!=null)appPrefs.edit().putString(sourcePreferenceKey(selected),s.optString("source","")).apply();}
+ private void showMatchSourcePicker(){
+  if(selectedSources==null||selectedSources.length()<=1){startInlineSource(0);return;}
+  Dialog dialog=new Dialog(this);LinearLayout shell=col();shell.setBackground(shape(0xff11151d,26));pad(shell,18,18,18,16);
+  LinearLayout logo=new LinearLayout(this);logo.setGravity(Gravity.CENTER);logo.setBackground(shape(Color.BLACK,18));logo.addView(new Ball(this),new LinearLayout.LayoutParams(dp(46),dp(46)));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(60),dp(60));lp.gravity=Gravity.CENTER;lp.bottomMargin=dp(12);shell.addView(logo,lp);
+  TextView title=txt("Multiple links available",19,Color.WHITE,true);title.setGravity(Gravity.CENTER);shell.addView(title);
+  TextView subtitle=txt("Choose your preferred stream",13,0xffaeb7c5,false);subtitle.setGravity(Gravity.CENTER);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,-2);sp.topMargin=dp(5);shell.addView(subtitle,sp);
+  View accent=new View(this);accent.setBackground(shape(ORANGE,4));LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(dp(92),dp(4));ap.gravity=Gravity.CENTER;ap.topMargin=dp(13);ap.bottomMargin=dp(14);shell.addView(accent,ap);
+  ScrollView scroll=new ScrollView(this);scroll.setVerticalScrollBarEnabled(false);LinearLayout list=col();scroll.addView(list);shell.addView(scroll,new LinearLayout.LayoutParams(-1,dp(Math.min(420,Math.max(120,selectedSources.length()*66)))));
+  for(int i=0;i<selectedSources.length();i++){JSONObject s=selectedSources.optJSONObject(i);if(s==null)continue;final int ix=i;LinearLayout item=row();item.setGravity(Gravity.CENTER_VERTICAL);item.setBackground(ripple(0xff1d2634,18));pad(item,12,10,12,10);LinearLayout.LayoutParams ip=new LinearLayout.LayoutParams(-1,dp(58));ip.bottomMargin=dp(7);list.addView(item,ip);
+   FrameLayout icon=new FrameLayout(this);icon.setBackground(shape(Color.BLACK,50));icon.addView(new Ball(this),new FrameLayout.LayoutParams(dp(34),dp(34),Gravity.CENTER));item.addView(icon,new LinearLayout.LayoutParams(dp(38),dp(38)));
+   LinearLayout words=col();LinearLayout.LayoutParams wp=new LinearLayout.LayoutParams(0,-2,1);wp.leftMargin=dp(12);item.addView(words,wp);words.addView(txt(s.optString("source","Source "+(i+1)),14,Color.WHITE,true));
+   String meta=s.optString("language","");if(s.optBoolean("hd"))meta+=(meta.isEmpty()?"":" · ")+"HD";if(!meta.isEmpty())words.addView(txt(meta,10,0xffaeb7c5,false));
+   if(s.optBoolean("hd")){TextView hd=txt("HD",10,0xffffc24b,true);hd.setGravity(Gravity.CENTER);hd.setBackground(shape(0xff302a1b,20));pad(hd,9,5,9,5);item.addView(hd);}
+   NativeIcon next=new NativeIcon(this,"next",0xffaeb7c5);next.setClickable(false);item.addView(next,new LinearLayout.LayoutParams(dp(22),dp(22)));
+   item.setOnClickListener(v->{selectedSourceIndex=ix;rememberSelectedSource(ix);dialog.dismiss();startInlineSource(ix);});
+  }
+  TextView cancel=txt("×   Cancel",14,Color.WHITE,true);cancel.setGravity(Gravity.CENTER);cancel.setBackground(ripple(0xff1d2634,18));LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,dp(54));cp.topMargin=dp(10);shell.addView(cancel,cp);cancel.setOnClickListener(v->{dialog.dismiss();selected=null;detail=null;selectedSources=null;stopInlinePlayback();render();});
+  dialog.setContentView(shell);dialog.setOnCancelListener(d->{selected=null;detail=null;selectedSources=null;stopInlinePlayback();render();});dialog.show();Window w=dialog.getWindow();if(w!=null){w.setBackgroundDrawableResource(android.R.color.transparent);w.setLayout(Math.min(getResources().getDisplayMetrics().widthPixels-dp(36),dp(520)),-2);}
+ }
+ private void openSelectedMatchSources(){if(selectedSources==null||selectedSources.length()==0)return;selectedSourceIndex=preferredSourceIndex(selectedSources,selected);if(selectedSources.length()>1)showMatchSourcePicker();else{rememberSelectedSource(0);startInlineSource(0);}}
  private void selectMatch(JSONObject m){
-  if(m==null)return;
-  if(selected!=null&&selected.optString("id").equals(m.optString("id")))return;
-  if(selected==null)matchReturnDestination=destination;
-  if(pendingMotionOrigin==null)pendingMotionKind="shared-x";
+  if(m==null)return;if(selected!=null&&selected.optString("id").equals(m.optString("id")))return;
+  if(selected==null)matchReturnDestination=destination;if(pendingMotionOrigin==null)pendingMotionKind="shared-x";
   stopInlinePlayback();selected=m;detail=null;selectedSources=null;selectedSourceIndex=0;detailTab="overview";
   JSONObject cached=readCachedMatchDetail(selectedSport,m.optString("id"));JSONArray cachedSources=cached==null?null:cached.optJSONArray("sources");
   boolean hasCached=cachedSources!=null&&cachedSources.length()>0;detail=cached;selectedSources=cachedSources;inlineLoading=!hasCached;render();
-  if(hasCached)startInlineSource(0);
-  refreshMatchSourcesQuietly(m,selectedSport,!hasCached);
+  if(hasCached)openSelectedMatchSources();refreshMatchSourcesQuietly(m,selectedSport,!hasCached);
  }
  private void retrySelectedMatch(){JSONObject current=selected;if(current==null){load();return;}selected=null;selectMatch(current);}
  private View buildInlinePlayer(){
@@ -922,7 +942,7 @@ public class MainActivity extends Activity {
  private boolean isFctvHlsRelay(String url){try{Uri uri=Uri.parse(url);String path=uri.getPath();return path!=null&&path.equals("/api/public/fctv-hls")&&!uri.getQueryParameter("slot").isEmpty();}catch(Exception ignored){return false;}}
  private boolean directInline(JSONObject s,String url){String type=firstNonEmpty(s,"type","format","mimeType").toLowerCase(Locale.ROOT);String u=url.toLowerCase(Locale.ROOT);return isFctvHlsRelay(url)||type.contains("hls")||type.contains("mpegurl")||type.contains("mp4")||u.matches("(?s).*\\.(m3u8|mp4|m4v|webm)(?:[?#].*)?$");}
  private void startInlineSource(int index){
-  if(selectedSources==null||index<0||index>=selectedSources.length())return;selectedSourceIndex=index;final int generation=++inlineLoadGeneration;JSONObject s=selectedSources.optJSONObject(index);if(s==null)return;
+  if(selectedSources==null||index<0||index>=selectedSources.length())return;selectedSourceIndex=index;rememberSelectedSource(index);final int generation=++inlineLoadGeneration;JSONObject s=selectedSources.optJSONObject(index);if(s==null)return;
   String url=firstNonEmpty(s,"streamUrl","mediaUrl","url","embedUrl");if(url.startsWith("/"))url=API+url;if(url.isEmpty()){if(inlineStatus!=null){inlineStatus.setText("This source has no playback URL.");inlineStatus.setVisibility(View.VISIBLE);}if(miniLoadingSpinner!=null)miniLoadingSpinner.setVisibility(View.GONE);return;}
   boolean directSource=directInline(s,url);if(inlineWebTimeout!=null)inlineNetworkHandler.removeCallbacks(inlineWebTimeout);if(inlinePlayer!=null){try{inlinePlayer.stop();inlinePlayer.clearMediaItems();inlinePlayer.release();}catch(RuntimeException ignored){}inlinePlayer=null;}if(inlinePlayerView!=null){inlinePlayerView.setPlayer(null);inlinePlayerView.setVisibility(View.GONE);}ensureInlineWebView();if(inlineWebView!=null){inlineWebView.stopLoading();inlineWebView.setVisibility(View.GONE);}
   if(inlineFrame==null||inlineSurface==null)return;
