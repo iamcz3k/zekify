@@ -161,7 +161,7 @@ if (mainActivityTag) {
  manifest = manifest.replace(mainActivityTag[0], tag);
 }
 if(!manifest.includes('android:enableOnBackInvokedCallback="true"'))manifest=manifest.replace("<application","<application android:enableOnBackInvokedCallback=\"true\"");
-if(!manifest.includes("android.permission.VIBRATE")) manifest=manifest.replace("<application",'<uses-permission android:name="android.permission.VIBRATE" />\\n    <application');
+if(!manifest.includes("android.permission.VIBRATE")) manifest=manifest.replace("<application",'<uses-permission android:name="android.permission.VIBRATE" />\n    <application');
 if(!manifest.includes("android.permission.INTERNET")) manifest=manifest.replace("<application",'<uses-permission android:name="android.permission.INTERNET" />\n    <application');
 if(!manifest.includes("android.permission.ACCESS_NETWORK_STATE")) manifest=manifest.replace("<application",'<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />\n    <application');
 if(!manifest.includes("android.permission.POST_NOTIFICATIONS")) manifest=manifest.replace("<application",'<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <application');
