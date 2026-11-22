@@ -264,7 +264,7 @@ public final class ZekifyUpdateManager {
         websiteParams.topMargin = dp(activity, 16);
         page.addView(websiteLink, websiteParams);
         websiteLink.setOnClickListener(v -> {
-            try { activity.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://laczek.dpdns.org/zekify"))); }
+            try { activity.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://zekify.cc.cd"))); }
             catch (Exception ignored) { android.widget.Toast.makeText(activity, "Could not open the website.", android.widget.Toast.LENGTH_SHORT).show(); }
         });
         TextView foot = new TextView(activity);
@@ -372,7 +372,7 @@ public final class ZekifyUpdateManager {
         websiteParams.topMargin = dp(activity, 16);
         layout.addView(websiteLink, websiteParams);
         websiteLink.setOnClickListener(v -> {
-            try { activity.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://laczek.dpdns.org/zekify"))); }
+            try { activity.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://zekify.cc.cd"))); }
             catch (Exception ignored) { android.widget.Toast.makeText(activity, "Could not open the website.", android.widget.Toast.LENGTH_SHORT).show(); }
         });
         page.setContentView(layout);
