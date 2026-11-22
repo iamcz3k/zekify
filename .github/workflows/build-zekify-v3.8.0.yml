@@ -118,6 +118,13 @@ jobs:
       - name: Verify requested source selection, Followed, and website features
         run: |
           grep -q 'showMatchSourcePicker' native-android/MainActivity.java
+          grep -q 'sourceChoicePending' native-android/MainActivity.java
+          grep -q 'sourceChoicePending=false;dialog.dismiss();render();startInlineSource(ix)' native-android/MainActivity.java
+          grep -q 'updateMeterHaptics' native-android/PlayerActivity.java
+          grep -q '"-20", "-40", "-60", "-80", "-100"' native-android/PlayerActivity.java
+          ! grep -q 'Brightness  ' native-android/PlayerActivity.java
+          ! grep -q '☀  Brightness' native-android/PlayerActivity.java
+          ! grep -q '♪  Volume' native-android/PlayerActivity.java
           grep -q 'preferred_source_' native-android/MainActivity.java
           grep -q 'Multiple links available' native-android/MainActivity.java
           grep -q 'https://zekify.cc.cd' native-android/MainActivity.java

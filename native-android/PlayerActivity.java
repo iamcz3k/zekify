@@ -87,8 +87,8 @@ public class PlayerActivity extends Activity {
     private View stretchButton;
     private boolean stretchEnabled = true;
     private View gestureIndicator;
-    private TextView gestureLabel;
     private SeekBar gestureProgress;
+    private int lastMeterTick = -1;
     private final Handler gestureHandler = new Handler(Looper.getMainLooper());
     private final Runnable hideGestureIndicator = () -> { if (gestureIndicator != null) gestureIndicator.setVisibility(View.GONE); };
     private JSONArray sources;
@@ -803,20 +803,15 @@ public class PlayerActivity extends Activity {
 
     private void buildGestureIndicator() {
         LinearLayout panel = new LinearLayout(this);
-        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setOrientation(LinearLayout.HORIZONTAL);
         panel.setGravity(Gravity.CENTER);
-        panel.setPadding(dp(8), dp(10), dp(8), dp(10));
+        panel.setPadding(dp(9), dp(10), dp(9), dp(10));
         panel.setBackground(panel(0xe6111111, 22));
         panel.setElevation(dp(8));
-        gestureLabel = new TextView(this);
-        gestureLabel.setTextColor(Color.WHITE);
-        gestureLabel.setTextSize(12);
-        gestureLabel.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        gestureLabel.setGravity(Gravity.CENTER);
-        panel.addView(gestureLabel, new LinearLayout.LayoutParams(-1, dp(24)));
+
         FrameLayout track = new FrameLayout(this);
-        LinearLayout.LayoutParams trackParams = new LinearLayout.LayoutParams(dp(28), dp(94));
-        trackParams.topMargin = dp(5);
+        LinearLayout.LayoutParams trackParams = new LinearLayout.LayoutParams(dp(28), dp(120));
+        trackParams.rightMargin = dp(7);
         panel.addView(track, trackParams);
         gestureProgress = new SeekBar(this);
         gestureProgress.setMax(100);
@@ -827,19 +822,35 @@ public class PlayerActivity extends Activity {
         gestureProgress.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(0xff444444));
         gestureProgress.setThumbTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
         gestureProgress.setSplitTrack(false);
-        track.addView(gestureProgress, new FrameLayout.LayoutParams(dp(86), dp(28), Gravity.CENTER));
+        track.addView(gestureProgress, new FrameLayout.LayoutParams(dp(116), dp(28), Gravity.CENTER));
+
+        LinearLayout scale = new LinearLayout(this);
+        scale.setOrientation(LinearLayout.VERTICAL);
+        scale.setGravity(Gravity.CENTER);
+        panel.addView(scale, new LinearLayout.LayoutParams(dp(30), dp(120)));
+        String[] marks = {"-20", "-40", "-60", "-80", "-100"};
+        for (String mark : marks) {
+            TextView tick = new TextView(this);
+            tick.setText(mark);
+            tick.setTextColor(0xffc8c8c8);
+            tick.setTextSize(9);
+            tick.setGravity(Gravity.CENTER_VERTICAL | Gravity.RIGHT);
+            scale.addView(tick, new LinearLayout.LayoutParams(-1, 0, 1f));
+        }
+
         gestureProgress.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 if (!fromUser) return;
                 if (gestureIndicator == null || gestureIndicator.getVisibility() != View.VISIBLE) return;
-                boolean brightness = gestureIndicator.getTag() == null || Boolean.TRUE.equals(gestureIndicator.getTag());
+                boolean brightness = Boolean.TRUE.equals(gestureIndicator.getTag());
                 if (brightness) setFullscreenBrightness(progress);
                 else setFullscreenVolume(progress);
-                gestureLabel.setText((brightness ? "Brightness  " : "Volume  ") + progress + "%");
+                updateMeterHaptics(progress);
                 gestureHandler.removeCallbacks(hideGestureIndicator);
                 gestureHandler.postDelayed(hideGestureIndicator, 1200L);
             }
             @Override public void onStartTrackingTouch(SeekBar seekBar) {
+                lastMeterTick = Math.round(seekBar.getProgress() / 20f);
                 gestureHandler.removeCallbacks(hideGestureIndicator);
             }
             @Override public void onStopTrackingTouch(SeekBar seekBar) {
@@ -849,17 +860,29 @@ public class PlayerActivity extends Activity {
         });
         gestureIndicator = panel;
         gestureIndicator.setVisibility(View.GONE);
-        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(dp(64), dp(150), Gravity.CENTER_VERTICAL | Gravity.LEFT);
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(dp(74), dp(148), Gravity.CENTER_VERTICAL | Gravity.LEFT);
         params.leftMargin = dp(24);
         root.addView(gestureIndicator, params);
     }
 
+    private void updateMeterHaptics(int percent) {
+        int mark = Math.max(0, Math.min(5, Math.round(Math.max(0, Math.min(100, percent)) / 20f)));
+        if (lastMeterTick < 0) {
+            lastMeterTick = mark;
+            return;
+        }
+        if (mark != lastMeterTick) {
+            if (gestureProgress != null) gestureProgress.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK);
+            lastMeterTick = mark;
+        }
+    }
+
     private void showGestureLevel(boolean brightness, int percent) {
-        if (gestureIndicator == null || gestureLabel == null || gestureProgress == null) return;
+        if (gestureIndicator == null || gestureProgress == null) return;
         int value = Math.max(0, Math.min(100, percent));
         gestureIndicator.setTag(brightness ? Boolean.TRUE : Boolean.FALSE);
-        gestureLabel.setText((brightness ? "☀  Brightness  " : "♪  Volume  ") + value + "%");
         gestureProgress.setProgress(value);
+        updateMeterHaptics(value);
         FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) gestureIndicator.getLayoutParams();
         params.gravity = Gravity.CENTER_VERTICAL | (brightness ? Gravity.LEFT : Gravity.RIGHT);
         params.leftMargin = brightness ? dp(24) : 0;
@@ -889,6 +912,7 @@ public class PlayerActivity extends Activity {
                 downX = x; downY = y; lastX = x; lastY = y;
                 startPosition = player == null ? 0 : player.getCurrentPosition();
                 volumeAccumulator = 0f;
+                lastMeterTick = -1;
                 moved = false;
                 return direct;
             }
