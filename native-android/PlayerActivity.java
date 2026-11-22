@@ -88,7 +88,7 @@ public class PlayerActivity extends Activity {
     private boolean stretchEnabled = true;
     private View gestureIndicator;
     private TextView gestureLabel;
-    private ProgressBar gestureProgress;
+    private SeekBar gestureProgress;
     private final Handler gestureHandler = new Handler(Looper.getMainLooper());
     private final Runnable hideGestureIndicator = () -> { if (gestureIndicator != null) gestureIndicator.setVisibility(View.GONE); };
     private JSONArray sources;
@@ -775,6 +775,32 @@ public class PlayerActivity extends Activity {
             Math.max(0, Math.min(max, current + direction)), 0);
     }
 
+    private void setFullscreenBrightness(int percent) {
+        int value = Math.max(2, Math.min(100, percent));
+        WindowManager.LayoutParams lp = getWindow().getAttributes();
+        lp.screenBrightness = value / 100f;
+        getWindow().setAttributes(lp);
+    }
+
+    private void setFullscreenVolume(int percent) {
+        android.media.AudioManager audio = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
+        if (audio == null) return;
+        int max = audio.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC);
+        int target = Math.max(0, Math.min(max, Math.round(max * Math.max(0, Math.min(100, percent)) / 100f)));
+        audio.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, target, 0);
+        if (target > 0 && muted) {
+            muted = false;
+            if (player != null) player.setVolume(1f);
+            applyMuteToWebView();
+            updateMuteIcon();
+        } else if (target == 0 && !muted) {
+            muted = true;
+            if (player != null) player.setVolume(0f);
+            applyMuteToWebView();
+            updateMuteIcon();
+        }
+    }
+
     private void buildGestureIndicator() {
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
@@ -792,12 +818,35 @@ public class PlayerActivity extends Activity {
         LinearLayout.LayoutParams trackParams = new LinearLayout.LayoutParams(dp(28), dp(94));
         trackParams.topMargin = dp(5);
         panel.addView(track, trackParams);
-        gestureProgress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        gestureProgress = new SeekBar(this);
         gestureProgress.setMax(100);
+        gestureProgress.setProgress(50);
         gestureProgress.setRotation(-90f);
+        gestureProgress.setPadding(0, 0, 0, 0);
         gestureProgress.setProgressTintList(android.content.res.ColorStateList.valueOf(0xffff8a3d));
         gestureProgress.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(0xff444444));
-        track.addView(gestureProgress, new FrameLayout.LayoutParams(dp(86), dp(5), Gravity.CENTER));
+        gestureProgress.setThumbTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
+        gestureProgress.setSplitTrack(false);
+        track.addView(gestureProgress, new FrameLayout.LayoutParams(dp(86), dp(28), Gravity.CENTER));
+        gestureProgress.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (!fromUser) return;
+                if (gestureIndicator == null || gestureIndicator.getVisibility() != View.VISIBLE) return;
+                boolean brightness = gestureIndicator.getTag() == null || Boolean.TRUE.equals(gestureIndicator.getTag());
+                if (brightness) setFullscreenBrightness(progress);
+                else setFullscreenVolume(progress);
+                gestureLabel.setText((brightness ? "Brightness  " : "Volume  ") + progress + "%");
+                gestureHandler.removeCallbacks(hideGestureIndicator);
+                gestureHandler.postDelayed(hideGestureIndicator, 1200L);
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {
+                gestureHandler.removeCallbacks(hideGestureIndicator);
+            }
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {
+                gestureHandler.removeCallbacks(hideGestureIndicator);
+                gestureHandler.postDelayed(hideGestureIndicator, 900L);
+            }
+        });
         gestureIndicator = panel;
         gestureIndicator.setVisibility(View.GONE);
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(dp(64), dp(150), Gravity.CENTER_VERTICAL | Gravity.LEFT);
@@ -808,7 +857,8 @@ public class PlayerActivity extends Activity {
     private void showGestureLevel(boolean brightness, int percent) {
         if (gestureIndicator == null || gestureLabel == null || gestureProgress == null) return;
         int value = Math.max(0, Math.min(100, percent));
-        gestureLabel.setText((brightness ? "☀  " : "♪  ") + value + "%");
+        gestureIndicator.setTag(brightness ? Boolean.TRUE : Boolean.FALSE);
+        gestureLabel.setText((brightness ? "☀  Brightness  " : "♪  Volume  ") + value + "%");
         gestureProgress.setProgress(value);
         FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) gestureIndicator.getLayoutParams();
         params.gravity = Gravity.CENTER_VERTICAL | (brightness ? Gravity.LEFT : Gravity.RIGHT);
@@ -862,8 +912,19 @@ public class PlayerActivity extends Activity {
                             volumeAccumulator += delta * Math.max(1, max);
                             int steps = Math.round(volumeAccumulator);
                             if (steps != 0) {
-                                audio.setStreamVolume(android.media.AudioManager.STREAM_MUSIC,
-                                    Math.max(0, Math.min(max, current + steps)), 0);
+                                int target = Math.max(0, Math.min(max, current + steps));
+                                audio.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, target, 0);
+                                if (target > 0 && muted) {
+                                    muted = false;
+                                    if (player != null) player.setVolume(1f);
+                                    applyMuteToWebView();
+                                    updateMuteIcon();
+                                } else if (target == 0 && !muted) {
+                                    muted = true;
+                                    if (player != null) player.setVolume(0f);
+                                    applyMuteToWebView();
+                                    updateMuteIcon();
+                                }
                                 volumeAccumulator -= steps;
                             }
                             int actual = audio.getStreamVolume(android.media.AudioManager.STREAM_MUSIC);
