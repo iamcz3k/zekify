@@ -866,7 +866,7 @@ public class PlayerActivity extends Activity {
     }
 
     private void updateMeterHaptics(int percent) {
-        int mark = Math.max(0, Math.min(5, Math.round(Math.max(0, Math.min(100, percent)) / 20f)));
+        int mark = Math.max(0, Math.min(5, Math.max(0, Math.min(100, percent)) / 20));
         if (lastMeterTick < 0) {
             lastMeterTick = mark;
             return;
